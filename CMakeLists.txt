@@ -48,7 +48,44 @@ else()
 
 endif()
 
+# NoesisGUI ships as a prebuilt SDK with no vcpkg port, so it has no manifest feature.
+option(WITH_NOESIS "Compile with NoesisGUI support" OFF)
+
 project(carbon-trinity VERSION 1.0.0)
+
+if(WITH_NOESIS)
+    set(NOESIS_GUI_SDK_PATH "$ENV{NOESIS_GUI_SDK_PATH}" CACHE PATH "Path to the NoesisGUI SDK")
+
+    if(NOT BUILD_DX12)
+        message(FATAL_ERROR "WITH_NOESIS currently requires BUILD_DX12")
+    endif()
+
+    if(NOT NOESIS_GUI_SDK_PATH)
+        message(FATAL_ERROR
+            "WITH_NOESIS: NOESIS_GUI_SDK_PATH is empty. Set the NOESIS_GUI_SDK_PATH environment "
+            "variable or pass -DNOESIS_GUI_SDK_PATH=<path to the NoesisGUI SDK>")
+    endif()
+
+    set(NOESIS_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/windows_x86_64/Noesis.lib")
+    set(NOESIS_DLL "${NOESIS_GUI_SDK_PATH}/Bin/windows_x86_64/Noesis.dll")
+
+    foreach(_noesis_artefact "${NOESIS_IMPLIB}" "${NOESIS_DLL}" "${NOESIS_GUI_SDK_PATH}/Include")
+        if(NOT EXISTS "${_noesis_artefact}")
+            message(FATAL_ERROR
+                "WITH_NOESIS: '${_noesis_artefact}' not found under "
+                "NOESIS_GUI_SDK_PATH='${NOESIS_GUI_SDK_PATH}'")
+        endif()
+    endforeach()
+
+    message(STATUS "Compiling with NoesisGUI from ${NOESIS_GUI_SDK_PATH}")
+
+    add_library(Noesis::Noesis SHARED IMPORTED GLOBAL)
+    set_target_properties(Noesis::Noesis PROPERTIES
+        IMPORTED_IMPLIB "${NOESIS_IMPLIB}"
+        IMPORTED_LOCATION "${NOESIS_DLL}"
+        INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
+    )
+endif()
 
 if (BUILD_FOR_PYTHON_2)
     if(NOT DEFINED ENV{CCP_EVE_PERFORCE_BRANCH_PATH})

@@ -1836,6 +1836,163 @@ if(WITH_GRANNY)
     list(APPEND _SOURCES ${GRANNY_RELATED_SOURCES})
 endif()
 
+set(NOESIS_RELATED_SOURCES
+    Noesis/Tr2NoesisShaders.cpp
+    Noesis/Tr2NoesisShaders.h
+)
+
+if(WITH_NOESIS)
+    list(APPEND _SOURCES ${NOESIS_RELATED_SOURCES})
+
+    if(BUILD_FOR_PYTHON_2)
+        find_package(fxc CONFIG REQUIRED)
+    else()
+        find_program(FXC_TOOL fxc REQUIRED)
+    endif()
+
+    set(NOESIS_SHADER_SOURCE_DIR "${NOESIS_GUI_SDK_PATH}/Src/Packages/Render/D3D12RenderDevice/Src")
+    set(NOESIS_GENERATED_SOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/GeneratedSources")
+    set(NOESIS_GENERATED_SHADER_DIR "${NOESIS_GENERATED_SOURCES_DIR}/NoesisShaders")
+
+    #[[
+        Noesis's HLSL declares COVERAGE, RECT, TILE and IMAGE_POSITION as semantic names, and a D3D12
+        input layout must match the compiled signature exactly. Tr2VertexDefinition::UsageCode is a
+        closed set of eight usages with no room for them. Those semantic names are plain
+        macro-expandable tokens in the HLSL, so renaming them here leaves the vendor source
+        byte-for-byte pristine and keeps the change out of TrinityAL.
+    ]]
+    set(NOESIS_SEMANTIC_RENAMES
+        /DCOVERAGE=TEXCOORD2
+        /DRECT=TEXCOORD3
+        /DTILE=TEXCOORD4
+        /DIMAGE_POSITION=TEXCOORD5
+    )
+
+    #[[
+        Transcribed from the SDK's own build_shaders.bat, dropping three groups:
+          - the _Stereo_ pass, since we have no VR
+          - the _SRGB variants, since we report linearRendering = false
+          - the SDF_LCD_ pixel shaders, since we report subpixelRendering = false
+        That takes 56 vertex and 52 pixel permutations down to 21 and 43. The first token of each
+        entry is the permutation name, the rest are its preprocessor defines. Tr2NoesisShaders.cpp
+        consumes these in this order.
+    ]]
+    set(NOESIS_VERTEX_SHADERS
+        "Pos"
+        "PosColor HAS_COLOR"
+        "PosTex0 HAS_UV0"
+        "PosTex0Rect HAS_UV0 HAS_RECT"
+        "PosTex0RectTile HAS_UV0 HAS_RECT HAS_TILE"
+        "PosColorCoverage HAS_COLOR HAS_COVERAGE"
+        "PosTex0Coverage HAS_UV0 HAS_COVERAGE"
+        "PosTex0CoverageRect HAS_UV0 HAS_COVERAGE HAS_RECT"
+        "PosTex0CoverageRectTile HAS_UV0 HAS_COVERAGE HAS_RECT HAS_TILE"
+        "PosColorTex1_SDF HAS_COLOR HAS_UV1 SDF"
+        "PosTex0Tex1_SDF HAS_UV0 HAS_UV1 SDF"
+        "PosTex0Tex1Rect_SDF HAS_UV0 HAS_UV1 HAS_RECT SDF"
+        "PosTex0Tex1RectTile_SDF HAS_UV0 HAS_UV1 HAS_RECT HAS_TILE SDF"
+        "PosColorTex1 HAS_COLOR HAS_UV1"
+        "PosTex0Tex1 HAS_UV0 HAS_UV1"
+        "PosTex0Tex1Rect HAS_UV0 HAS_UV1 HAS_RECT"
+        "PosTex0Tex1RectTile HAS_UV0 HAS_UV1 HAS_RECT HAS_TILE"
+        "PosColorTex0Tex1 HAS_COLOR HAS_UV0 HAS_UV1"
+        "PosTex0Tex1_Downsample HAS_UV0 HAS_UV1 DOWNSAMPLE"
+        "PosColorTex1Rect HAS_COLOR HAS_UV1 HAS_RECT"
+        "PosColorTex0RectImagePos HAS_COLOR HAS_UV0 HAS_RECT HAS_IMAGE_POSITION"
+    )
+
+    set(NOESIS_PIXEL_SHADERS
+        "RGBA EFFECT_RGBA"
+        "Mask EFFECT_MASK"
+        "Clear EFFECT_CLEAR"
+        "Path_Solid EFFECT_PATH PAINT_SOLID"
+        "Path_Linear EFFECT_PATH PAINT_LINEAR"
+        "Path_Radial EFFECT_PATH PAINT_RADIAL"
+        "Path_Pattern EFFECT_PATH PAINT_PATTERN"
+        "Path_Pattern_Clamp EFFECT_PATH PAINT_PATTERN CLAMP_PATTERN"
+        "Path_Pattern_Repeat EFFECT_PATH PAINT_PATTERN REPEAT_PATTERN"
+        "Path_Pattern_MirrorU EFFECT_PATH PAINT_PATTERN MIRRORU_PATTERN"
+        "Path_Pattern_MirrorV EFFECT_PATH PAINT_PATTERN MIRRORV_PATTERN"
+        "Path_Pattern_Mirror EFFECT_PATH PAINT_PATTERN MIRROR_PATTERN"
+        "Path_AA_Solid EFFECT_PATH_AA PAINT_SOLID"
+        "Path_AA_Linear EFFECT_PATH_AA PAINT_LINEAR"
+        "Path_AA_Radial EFFECT_PATH_AA PAINT_RADIAL"
+        "Path_AA_Pattern EFFECT_PATH_AA PAINT_PATTERN"
+        "Path_AA_Pattern_Clamp EFFECT_PATH_AA PAINT_PATTERN CLAMP_PATTERN"
+        "Path_AA_Pattern_Repeat EFFECT_PATH_AA PAINT_PATTERN REPEAT_PATTERN"
+        "Path_AA_Pattern_MirrorU EFFECT_PATH_AA PAINT_PATTERN MIRRORU_PATTERN"
+        "Path_AA_Pattern_MirrorV EFFECT_PATH_AA PAINT_PATTERN MIRRORV_PATTERN"
+        "Path_AA_Pattern_Mirror EFFECT_PATH_AA PAINT_PATTERN MIRROR_PATTERN"
+        "SDF_Solid EFFECT_SDF PAINT_SOLID"
+        "SDF_Linear EFFECT_SDF PAINT_LINEAR"
+        "SDF_Radial EFFECT_SDF PAINT_RADIAL"
+        "SDF_Pattern EFFECT_SDF PAINT_PATTERN"
+        "SDF_Pattern_Clamp EFFECT_SDF PAINT_PATTERN CLAMP_PATTERN"
+        "SDF_Pattern_Repeat EFFECT_SDF PAINT_PATTERN REPEAT_PATTERN"
+        "SDF_Pattern_MirrorU EFFECT_SDF PAINT_PATTERN MIRRORU_PATTERN"
+        "SDF_Pattern_MirrorV EFFECT_SDF PAINT_PATTERN MIRRORV_PATTERN"
+        "SDF_Pattern_Mirror EFFECT_SDF PAINT_PATTERN MIRROR_PATTERN"
+        "Opacity_Solid EFFECT_OPACITY PAINT_SOLID"
+        "Opacity_Linear EFFECT_OPACITY PAINT_LINEAR"
+        "Opacity_Radial EFFECT_OPACITY PAINT_RADIAL"
+        "Opacity_Pattern EFFECT_OPACITY PAINT_PATTERN"
+        "Opacity_Pattern_Clamp EFFECT_OPACITY PAINT_PATTERN CLAMP_PATTERN"
+        "Opacity_Pattern_Repeat EFFECT_OPACITY PAINT_PATTERN REPEAT_PATTERN"
+        "Opacity_Pattern_MirrorU EFFECT_OPACITY PAINT_PATTERN MIRRORU_PATTERN"
+        "Opacity_Pattern_MirrorV EFFECT_OPACITY PAINT_PATTERN MIRRORV_PATTERN"
+        "Opacity_Pattern_Mirror EFFECT_OPACITY PAINT_PATTERN MIRROR_PATTERN"
+        "Upsample EFFECT_UPSAMPLE"
+        "Downsample EFFECT_DOWNSAMPLE"
+        "Shadow EFFECT_SHADOW PAINT_SOLID"
+        "Blur EFFECT_BLUR PAINT_SOLID"
+    )
+
+    set(NOESIS_GENERATED_SHADER_HEADERS)
+
+    # stage is "VS" or "PS", profile the matching fxc /T argument, hlsl the SDK source file.
+    function(noesis_add_shader_permutations stage profile hlsl)
+        set(headers)
+        foreach(permutation IN LISTS ARGN)
+            separate_arguments(tokens UNIX_COMMAND "${permutation}")
+            list(POP_FRONT tokens name)
+
+            set(defines)
+            foreach(define IN LISTS tokens)
+                list(APPEND defines "/D${define}")
+            endforeach()
+
+            set(bytecode "${NOESIS_GENERATED_SHADER_DIR}/${name}_${stage}.bin")
+            set(header "${NOESIS_GENERATED_SHADER_DIR}/${name}_${stage}.h")
+
+            add_custom_command(
+                OUTPUT "${header}"
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
+                COMMAND ${FXC_TOOL} /nologo /T${profile} /O3 /Qstrip_reflect
+                        ${NOESIS_SEMANTIC_RENAMES} ${defines}
+                        /Fo "${bytecode}" "${NOESIS_SHADER_SOURCE_DIR}/${hlsl}"
+                COMMAND python "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd" "${bytecode}" "${header}"
+                DEPENDS "${NOESIS_SHADER_SOURCE_DIR}/${hlsl}" "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd"
+                COMMENT "Compiling Noesis shader ${name}_${stage}"
+                VERBATIM
+            )
+
+            list(APPEND headers "${header}")
+        endforeach()
+        set(NOESIS_GENERATED_SHADER_HEADERS ${NOESIS_GENERATED_SHADER_HEADERS} ${headers} PARENT_SCOPE)
+    endfunction()
+
+    noesis_add_shader_permutations(VS vs_5_0 ShaderVS.hlsl ${NOESIS_VERTEX_SHADERS})
+    noesis_add_shader_permutations(PS ps_5_0 ShaderPS.hlsl ${NOESIS_PIXEL_SHADERS})
+
+    #[[
+        All four trinity targets share one source list, so the compilation itself hangs off a single
+        custom target that each of them depends on. That keeps fxc from being invoked once per
+        backend for identical output.
+    ]]
+    add_custom_target(trinity_noesis_shaders DEPENDS ${NOESIS_GENERATED_SHADER_HEADERS})
+    set_target_properties(trinity_noesis_shaders PROPERTIES FOLDER Trinity)
+endif()
+
 
 # Ensure that we have a sane file grouping for XCode and VS project files
 if(CMAKE_GENERATOR STREQUAL "Xcode" OR CMAKE_GENERATOR MATCHES "Visual Studio.*")
@@ -1898,6 +2055,23 @@ function(set_shared_trinity_properties target)
     if(WITH_GRANNY)
         target_link_libraries(${target} PRIVATE RadGameTools::Granny)
         target_compile_definitions(${target} PRIVATE WITH_GRANNY)
+    endif()
+
+    if(WITH_NOESIS)
+        target_link_libraries(${target} PRIVATE Noesis::Noesis)
+        target_compile_definitions(${target} PRIVATE WITH_NOESIS)
+        target_include_directories(${target} PRIVATE ${NOESIS_GENERATED_SOURCES_DIR})
+        add_dependencies(${target} trinity_noesis_shaders)
+
+        #[[
+            The .pyd cannot load without Noesis.dll, so keep it next to the freshly built module.
+            This is for the build tree only; deployment goes through the branch's vendor/noesis
+            drop and updateBinaries.py, the same route as libxess.dll and tbb12.dll.
+        ]]
+        add_custom_command(
+            TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_DLL}" "$<TARGET_FILE_DIR:${target}>"
+        )
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)
