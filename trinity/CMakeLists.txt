@@ -1837,8 +1837,12 @@ if(WITH_GRANNY)
 endif()
 
 set(NOESIS_RELATED_SOURCES
+    Noesis/Tr2NoesisLog.h
     Noesis/Tr2NoesisShaders.cpp
     Noesis/Tr2NoesisShaders.h
+    Noesis/Tr2NoesisSystem.cpp
+    Noesis/Tr2NoesisSystem.h
+    Noesis/Tr2NoesisSystem_Blue.cpp
 )
 
 if(WITH_NOESIS)
@@ -2062,6 +2066,13 @@ function(set_shared_trinity_properties target)
         target_compile_definitions(${target} PRIVATE WITH_NOESIS)
         target_include_directories(${target} PRIVATE ${NOESIS_GENERATED_SOURCES_DIR})
         add_dependencies(${target} trinity_noesis_shaders)
+
+        # Overriding the empty defaults in the SDK's NoesisLicense.h; see the root CMakeLists.
+        if(NOESIS_LICENSE_NAME AND NOESIS_LICENSE_KEY)
+            target_compile_definitions(${target} PRIVATE
+                NS_LICENSE_NAME="${NOESIS_LICENSE_NAME}"
+                NS_LICENSE_KEY="${NOESIS_LICENSE_KEY}")
+        endif()
 
         #[[
             The .pyd cannot load without Noesis.dll, so keep it next to the freshly built module.

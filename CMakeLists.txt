@@ -85,6 +85,16 @@ if(WITH_NOESIS)
         IMPORTED_LOCATION "${NOESIS_DLL}"
         INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
     )
+
+    #[[
+        NoesisLicense.h defaults both of these to the empty string and tells you not to edit it,
+        since an SDK upgrade overwrites the file. Setting them here makes acquiring a licence a
+        build configuration change rather than a code change, and keeps the key out of the tree.
+        Leaving them empty is supported: Noesis runs in evaluation mode, which stops working ten
+        minutes in, and Tr2Noesis::EnsureInitialized warns loudly about it.
+    ]]
+    set(NOESIS_LICENSE_NAME "" CACHE STRING "NoesisGUI licence name")
+    set(NOESIS_LICENSE_KEY "" CACHE STRING "NoesisGUI licence key")
 endif()
 
 if (BUILD_FOR_PYTHON_2)
