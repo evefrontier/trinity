@@ -177,6 +177,11 @@ bool IsInitialized()
 	return s_initialized;
 }
 
+bool IsLogVerbose()
+{
+	return s_logVerbose;
+}
+
 const char* GetVersion()
 {
 	EnsureInitialized();

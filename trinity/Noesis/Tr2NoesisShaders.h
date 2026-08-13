@@ -24,10 +24,10 @@ struct ShaderBytecode
 };
 
 extern const ShaderBytecode VERTEX_SHADERS[];
-extern const size_t VERTEX_SHADER_COUNT;
+constexpr size_t VERTEX_SHADER_COUNT = 21;
 
 extern const ShaderBytecode PIXEL_SHADERS[];
-extern const size_t PIXEL_SHADER_COUNT;
+constexpr size_t PIXEL_SHADER_COUNT = 43;
 
 }
 

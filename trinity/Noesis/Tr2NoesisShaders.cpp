@@ -241,7 +241,8 @@ const ShaderBytecode VERTEX_SHADERS[] = {
 	NOESIS_SHADER_ENTRY( PosColorTex0RectImagePos_VS ),
 };
 
-const size_t VERTEX_SHADER_COUNT = sizeof( VERTEX_SHADERS ) / sizeof( VERTEX_SHADERS[ 0 ] );
+static_assert( sizeof( VERTEX_SHADERS ) / sizeof( VERTEX_SHADERS[ 0 ] ) == VERTEX_SHADER_COUNT,
+			   "VERTEX_SHADERS must stay in lockstep with VERTEX_SHADER_COUNT" );
 
 const ShaderBytecode PIXEL_SHADERS[] = {
 	NOESIS_SHADER_ENTRY( RGBA_PS ),
@@ -289,7 +290,8 @@ const ShaderBytecode PIXEL_SHADERS[] = {
 	NOESIS_SHADER_ENTRY( Blur_PS ),
 };
 
-const size_t PIXEL_SHADER_COUNT = sizeof( PIXEL_SHADERS ) / sizeof( PIXEL_SHADERS[ 0 ] );
+static_assert( sizeof( PIXEL_SHADERS ) / sizeof( PIXEL_SHADERS[ 0 ] ) == PIXEL_SHADER_COUNT,
+			   "PIXEL_SHADERS must stay in lockstep with PIXEL_SHADER_COUNT" );
 
 }
 

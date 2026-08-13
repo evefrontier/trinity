@@ -23,6 +23,10 @@ void EnsureInitialized();
 
 bool IsInitialized();
 
+// True when /noesisLogVerbose was set at startup. Gates named-channel traces from
+// the vendor and our own routine resource-creation logs.
+bool IsLogVerbose();
+
 // The version string reported from inside Noesis.dll. Initialises the library.
 const char* GetVersion();
 

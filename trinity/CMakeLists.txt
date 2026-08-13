@@ -1838,6 +1838,8 @@ endif()
 
 set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisLog.h
+    Noesis/Tr2NoesisRenderDevice.cpp
+    Noesis/Tr2NoesisRenderDevice.h
     Noesis/Tr2NoesisShaders.cpp
     Noesis/Tr2NoesisShaders.h
     Noesis/Tr2NoesisSystem.cpp
