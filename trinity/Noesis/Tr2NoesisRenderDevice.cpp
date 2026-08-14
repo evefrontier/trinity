@@ -8,6 +8,7 @@
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisShaders.h"
 #include "Noesis/Tr2NoesisSystem.h"
+#include "Tr2RenderContext.h"
 
 #include <NsCore/Ptr.h>
 
@@ -397,8 +398,10 @@ uint32_t Tr2NoesisRenderTarget::GetHeight() const
 // DynamicRing
 // --------------------------------------------------------------------------------------
 
-bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t size, Tr2GpuUsage::Type gpuUsage, const char* name, Tr2PrimaryRenderContextAL& primary )
+bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t stride, uint32_t size, Tr2GpuUsage::Type gpuUsage, const char* name, Tr2PrimaryRenderContextAL& primary )
 {
+	CCP_ASSERT_M( stride != 0 && ( size % stride ) == 0, "Noesis ring size must be a whole number of strides" );
+
 	pageSize = size;
 	pageIndex = 0;
 	pos = 0;
@@ -412,7 +415,7 @@ bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t size, Tr2GpuUsage::Typ
 	const Tr2CpuUsage::Type cpuUsage = Tr2CpuUsage::WRITE_OFTEN | Tr2CpuUsage::NON_SYNCRONIZED_WRITE;
 	for( uint32_t i = 0; i < PAGE_COUNT; ++i )
 	{
-		const ALResult result = pages[i].Create( 1, size, gpuUsage, cpuUsage, nullptr, primary );
+		const ALResult result = pages[i].Create( stride, size / stride, gpuUsage, cpuUsage, nullptr, primary );
 		if( FAILED( result ) )
 		{
 			CCP_NOESIS_LOGERR( "Failed to create Noesis dynamic buffer '%s' page %u", name, i );
@@ -489,6 +492,11 @@ void Tr2NoesisRenderDevice::DynamicRing::Unmap( Tr2RenderContextAL& context )
 	mapped = false;
 }
 
+Tr2BufferAL& Tr2NoesisRenderDevice::DynamicRing::CurrentPage()
+{
+	return pages[pageIndex];
+}
+
 // --------------------------------------------------------------------------------------
 // Tr2NoesisRenderDevice
 // --------------------------------------------------------------------------------------
@@ -496,7 +504,11 @@ void Tr2NoesisRenderDevice::DynamicRing::Unmap( Tr2RenderContextAL& context )
 Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primaryContext ) :
 	m_primary( &primaryContext ),
 	m_context( &primaryContext ),
-	m_valid( true )
+	m_valid( true ),
+	m_batchCounts{},
+	m_reportedCounts{},
+	m_unwiredReported( 0 ),
+	m_logBatchDetail( true )
 {
 	Tr2Noesis::EnsureInitialized();
 
@@ -581,12 +593,10 @@ Ptr<RenderTarget> Tr2NoesisRenderDevice::CreateRenderTarget( const char* label, 
 		{
 			CCP_NOESIS_LOGERR( "Failed to create Noesis stencil '%s'", SafeLabel( label, "" ) );
 			CCP_ASSERT_M( false, "Failed to create Noesis stencil" );
+			return nullptr;
 		}
-		else
-		{
-			char stencilName[128];
-			stencilAL.SetName( FormatDebugName( stencilName, label, "RT", "_Stencil" ) );
-		}
+		char stencilName[128];
+		stencilAL.SetName( FormatDebugName( stencilName, label, "RT", "_Stencil" ) );
 	}
 
 	Ptr<Tr2NoesisTexture> color = MakePtr<Tr2NoesisTexture>( colorAL, width, height, 1, true );
@@ -648,7 +658,11 @@ Ptr<Texture> Tr2NoesisRenderDevice::CreateTexture( const char* label, uint32_t w
 	}
 	else
 	{
-		result = textureAL.Create( desc, Tr2GpuUsage::SHADER_RESOURCE | Tr2GpuUsage::COPY_DESTINATION, *m_primary );
+		// data == nullptr means Noesis will call UpdateTexture. DX12 UpdateSubresource is
+		// implemented as MapForWriting, which requires Tr2CpuUsage::WRITE; COPY_DESTINATION
+		// alone is enough for the GPU-copy gate but not for the CPU upload path.
+		result = textureAL.Create( desc, Tr2GpuUsage::SHADER_RESOURCE | Tr2GpuUsage::COPY_DESTINATION,
+								   Tr2CpuUsage::WRITE, *m_primary );
 	}
 
 	if( FAILED( result ) )
@@ -685,7 +699,10 @@ void Tr2NoesisRenderDevice::UpdateTexture( Texture* texture_, uint32_t level, ui
 	const ALResult result = texture->GetAL().UpdateSubresource( region, data, pitch, pitch * height, *m_context );
 	if( FAILED( result ) )
 	{
+		CCP_NOESIS_LOGERR( "Failed to update Noesis texture %ux%u at (%u,%u) mip %u fmt %u: %08x",
+						   width, height, x, y, level, texture->GetAL().GetFormat(), result.GetResult() );
 		CCP_ASSERT_M( false, "Failed to update Noesis texture" );
+		return;
 	}
 
 	// UnmapForWriting (called by UpdateSubresource) transitions COPY_DEST back to
@@ -721,6 +738,9 @@ void Tr2NoesisRenderDevice::EndOnscreenRender()
 {
 	CCP_ASSERT_M( m_context != nullptr, "EndOnscreenRender without a render context" );
 	m_context->PopGpuMarker();
+
+	// Last Noesis call of the frame, so this is where a frame's worth of batches is complete.
+	ReportFrameBatches();
 }
 
 void Tr2NoesisRenderDevice::SetRenderTarget( RenderTarget* surface_ )
@@ -792,19 +812,266 @@ void Tr2NoesisRenderDevice::UnmapIndices()
 
 void Tr2NoesisRenderDevice::DrawBatch( const Batch& batch )
 {
-	static_assert( Shader::Count <= 64, "unwired-shader latch is a uint64_t bitset" );
+	CCP_ASSERT_M( m_context != nullptr, "DrawBatch without a render context" );
+	CCP_ASSERT_M( !batch.singlePassStereo, "Noesis sent a stereo batch; the stereo permutations are not compiled" );
 
-	// TODO M3: skip batches that fail RenderDevice::IsValidState / IsValidBlendMode /
-	// IsValidStencilMode. Combinations Noesis will never send.
-
-	static uint64_t s_reported = 0;
-	const uint64_t bit = 1ull << batch.shader.v;
-	if( ( s_reported & bit ) == 0 )
+	const uint8_t shader = batch.shader.v;
+	if( shader >= Shader::Count )
 	{
-		s_reported |= bit;
-		const char* name = batch.shader.v < Shader::Count ? SHADER_NAMES[batch.shader.v] : "?";
-		CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) is not wired yet", name, batch.shader.v );
-		CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation is not wired yet" );
+		CCP_ASSERT_M( false, "Noesis DrawBatch: shader index is out of range" );
+		return;
+	}
+
+	++m_batchCounts[shader];
+
+	const uint32_t flags = PROGRAM_FLAGS[shader];
+	if( flags == 0 || !m_programs[shader].IsValid() )
+	{
+		ReportUnwiredShader( shader );
+		return;
+	}
+
+	// Noesis filters the 256 render-state combinations itself, so a rejection here means our
+	// understanding of the batch is wrong rather than that the state needs skipping.
+	CCP_ASSERT_M( RenderDevice::IsValidState( batch.shader, batch.renderState ),
+				  "Noesis sent a render state that its own validator rejects" );
+
+	const uint8_t vertexShader = VertexForShader[shader];
+	const uint8_t format = FormatForVertex[vertexShader];
+
+	ApplyRenderState( batch );
+
+	m_context->SetShaderProgram( m_programs[shader] );
+	m_context->SetVertexLayout( m_vertexLayouts[format] );
+	m_context->SetTopology( TOP_TRIANGLES );
+
+	// vertexOffset is a byte offset from the current Map, matching the SDK's own D3D12 device.
+	// Indices are bound at the page base and addressed through startIndex instead.
+	m_context->SetStreamSource( 0, m_vertices.CurrentPage(), m_vertices.drawPos + batch.vertexOffset, SizeForFormat[format] );
+	m_context->SetIndices( m_indices.CurrentPage(), 2 );
+
+	BindUniforms( batch, flags );
+	BindResources( batch, flags );
+
+	CCP_ASSERT_M( ( batch.numIndices % 3 ) == 0, "Noesis batch index count is not a whole number of triangles" );
+
+	const uint32_t startIndex = m_indices.drawPos / 2 + batch.startIndex;
+	const ALResult result = m_context->DrawIndexedPrimitive( batch.numVertices, startIndex, batch.numIndices / 3, 0 );
+	if( FAILED( result ) )
+	{
+		CCP_NOESIS_LOGERR( "DrawIndexedPrimitive failed for shader '%s'", SHADER_NAMES[shader] );
+		CCP_ASSERT_M( false, "Noesis DrawIndexedPrimitive failed" );
+		return;
+	}
+
+	if( m_logBatchDetail && Tr2Noesis::IsLogVerbose() )
+	{
+		CCP_NOESIS_LOG( "Batch '%s' state=0x%02x stencilRef=%u vertices=%u indices=%u vertexOffset=%u startIndex=%u",
+						SHADER_NAMES[shader], batch.renderState.v, batch.stencilRef,
+						batch.numVertices, batch.numIndices, batch.vertexOffset, startIndex );
+	}
+}
+
+void Tr2NoesisRenderDevice::ReportUnwiredShader( uint8_t shader )
+{
+	static_assert( Shader::Count <= 64, "the unwired-shader latch is a uint64_t bitset" );
+
+	const uint64_t bit = 1ull << shader;
+	if( ( m_unwiredReported & bit ) != 0 )
+	{
+		return;
+	}
+	m_unwiredReported |= bit;
+
+	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
+	// that an unwired shader is still being asked for.
+	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) was never compiled. The nine SDF_LCD_* "
+					   "permutations are skipped because subpixelRendering is false, and "
+					   "Custom_Effect needs a shader supplied by the effect itself.",
+					   SHADER_NAMES[shader], shader );
+	CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation was never compiled" );
+}
+
+void Tr2NoesisRenderDevice::ReportFrameBatches()
+{
+	if( Tr2Noesis::IsLogVerbose() && memcmp( m_batchCounts, m_reportedCounts, sizeof( m_batchCounts ) ) != 0 )
+	{
+		uint32_t total = 0;
+		for( uint32_t shader = 0; shader < Shader::Count; ++shader )
+		{
+			total += m_batchCounts[shader];
+		}
+
+		// Counted separately above so that a truncated histogram still reports the real total.
+		char histogram[512] = {};
+		uint32_t offset = 0;
+		for( uint32_t shader = 0; shader < Shader::Count; ++shader )
+		{
+			if( m_batchCounts[shader] == 0 )
+			{
+				continue;
+			}
+			const int written = _snprintf_s( histogram + offset, sizeof( histogram ) - offset, _TRUNCATE,
+											 "%s%s=%u", offset == 0 ? "" : ", ", SHADER_NAMES[shader], m_batchCounts[shader] );
+			if( written < 0 )
+			{
+				break;
+			}
+			offset += static_cast<uint32_t>( written );
+		}
+
+		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, total == 0 ? "none" : histogram );
+		memcpy( m_reportedCounts, m_batchCounts, sizeof( m_reportedCounts ) );
+	}
+
+	memset( m_batchCounts, 0, sizeof( m_batchCounts ) );
+	m_logBatchDetail = false;
+}
+
+void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const UniformData& uniforms,
+										 Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name )
+{
+	if( uniforms.values == nullptr || uniforms.numDwords == 0 )
+	{
+		// PROGRAM_FLAGS says the shader declares this register, so an empty block means our
+		// transcription of the SDK's root-signature flags is wrong.
+		CCP_ASSERT_M( false, "Noesis batch omitted a constant buffer that its shader declares" );
+		return;
+	}
+
+	const uint32_t bytes = uniforms.numDwords * sizeof( uint32_t );
+	if( buffer.GetSize() < bytes )
+	{
+		// Sized from what Noesis actually sends rather than transcribed from the SDK's cbuffer
+		// layouts, so a layout change costs a reallocation instead of overrunning a buffer.
+		const uint32_t size = ( bytes + 255 ) & ~255u;
+		Tr2ConstantBufferAL grown;
+		if( FAILED( grown.Create( size, *m_primary ) ) )
+		{
+			CCP_NOESIS_LOGERR( "Failed to create Noesis constant buffer '%s' of %u bytes", name, size );
+			CCP_ASSERT_M( false, "Failed to create Noesis constant buffer" );
+			return;
+		}
+		grown.SetName( name );
+
+		// The AL uploads the whole buffer, not just the part we write, so clear the tail once.
+		void* zero = nullptr;
+		if( SUCCEEDED( grown.Lock( &zero, *m_context ) ) && zero != nullptr )
+		{
+			memset( zero, 0, size );
+			grown.Unlock( *m_context );
+		}
+
+		buffer = grown;
+	}
+
+	void* mapped = nullptr;
+	if( FAILED( buffer.Lock( &mapped, *m_context ) ) || mapped == nullptr )
+	{
+		CCP_ASSERT_M( false, "Failed to lock a Noesis constant buffer" );
+		return;
+	}
+	memcpy( mapped, uniforms.values, bytes );
+	buffer.Unlock( *m_context );
+
+	// Unlock invalidates the residency token, so this uploads into the frame's ring rather
+	// than reusing the address the previous batch was given.
+	const ALResult result = m_context->SetConstants( buffer, stage, registerIndex );
+	if( FAILED( result ) )
+	{
+		CCP_ASSERT_M( false, "Failed to bind a Noesis constant buffer" );
+	}
+}
+
+void Tr2NoesisRenderDevice::BindUniforms( const Batch& batch, uint32_t flags )
+{
+	if( flags & VS_CB0 )
+	{
+		BindUniform( m_vertexUniforms[0], batch.vertexUniforms[0], VERTEX_SHADER, 0, "Noesis_VertexUniforms0" );
+	}
+	if( flags & VS_CB1 )
+	{
+		BindUniform( m_vertexUniforms[1], batch.vertexUniforms[1], VERTEX_SHADER, 1, "Noesis_VertexUniforms1" );
+	}
+	if( flags & PS_CB0 )
+	{
+		BindUniform( m_pixelUniforms[0], batch.pixelUniforms[0], PIXEL_SHADER, 0, "Noesis_PixelUniforms0" );
+	}
+	if( flags & PS_CB1 )
+	{
+		BindUniform( m_pixelUniforms[1], batch.pixelUniforms[1], PIXEL_SHADER, 1, "Noesis_PixelUniforms1" );
+	}
+}
+
+void Tr2NoesisRenderDevice::BindResources( const Batch& batch, uint32_t flags )
+{
+	if( ( flags & ( PS_T0 | PS_T1 | PS_T2 | PS_T3 | PS_T4 ) ) == 0 )
+	{
+		// Solid fills bind nothing, so they never pay for a resource set.
+		return;
+	}
+
+	const uint8_t shader = batch.shader.v;
+	const struct
+	{
+		uint32_t flag;
+		uint32_t registerIndex;
+		Texture* texture;
+		SamplerState sampler;
+	} bindings[] = {
+		{ PS_T0, 0, batch.pattern, batch.patternSampler },
+		{ PS_T1, 1, batch.ramps, batch.rampsSampler },
+		{ PS_T2, 2, batch.image, batch.imageSampler },
+		{ PS_T3, 3, batch.glyphs, batch.glyphsSampler },
+		{ PS_T4, 4, batch.shadow, batch.shadowSampler },
+	};
+
+	Tr2ResourceSetDescriptionAL description( m_programs[shader] );
+	for( const auto& binding : bindings )
+	{
+		if( ( flags & binding.flag ) == 0 )
+		{
+			continue;
+		}
+		if( binding.texture == nullptr )
+		{
+			CCP_ASSERT_M( false, "Noesis batch omitted a texture that its shader declares" );
+			continue;
+		}
+
+		Tr2NoesisTexture* texture = static_cast<Tr2NoesisTexture*>( binding.texture );
+		// linearRendering is false, so textures are sampled raw rather than sRGB-converted.
+		// A rejection means the register is absent from the program's map, which would mean
+		// PROGRAM_FLAGS and the signature we built from it disagree.
+		const bool srvSet = description.SetSrv( PIXEL_SHADER, binding.registerIndex, texture->GetAL() );
+		CCP_ASSERT_M( srvSet, "Noesis shader program has no SRV at the register PROGRAM_FLAGS claims" );
+
+		CCP_ASSERT_M( binding.sampler.v < std::size( m_samplers ), "Noesis sampler index out of range" );
+		const bool samplerSet = description.SetSampler( PIXEL_SHADER, binding.registerIndex, m_samplers[binding.sampler.v] );
+		CCP_ASSERT_M( samplerSet, "Noesis shader program has no sampler at the register PROGRAM_FLAGS claims" );
+	}
+
+	const uint64_t key = ( static_cast<uint64_t>( shader ) << 32 ) | description.ComputeHash();
+	ResourceSetEntry& entry = m_resourceSets[key];
+	if( !entry.set.IsValid() || !( entry.description == description ) )
+	{
+		Tr2ResourceSetAL set;
+		const ALResult result = set.Create( description, m_programs[shader], *m_primary );
+		if( FAILED( result ) )
+		{
+			CCP_NOESIS_LOGERR( "Failed to create a Noesis resource set for shader '%s'", SHADER_NAMES[shader] );
+			CCP_ASSERT_M( false, "Failed to create a Noesis resource set" );
+			return;
+		}
+		set.SetName( SHADER_NAMES[shader] );
+		entry.description = description;
+		entry.set = set;
+	}
+
+	const ALResult result = m_context->SetResourceSet( entry.set );
+	if( FAILED( result ) )
+	{
+		CCP_ASSERT_M( false, "Failed to bind a Noesis resource set" );
 	}
 }
 
@@ -982,11 +1249,12 @@ void Tr2NoesisRenderDevice::CreateSamplers()
 
 void Tr2NoesisRenderDevice::CreateRings()
 {
-	if( !m_vertices.Create( DYNAMIC_VB_SIZE, Tr2GpuUsage::VERTEX_BUFFER, "Vertices", *m_primary ) )
+	if( !m_vertices.Create( 1, DYNAMIC_VB_SIZE, Tr2GpuUsage::VERTEX_BUFFER, "Vertices", *m_primary ) )
 	{
 		m_valid = false;
 	}
-	if( !m_indices.Create( DYNAMIC_IB_SIZE, Tr2GpuUsage::INDEX_BUFFER, "Indices", *m_primary ) )
+	// Noesis writes 16-bit indices, and the AL reads the index format off the buffer's stride.
+	if( !m_indices.Create( 2, DYNAMIC_IB_SIZE, Tr2GpuUsage::INDEX_BUFFER, "Indices", *m_primary ) )
 	{
 		m_valid = false;
 	}
@@ -1002,14 +1270,13 @@ void Tr2NoesisRenderDevice::SyncRingsToCurrentFrame()
 
 void Tr2NoesisRenderDevice::ApplyRenderState( const Batch& batch )
 {
-	// Written ahead of DrawBatch and has never executed. Treat the first M3 run as this
-	// function's first test.
-	// Assert the AL state we depend on; do not treat this as a delta. On DX12 every omitted
-	// state survives in the sticky PSO description from whichever render step ran before us.
+	// Emitted in full for every batch, never as a delta: on DX12 any state we leave out
+	// survives in the sticky PSO description from whichever render step ran before us.
 	CCP_ASSERT_M( m_context != nullptr, "ApplyRenderState without a render context" );
 
 	const Noesis::RenderState state = batch.renderState;
-	uint32_t pairs[64];
+	// Two entries per state, and the count below is the ceiling for any one batch.
+	uint32_t pairs[2 * 32];
 	const uint32_t capacity = static_cast<uint32_t>( std::size( pairs ) );
 	uint32_t count = 0;
 
@@ -1124,14 +1391,55 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const Batch& batch )
 	// RS_CCW_* states: they are unimplemented on DX12, and leaving them unset is also
 	// the right choice if DX11 starts honouring two-sided stencil.
 
-	for( uint32_t i = 0; i < count; i += 2 )
+	// SetRenderStates counts pairs, not array entries.
+	const ALResult result = m_context->SetRenderStates( pairs, count / 2 );
+	if( FAILED( result ) )
 	{
-		const ALResult result = m_context->SetRenderState( static_cast<Tr2RenderContextEnum::RenderState>( pairs[i] ), pairs[i + 1] );
-		if( FAILED( result ) )
-		{
-			CCP_ASSERT_M( false, "Noesis render state not implemented by the AL" );
-		}
+		CCP_ASSERT_M( false, "Noesis render state not implemented by the AL" );
 	}
+}
+
+// --------------------------------------------------------------------------------------
+// The process-wide device
+// --------------------------------------------------------------------------------------
+
+namespace Tr2Noesis
+{
+
+Tr2NoesisRenderDevice* GetRenderDevice()
+{
+	// Intentionally leaked; see the declaration.
+	static Tr2NoesisRenderDevice* s_device = nullptr;
+	static bool s_attempted = false;
+
+	if( s_attempted )
+	{
+		return s_device;
+	}
+	s_attempted = true;
+
+	USE_MAIN_THREAD_RENDER_CONTEXT();
+
+	// Plain new: BaseObject overrides operator new to reach Noesis's memory manager, which our
+	// callbacks point back at Carbon, so this is still tagged and counted in the noesisMem stat.
+	Tr2NoesisRenderDevice* device = new Tr2NoesisRenderDevice( renderContext.GetPrimaryRenderContext() );
+	if( !device->IsValid() )
+	{
+		// One attempt only. A device that failed to build its shaders will not build them on
+		// the next frame either, and retrying would repeat the whole assert storm every frame.
+		CCP_NOESIS_LOGERR( "Noesis render device is unusable; no Noesis rendering will happen this session" );
+		delete device;
+		return nullptr;
+	}
+
+	CCP_NOESIS_LOGNOTICE( "Noesis render device ready: %u vertex shaders, %u pixel shaders",
+						  static_cast<uint32_t>( Shader::Vertex::Count ),
+						  static_cast<uint32_t>( Tr2Noesis::PIXEL_SHADER_COUNT ) );
+
+	s_device = device;
+	return s_device;
+}
+
 }
 
 #endif

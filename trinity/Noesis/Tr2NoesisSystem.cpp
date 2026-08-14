@@ -7,6 +7,7 @@
 #if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisLog.h"
+#include "Noesis/Tr2NoesisXamlProvider.h"
 
 #include <NoesisLicense.h>
 #include <NsCore/Error.h>
@@ -14,6 +15,7 @@
 #include <NsCore/Log.h>
 #include <NsCore/Memory.h>
 #include <NsCore/Version.h>
+#include <NsGui/IntegrationAPI.h>
 
 CCP_STATS_DECLARE( noesisMem, "Trinity/NoesisMemory", false, CST_MEMORY, "Memory used by NoesisGUI" );
 
@@ -27,6 +29,10 @@ bool s_initialized = false;
 // grounds that per-channel traces are overwhelming. Lifted with the /noesisLogVerbose startup
 // argument (Src/Packages/App/Launcher/Src/Launcher.cpp:218).
 bool s_logVerbose = false;
+
+// Held for the process lifetime, like everything else Noesis owns. Registered after Init,
+// which is when providers may be installed.
+Noesis::Ptr<Tr2NoesisXamlProvider> s_xamlProvider;
 
 void NoesisLogHandler( const char* /*file*/, uint32_t /*line*/, uint32_t level, const char* channel, const char* message )
 {
@@ -158,6 +164,12 @@ void EnsureInitialized()
 	Noesis::SetLicense( NS_LICENSE_NAME, NS_LICENSE_KEY );
 
 	Noesis::Init();
+
+	// Providers go in after Init, unlike the handlers above. One global provider rather than a
+	// scheme-scoped one: a XAML file's merged dictionaries arrive as Uris combined against the
+	// parent's, and a provider bound to the 'res' scheme would never be asked for those.
+	s_xamlProvider = Noesis::MakePtr<Tr2NoesisXamlProvider>();
+	Noesis::GUI::SetXamlProvider( s_xamlProvider );
 
 	CCP_NOESIS_LOGNOTICE( "NoesisGUI %s initialised, %u allocations through Carbon's allocator",
 						  Noesis::GetBuildVersion(),

@@ -12,12 +12,15 @@
 
 #include <../trinityal/include/TrinityAL.h>
 
+#include <unordered_map>
+
 // --------------------------------------------------------------------------------------
 // Description:
 //   NoesisGUI Texture and RenderTarget over Tr2TextureAL, plus the RenderDevice that
 //   owns shaders, layouts, samplers and the dynamic vertex/index rings.
 //
-//   DrawBatch asserts until later milestones wire individual shader permutations.
+//   DrawBatch draws every permutation that was compiled and asserts on the ten that
+//   were not: the nine SDF_LCD_* (subpixelRendering = false) and Custom_Effect.
 //   BeginTile/EndTile are no-ops (gap G1: TrinityAL has no scissor rect).
 //   EndUpdatingTextures is not overridden: UpdateSubresource restores shader-read
 //   state before it returns (see UpdateTexture).
@@ -112,15 +115,28 @@ private:
 		uint32_t pageSize;
 		uint32_t pageIndex;
 		uint32_t pos;
-		// Byte offset of the current Map within the page. DrawBatch will use this for
-		// SetStreamSource, and as the MapIndices base (plus startIndex * 2).
+		// Byte offset of the current Map within the page. DrawBatch uses it as the
+		// SetStreamSource offset, and as the index base (drawPos / 2 + startIndex).
 		uint32_t drawPos;
 		bool mapped;
 
-		bool Create( uint32_t size, Tr2GpuUsage::Type gpuUsage, const char* name, Tr2PrimaryRenderContextAL& primary );
+		// stride matters only for indices: a WRITE_OFTEN index buffer is bound lazily in
+		// SetAllState, which picks R16_UINT or R32_UINT from the buffer's own stride. Vertex
+		// strides are per-batch and travel through SetStreamSource instead.
+		bool Create( uint32_t stride, uint32_t size, Tr2GpuUsage::Type gpuUsage, const char* name, Tr2PrimaryRenderContextAL& primary );
 		void SyncFrame( uint32_t frameIndex );
 		void* Map( uint32_t bytes, Tr2RenderContextAL& context );
 		void Unmap( Tr2RenderContextAL& context );
+		Tr2BufferAL& CurrentPage();
+	};
+
+	// A resource set is immutable once created, so they are cached per shader and per
+	// binding. The description rides along because the hash is 32 bits and a collision
+	// would otherwise bind the wrong textures.
+	struct ResourceSetEntry
+	{
+		Tr2ResourceSetDescriptionAL description;
+		Tr2ResourceSetAL set;
 	};
 
 	void CreateShaders();
@@ -129,6 +145,12 @@ private:
 	void CreateRings();
 	void SyncRingsToCurrentFrame();
 	void ApplyRenderState( const Noesis::Batch& batch );
+	void BindUniform( Tr2ConstantBufferAL& buffer, const Noesis::UniformData& uniforms,
+					  Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name );
+	void BindUniforms( const Noesis::Batch& batch, uint32_t flags );
+	void BindResources( const Noesis::Batch& batch, uint32_t flags );
+	void ReportUnwiredShader( uint8_t shader );
+	void ReportFrameBatches();
 
 	Tr2PrimaryRenderContextAL* m_primary;
 	Tr2RenderContextAL* m_context;
@@ -143,9 +165,43 @@ private:
 	// mipFilter:2) address 64 slots; unused:2 must stay zero or the index is out of range.
 	Tr2SamplerStateAL m_samplers[64];
 
+	// Rewritten per batch. The AL uploads into a per-frame ring at SetConstants time and
+	// Unlock invalidates the residency token, so one buffer per slot serves every batch.
+	// Grown on demand rather than sized from the SDK's cbuffer layouts.
+	Tr2ConstantBufferAL m_vertexUniforms[2];
+	Tr2ConstantBufferAL m_pixelUniforms[2];
+
+	// Keyed by shader and binding hash. Unbounded: the key space is the texture and sampler
+	// combinations a UI actually uses, which stops growing shortly after steady state.
+	std::unordered_map<uint64_t, ResourceSetEntry> m_resourceSets;
+
+	// Per-frame batch histogram, reported from EndOnscreenRender when it changes.
+	uint32_t m_batchCounts[Noesis::Shader::Count];
+	uint32_t m_reportedCounts[Noesis::Shader::Count];
+	// One assert per unwired shader; the histogram carries the recurrence.
+	uint64_t m_unwiredReported;
+	bool m_logBatchDetail;
+
 	DynamicRing m_vertices;
 	DynamicRing m_indices;
 };
+
+namespace Tr2Noesis
+{
+
+// The one render device for the process, built on first use from the main-thread primary
+// render context. Null if construction failed.
+//
+// Every view's renderer shares it, which is Noesis's own model: the glyph atlas, the 64
+// shader programs and the dynamic rings all live here. Deliberately never destroyed --
+// TrinityAL objects in a static's destructor would be released after Trinity has torn the
+// D3D12 device down. Surviving a device reset is gap G2, not this function's business.
+//
+// Call only from the render path. Construction creates AL resources, so it must not happen
+// from arbitrary Python.
+Tr2NoesisRenderDevice* GetRenderDevice();
+
+}
 
 #endif
 
