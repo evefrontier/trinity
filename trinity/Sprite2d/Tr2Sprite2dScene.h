@@ -95,6 +95,7 @@ public:
 	bool IsInsideClipRect( const Vector2& point );
 
 	Vector2 InverseTransformPoint( const Vector2& point ) const;
+	Vector2 TransformPoint( const Vector2& point ) const;
 
 	bool PrepareSpriteVerts(
 		Tr2Sprite2dD3DVertex* destVerts,

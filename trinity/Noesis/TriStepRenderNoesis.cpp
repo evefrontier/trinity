@@ -14,7 +14,12 @@
 #include <NsGui/IRenderer.h>
 
 TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
-	TriRenderStep( lockobj )
+	TriRenderStep( lockobj ),
+	m_hasOverrideViewport( false ),
+	m_overrideX( 0 ),
+	m_overrideY( 0 ),
+	m_overrideWidth( 0 ),
+	m_overrideHeight( 0 )
 {
 }
 
@@ -40,13 +45,31 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	// The step owns sizing: it is the only party that knows what the job has bound.
-	m_view->SyncSize( renderContext.m_esm.GetRenderTargetWidth(), renderContext.m_esm.GetRenderTargetHeight() );
+	// Size follows the viewport: the overlay path uses whatever the job already bound,
+	// and Tr2Sprite2dNoesis overrides it to the sprite rect before RunJob.
+	if( m_hasOverrideViewport )
+	{
+		renderContext.m_esm.SetViewport( m_overrideWidth, m_overrideHeight, m_overrideX, m_overrideY, 0.0f, 1.0f );
+	}
+
+	const TriViewport& vp = renderContext.m_esm.GetViewport();
+	if( vp.width <= 0 || vp.height <= 0 )
+	{
+		renderContext.m_esm.EndManagedRendering();
+		return RS_OK;
+	}
+
+	m_view->SyncSize( static_cast<uint32_t>( vp.width ), static_cast<uint32_t>( vp.height ) );
 
 	Noesis::IView* view = m_view->GetNoesisView();
 	Noesis::IRenderer* renderer = view->GetRenderer();
 
 	Tr2NoesisRenderDevice* device = Tr2Noesis::GetRenderDevice();
+	if( device == nullptr )
+	{
+		renderContext.m_esm.EndManagedRendering();
+		return RS_OK;
+	}
 	device->SetRenderContext( renderContext );
 
 	// Absolute seconds since an arbitrary origin, not a delta. Be::Time counts 100ns ticks.
@@ -72,6 +95,14 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	renderContext.m_esm.PopRenderTarget();
 	renderContext.m_esm.PopViewport();
 
+	// PopRenderTarget rebinds the colour target through the AL, which resets the device
+	// viewport to the full target. PopViewport restores the esm copy; apply the override
+	// again so onscreen Noesis draws into the sprite rect rather than the whole target.
+	if( m_hasOverrideViewport )
+	{
+		renderContext.m_esm.SetViewport( m_overrideWidth, m_overrideHeight, m_overrideX, m_overrideY, 0.0f, 1.0f );
+	}
+
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
 	renderer->Render( false, false );
@@ -93,7 +124,31 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 void TriStepRenderNoesis::py__init__( Tr2NoesisView* view )
 {
+	SetView( view );
+}
+
+void TriStepRenderNoesis::SetView( Tr2NoesisView* view )
+{
 	m_view = view;
+}
+
+Tr2NoesisView* TriStepRenderNoesis::GetView() const
+{
+	return m_view;
+}
+
+void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int height )
+{
+	m_hasOverrideViewport = true;
+	m_overrideX = x;
+	m_overrideY = y;
+	m_overrideWidth = width;
+	m_overrideHeight = height;
+}
+
+void TriStepRenderNoesis::ClearOverrideViewport()
+{
+	m_hasOverrideViewport = false;
 }
 
 #endif

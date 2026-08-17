@@ -11,10 +11,11 @@
 
 // --------------------------------------------------------------------------------------
 // Description:
-//   A NoesisGUI view holding one XAML tree, driven by TriStepRenderNoesis.
+//   A NoesisGUI view holding one XAML tree, driven by TriStepRenderNoesis
+//   (as a job step or via Tr2Sprite2dNoesis in the sprite tree).
 //
-//   Size is owned by the step, which is the only party that knows the render target's
-//   dimensions, so it is deliberately not exposed to Python.
+//   Size is owned by the step, which follows the current viewport, so it is
+//   deliberately not exposed to Python.
 //
 //   The renderer is initialised on the step's first Execute rather than here, because
 //   IRenderer::Init alters GPU device state and so belongs inside the step's managed

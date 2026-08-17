@@ -1335,6 +1335,23 @@ Vector2 Tr2Sprite2dScene::InverseTransformPoint( const Vector2& point ) const
 	}
 }
 
+Vector2 Tr2Sprite2dScene::TransformPoint( const Vector2& point ) const
+{
+	if( m_transformStack->empty() )
+	{
+		return point;
+	}
+
+	const TransformStackEntry& topEntry = m_transformStack->back();
+	if( topEntry.isTranslationOnly )
+	{
+		return point + topEntry.translation;
+	}
+
+	auto transformed = Transform( Vector4( point.x, point.y, 0, 1 ), topEntry.transform );
+	return Vector2( transformed.x, transformed.y );
+}
+
 bool Tr2Sprite2dScene::IsInside( const Vector2& pointIn, const Vector2& topLeft, float width, float height, float radius )
 {
 	if( !IsInsideClipRect( pointIn ) )

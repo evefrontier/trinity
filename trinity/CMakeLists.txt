@@ -1853,6 +1853,9 @@ set(NOESIS_RELATED_SOURCES
     Noesis/TriStepRenderNoesis.cpp
     Noesis/TriStepRenderNoesis.h
     Noesis/TriStepRenderNoesis_Blue.cpp
+    Noesis/Tr2Sprite2dNoesis.cpp
+    Noesis/Tr2Sprite2dNoesis.h
+    Noesis/Tr2Sprite2dNoesis_Blue.cpp
 )
 
 if(WITH_NOESIS)

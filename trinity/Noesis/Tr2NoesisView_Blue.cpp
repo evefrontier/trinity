@@ -10,7 +10,7 @@ BLUE_DEFINE( Tr2NoesisView );
 
 const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 {
-	EXPOSURE_BEGIN( Tr2NoesisView, "A NoesisGUI view holding one XAML tree. Render it with a TriStepRenderNoesis step." )
+	EXPOSURE_BEGIN( Tr2NoesisView, "A NoesisGUI view holding one XAML tree. Render it with TriStepRenderNoesis or Tr2Sprite2dNoesis." )
 		MAP_INTERFACE( Tr2NoesisView )
 
 		MAP_METHOD_AND_WRAP(
