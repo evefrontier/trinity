@@ -520,6 +520,11 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 
 	SetOffscreenSampleCount( 1 );
 
+	// Default is 1024x1024. 2048x2048 is what the SDK rendering tutorial uses and keeps
+	// discardedGlyphTiles at zero once CJK, emoji and several sizes share the atlas.
+	SetGlyphCacheWidth( 2048 );
+	SetGlyphCacheHeight( 2048 );
+
 	CreateVertexLayouts();
 	CreateShaders();
 	CreateSamplers();
