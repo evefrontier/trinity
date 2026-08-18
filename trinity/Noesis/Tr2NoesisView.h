@@ -9,6 +9,8 @@
 #include <NsCore/Ptr.h>
 #include <NsGui/IView.h>
 
+namespace Noesis { class FrameworkElement; }
+
 // --------------------------------------------------------------------------------------
 // Description:
 //   A NoesisGUI view holding one XAML tree, driven by TriStepRenderNoesis
@@ -40,13 +42,15 @@ public:
 
 	bool GetIsLoaded() const;
 
+	// C++ only. Used by LoadXaml, LoadXamlString and Tr2Noesis::LoadStudio. Not Blue-mapped.
+	bool SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, const char* source );
+
 	// Render-thread entry points. Called by TriStepRenderNoesis, not from Python.
 	bool EnsureRenderer();
 	void SyncSize( uint32_t width, uint32_t height );
 	Noesis::IView* GetNoesisView();
 
 private:
-	bool SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, const char* source );
 	void ReleaseView();
 
 	Noesis::Ptr<Noesis::IView> m_view;
@@ -56,6 +60,15 @@ private:
 };
 
 TYPEDEF_BLUECLASS( Tr2NoesisView );
+
+namespace Tr2Noesis
+{
+
+// Fills view with the in-process Studio editor for the given .noesis project.
+// Returns view on success, nullptr on failure or when Studio was not compiled in.
+Tr2NoesisView* LoadStudio( Tr2NoesisView* view, const char* projectPath );
+
+}
 
 #endif
 

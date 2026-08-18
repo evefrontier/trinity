@@ -1860,6 +1860,14 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2Sprite2dNoesis.cpp
     Noesis/Tr2Sprite2dNoesis.h
     Noesis/Tr2Sprite2dNoesis_Blue.cpp
+    Noesis/Tr2NoesisFilePath.h
+    Noesis/Tr2NoesisFileFontProvider.cpp
+    Noesis/Tr2NoesisFileFontProvider.h
+    Noesis/Tr2NoesisFileTextureProvider.cpp
+    Noesis/Tr2NoesisFileTextureProvider.h
+    Noesis/Tr2NoesisFileXamlProvider.cpp
+    Noesis/Tr2NoesisFileXamlProvider.h
+    Noesis/Tr2NoesisStudio.cpp
 )
 
 if(WITH_NOESIS)
@@ -2109,6 +2117,15 @@ function(set_shared_trinity_properties target)
             TARGET ${target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_DLL}" "$<TARGET_FILE_DIR:${target}>"
         )
+
+        if(WITH_NOESIS_STUDIO)
+            target_link_libraries(${target} PRIVATE Noesis::NoesisEditor)
+            target_compile_definitions(${target} PRIVATE WITH_NOESIS_STUDIO NS_HAVE_STUDIO)
+            add_custom_command(
+                TARGET ${target} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_EDITOR_DLL}" "$<TARGET_FILE_DIR:${target}>"
+            )
+        endif()
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)

@@ -30,6 +30,9 @@ bool IsLogVerbose();
 // The version string reported from inside Noesis.dll. Initialises the library.
 const char* GetVersion();
 
+// True when this binary was built with WITH_NOESIS_STUDIO on the DX12 target.
+bool IsStudioAvailable();
+
 }
 
 #endif

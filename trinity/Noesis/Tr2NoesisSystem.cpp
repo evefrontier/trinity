@@ -218,6 +218,15 @@ const char* GetVersion()
 	return Noesis::GetBuildVersion();
 }
 
+bool IsStudioAvailable()
+{
+#if WITH_NOESIS_STUDIO
+	return true;
+#else
+	return false;
+#endif
+}
+
 }
 
 #endif

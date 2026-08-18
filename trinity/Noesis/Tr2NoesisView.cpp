@@ -163,4 +163,19 @@ Noesis::IView* Tr2NoesisView::GetNoesisView()
 	return m_view;
 }
 
+#if !WITH_NOESIS_STUDIO
+
+namespace Tr2Noesis
+{
+
+Tr2NoesisView* LoadStudio( Tr2NoesisView* /*view*/, const char* /*projectPath*/ )
+{
+	CCP_NOESIS_LOGERR( "NoesisLoadStudio: this build was not configured with WITH_NOESIS_STUDIO" );
+	return nullptr;
+}
+
+}
+
+#endif
+
 #endif
