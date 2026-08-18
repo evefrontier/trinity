@@ -17,7 +17,8 @@ namespace Noesis { class FrameworkElement; }
 //   (as a job step or via Tr2Sprite2dNoesis in the sprite tree).
 //
 //   Size is owned by the step, which follows the current viewport, so it is
-//   deliberately not exposed to Python.
+//   deliberately not exposed to Python. Input is forwarded from host Python
+//   (Tr2MainWindow callbacks), not hooked in C++.
 //
 //   The renderer is initialised on the step's first Execute rather than here, because
 //   IRenderer::Init alters GPU device state and so belongs inside the step's managed
@@ -49,6 +50,32 @@ public:
 	bool EnsureRenderer();
 	void SyncSize( uint32_t width, uint32_t height );
 	Noesis::IView* GetNoesisView();
+
+	// Host Python forwards Tr2MainWindow input here. Coordinates are view-local
+	// pixels (origin upper-left). Mouse buttons are 0-4 (left, right, middle,
+	// X1, X2). Keys are Win32 virtual-key codes, as onKeyDown already delivers
+	// on Windows and Mac. Event methods return whether the UI tree handled the
+	// event; an unloaded view, an unmapped key, or a button outside 0-4 returns
+	// False without calling Noesis. Activate is not implied by load or by the
+	// first key — call it when this view should own the keyboard.
+	void Activate();
+	void Deactivate();
+	void SetEmulateTouch( bool emulate );
+
+	bool MouseButtonDown( int x, int y, int button );
+	bool MouseButtonUp( int x, int y, int button );
+	bool MouseDoubleClick( int x, int y, int button );
+	bool MouseMove( int x, int y );
+	bool MouseWheel( int x, int y, int delta );
+	bool MouseHWheel( int x, int y, int delta );
+	bool Scroll( int x, int y, float value );
+	bool HScroll( int x, int y, float value );
+	bool TouchDown( int x, int y, uint64_t id );
+	bool TouchMove( int x, int y, uint64_t id );
+	bool TouchUp( int x, int y, uint64_t id );
+	bool KeyDown( int key );
+	bool KeyUp( int key );
+	bool Char( uint32_t ch );
 
 private:
 	void ReleaseView();

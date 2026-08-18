@@ -34,6 +34,161 @@ const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 			GetIsLoaded,
 			"True once XAML has been loaded successfully." )
 
+		MAP_METHOD_AND_WRAP(
+			"Activate",
+			Activate,
+			"Gives this view keyboard focus. LoadXaml does not call this; call it when this\n"
+			"view should own the keyboard. A second LoadXaml drops activation.\n"
+			":rtype: None" )
+
+		MAP_METHOD_AND_WRAP(
+			"Deactivate",
+			Deactivate,
+			"Removes keyboard focus from this view.\n"
+			":rtype: None" )
+
+		MAP_METHOD_AND_WRAP(
+			"SetEmulateTouch",
+			SetEmulateTouch,
+			"When True, mouse events also generate touch events. Dropped by a second LoadXaml.\n"
+			":param emulate: True to emulate touch from the mouse\n"
+			":rtype: None" )
+
+		MAP_METHOD_AND_WRAP(
+			"MouseButtonDown",
+			MouseButtonDown,
+			"Notifies that a mouse button was pressed. Origin is the upper-left of the view.\n"
+			"Returns True if the UI handled the event. Button outside 0-4 returns False.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param button: 0 left, 1 right, 2 middle, 3 X1, 4 X2\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"MouseButtonUp",
+			MouseButtonUp,
+			"Notifies that a mouse button was released. Origin is the upper-left of the view.\n"
+			"Returns True if the UI handled the event. Button outside 0-4 returns False.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param button: 0 left, 1 right, 2 middle, 3 X1, 4 X2\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"MouseDoubleClick",
+			MouseDoubleClick,
+			"Notifies a double-click. Expected sequence is Down, Up, DoubleClick, Up.\n"
+			"Returns True if the UI handled the event. Button outside 0-4 returns False.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param button: 0 left, 1 right, 2 middle, 3 X1, 4 X2\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"MouseMove",
+			MouseMove,
+			"Notifies that the mouse moved. Origin is the upper-left of the view.\n"
+			"Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"MouseWheel",
+			MouseWheel,
+			"Notifies vertical wheel rotation. delta is in multiples of 120 per notch;\n"
+			"positive is away from the user. Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param delta: wheel rotation\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"MouseHWheel",
+			MouseHWheel,
+			"Notifies horizontal wheel rotation. delta is in multiples of 120 per notch;\n"
+			"positive is to the right. Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param delta: wheel rotation\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"Scroll",
+			Scroll,
+			"Notifies a vertical scroll on the element under (x, y). value is -1..+1, typically\n"
+			"from a gamepad stick. Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param value: scroll amount in -1..+1\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"HScroll",
+			HScroll,
+			"Notifies a horizontal scroll on the element under (x, y). value is -1..+1, typically\n"
+			"from a gamepad stick. Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param value: scroll amount in -1..+1\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"TouchDown",
+			TouchDown,
+			"Notifies that a finger touched the view. Origin is the upper-left of the view.\n"
+			"Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param id: touch id\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"TouchMove",
+			TouchMove,
+			"Notifies that a finger moved on the view. Origin is the upper-left of the view.\n"
+			"Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param id: touch id\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"TouchUp",
+			TouchUp,
+			"Notifies that a finger left the view. Origin is the upper-left of the view.\n"
+			"Returns True if the UI handled the event.\n"
+			":param x: view-local x in pixels\n"
+			":param y: view-local y in pixels\n"
+			":param id: touch id\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"KeyDown",
+			KeyDown,
+			"Notifies that a key was pressed. key is a Win32 virtual-key code, as Tr2MainWindow\n"
+			"onKeyDown already delivers on Windows and Mac. Returns True if the UI handled the\n"
+			"event; an unmapped key returns False.\n"
+			":param key: Win32 virtual-key code\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"KeyUp",
+			KeyUp,
+			"Notifies that a key was released. key is a Win32 virtual-key code, as Tr2MainWindow\n"
+			"onKeyUp already delivers on Windows and Mac. Returns True if the UI handled the\n"
+			"event; an unmapped key returns False.\n"
+			":param key: Win32 virtual-key code\n"
+			":rtype: bool" )
+
+		MAP_METHOD_AND_WRAP(
+			"Char",
+			Char,
+			"Notifies a translated unicode character. Send between the matching KeyDown and KeyUp.\n"
+			"Returns True if the UI handled the event.\n"
+			":param ch: unicode code point\n"
+			":rtype: bool" )
+
 	EXPOSURE_END()
 }
 

@@ -11,9 +11,182 @@
 #include "Noesis/Tr2NoesisSystem.h"
 
 #include <NsGui/FrameworkElement.h>
+#include <NsGui/InputEnums.h>
 #include <NsGui/IRenderer.h>
 #include <NsGui/IntegrationAPI.h>
 #include <NsGui/Uri.h>
+
+namespace
+{
+
+const Noesis::Key* VirtualKeyTable()
+{
+	// Transcribed from the SDK's Win32Display::FillKeyTable. Unmapped entries stay
+	// Key_None (zero). VK_SHIFT / VK_CONTROL / VK_MENU collapse to the left-side
+	// keys, matching both that table and Tr2MainWindow's Mac path.
+	static Noesis::Key table[256];
+	static bool ready = false;
+	if( !ready )
+	{
+		table[VK_BACK] = Noesis::Key_Back;
+		table[VK_TAB] = Noesis::Key_Tab;
+		table[VK_CLEAR] = Noesis::Key_Clear;
+		table[VK_RETURN] = Noesis::Key_Return;
+		table[VK_PAUSE] = Noesis::Key_Pause;
+
+		table[VK_SHIFT] = Noesis::Key_LeftShift;
+		table[VK_LSHIFT] = Noesis::Key_LeftShift;
+		table[VK_RSHIFT] = Noesis::Key_RightShift;
+		table[VK_CONTROL] = Noesis::Key_LeftCtrl;
+		table[VK_LCONTROL] = Noesis::Key_LeftCtrl;
+		table[VK_RCONTROL] = Noesis::Key_RightCtrl;
+		table[VK_MENU] = Noesis::Key_LeftAlt;
+		table[VK_LMENU] = Noesis::Key_LeftAlt;
+		table[VK_RMENU] = Noesis::Key_RightAlt;
+		table[VK_LWIN] = Noesis::Key_LWin;
+		table[VK_RWIN] = Noesis::Key_RWin;
+		table[VK_ESCAPE] = Noesis::Key_Escape;
+
+		table[VK_SPACE] = Noesis::Key_Space;
+		table[VK_PRIOR] = Noesis::Key_Prior;
+		table[VK_NEXT] = Noesis::Key_Next;
+		table[VK_END] = Noesis::Key_End;
+		table[VK_HOME] = Noesis::Key_Home;
+		table[VK_LEFT] = Noesis::Key_Left;
+		table[VK_UP] = Noesis::Key_Up;
+		table[VK_RIGHT] = Noesis::Key_Right;
+		table[VK_DOWN] = Noesis::Key_Down;
+		table[VK_SELECT] = Noesis::Key_Select;
+		table[VK_PRINT] = Noesis::Key_Print;
+		table[VK_EXECUTE] = Noesis::Key_Execute;
+		table[VK_SNAPSHOT] = Noesis::Key_Snapshot;
+		table[VK_INSERT] = Noesis::Key_Insert;
+		table[VK_DELETE] = Noesis::Key_Delete;
+		table[VK_HELP] = Noesis::Key_Help;
+
+		table['0'] = Noesis::Key_D0;
+		table['1'] = Noesis::Key_D1;
+		table['2'] = Noesis::Key_D2;
+		table['3'] = Noesis::Key_D3;
+		table['4'] = Noesis::Key_D4;
+		table['5'] = Noesis::Key_D5;
+		table['6'] = Noesis::Key_D6;
+		table['7'] = Noesis::Key_D7;
+		table['8'] = Noesis::Key_D8;
+		table['9'] = Noesis::Key_D9;
+
+		table[VK_NUMPAD0] = Noesis::Key_NumPad0;
+		table[VK_NUMPAD1] = Noesis::Key_NumPad1;
+		table[VK_NUMPAD2] = Noesis::Key_NumPad2;
+		table[VK_NUMPAD3] = Noesis::Key_NumPad3;
+		table[VK_NUMPAD4] = Noesis::Key_NumPad4;
+		table[VK_NUMPAD5] = Noesis::Key_NumPad5;
+		table[VK_NUMPAD6] = Noesis::Key_NumPad6;
+		table[VK_NUMPAD7] = Noesis::Key_NumPad7;
+		table[VK_NUMPAD8] = Noesis::Key_NumPad8;
+		table[VK_NUMPAD9] = Noesis::Key_NumPad9;
+
+		table[VK_MULTIPLY] = Noesis::Key_Multiply;
+		table[VK_ADD] = Noesis::Key_Add;
+		table[VK_SEPARATOR] = Noesis::Key_Separator;
+		table[VK_SUBTRACT] = Noesis::Key_Subtract;
+		table[VK_DECIMAL] = Noesis::Key_Decimal;
+		table[VK_DIVIDE] = Noesis::Key_Divide;
+
+		table['A'] = Noesis::Key_A;
+		table['B'] = Noesis::Key_B;
+		table['C'] = Noesis::Key_C;
+		table['D'] = Noesis::Key_D;
+		table['E'] = Noesis::Key_E;
+		table['F'] = Noesis::Key_F;
+		table['G'] = Noesis::Key_G;
+		table['H'] = Noesis::Key_H;
+		table['I'] = Noesis::Key_I;
+		table['J'] = Noesis::Key_J;
+		table['K'] = Noesis::Key_K;
+		table['L'] = Noesis::Key_L;
+		table['M'] = Noesis::Key_M;
+		table['N'] = Noesis::Key_N;
+		table['O'] = Noesis::Key_O;
+		table['P'] = Noesis::Key_P;
+		table['Q'] = Noesis::Key_Q;
+		table['R'] = Noesis::Key_R;
+		table['S'] = Noesis::Key_S;
+		table['T'] = Noesis::Key_T;
+		table['U'] = Noesis::Key_U;
+		table['V'] = Noesis::Key_V;
+		table['W'] = Noesis::Key_W;
+		table['X'] = Noesis::Key_X;
+		table['Y'] = Noesis::Key_Y;
+		table['Z'] = Noesis::Key_Z;
+
+		table[VK_F1] = Noesis::Key_F1;
+		table[VK_F2] = Noesis::Key_F2;
+		table[VK_F3] = Noesis::Key_F3;
+		table[VK_F4] = Noesis::Key_F4;
+		table[VK_F5] = Noesis::Key_F5;
+		table[VK_F6] = Noesis::Key_F6;
+		table[VK_F7] = Noesis::Key_F7;
+		table[VK_F8] = Noesis::Key_F8;
+		table[VK_F9] = Noesis::Key_F9;
+		table[VK_F10] = Noesis::Key_F10;
+		table[VK_F11] = Noesis::Key_F11;
+		table[VK_F12] = Noesis::Key_F12;
+		table[VK_F13] = Noesis::Key_F13;
+		table[VK_F14] = Noesis::Key_F14;
+		table[VK_F15] = Noesis::Key_F15;
+		table[VK_F16] = Noesis::Key_F16;
+		table[VK_F17] = Noesis::Key_F17;
+		table[VK_F18] = Noesis::Key_F18;
+		table[VK_F19] = Noesis::Key_F19;
+		table[VK_F20] = Noesis::Key_F20;
+		table[VK_F21] = Noesis::Key_F21;
+		table[VK_F22] = Noesis::Key_F22;
+		table[VK_F23] = Noesis::Key_F23;
+		table[VK_F24] = Noesis::Key_F24;
+
+		table[VK_NUMLOCK] = Noesis::Key_NumLock;
+		table[VK_SCROLL] = Noesis::Key_Scroll;
+
+		table[VK_OEM_1] = Noesis::Key_Oem1;
+		table[VK_OEM_PLUS] = Noesis::Key_OemPlus;
+		table[VK_OEM_COMMA] = Noesis::Key_OemComma;
+		table[VK_OEM_MINUS] = Noesis::Key_OemMinus;
+		table[VK_OEM_PERIOD] = Noesis::Key_OemPeriod;
+		table[VK_OEM_2] = Noesis::Key_Oem2;
+		table[VK_OEM_3] = Noesis::Key_Oem3;
+		table[VK_OEM_4] = Noesis::Key_Oem4;
+		table[VK_OEM_5] = Noesis::Key_Oem5;
+		table[VK_OEM_6] = Noesis::Key_Oem6;
+		table[VK_OEM_7] = Noesis::Key_Oem7;
+		table[VK_OEM_8] = Noesis::Key_Oem8;
+		table[VK_OEM_102] = Noesis::Key_Oem102;
+
+		ready = true;
+	}
+	return table;
+}
+
+Noesis::Key KeyFromVirtualKey( int vk )
+{
+	if( vk < 0 || vk >= 256 )
+	{
+		return Noesis::Key_None;
+	}
+	return VirtualKeyTable()[vk];
+}
+
+bool TryMouseButton( int button, Noesis::MouseButton& mouseButton )
+{
+	if( button < 0 || button >= static_cast<int>( Noesis::MouseButton_Count ) )
+	{
+		return false;
+	}
+	mouseButton = static_cast<Noesis::MouseButton>( button );
+	return true;
+}
+
+}
 
 Tr2NoesisView::Tr2NoesisView( IRoot* ) :
 	m_rendererInitialized( false ),
@@ -161,6 +334,169 @@ void Tr2NoesisView::SyncSize( uint32_t width, uint32_t height )
 Noesis::IView* Tr2NoesisView::GetNoesisView()
 {
 	return m_view;
+}
+
+void Tr2NoesisView::Activate()
+{
+	if( m_view != nullptr )
+	{
+		m_view->Activate();
+	}
+}
+
+void Tr2NoesisView::Deactivate()
+{
+	if( m_view != nullptr )
+	{
+		m_view->Deactivate();
+	}
+}
+
+void Tr2NoesisView::SetEmulateTouch( bool emulate )
+{
+	if( m_view != nullptr )
+	{
+		m_view->SetEmulateTouch( emulate );
+	}
+}
+
+bool Tr2NoesisView::MouseButtonDown( int x, int y, int button )
+{
+	Noesis::MouseButton mouseButton;
+	if( m_view == nullptr || !TryMouseButton( button, mouseButton ) )
+	{
+		return false;
+	}
+	return m_view->MouseButtonDown( x, y, mouseButton );
+}
+
+bool Tr2NoesisView::MouseButtonUp( int x, int y, int button )
+{
+	Noesis::MouseButton mouseButton;
+	if( m_view == nullptr || !TryMouseButton( button, mouseButton ) )
+	{
+		return false;
+	}
+	return m_view->MouseButtonUp( x, y, mouseButton );
+}
+
+bool Tr2NoesisView::MouseDoubleClick( int x, int y, int button )
+{
+	Noesis::MouseButton mouseButton;
+	if( m_view == nullptr || !TryMouseButton( button, mouseButton ) )
+	{
+		return false;
+	}
+	return m_view->MouseDoubleClick( x, y, mouseButton );
+}
+
+bool Tr2NoesisView::MouseMove( int x, int y )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->MouseMove( x, y );
+}
+
+bool Tr2NoesisView::MouseWheel( int x, int y, int delta )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->MouseWheel( x, y, delta );
+}
+
+bool Tr2NoesisView::MouseHWheel( int x, int y, int delta )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->MouseHWheel( x, y, delta );
+}
+
+bool Tr2NoesisView::Scroll( int x, int y, float value )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->Scroll( x, y, value );
+}
+
+bool Tr2NoesisView::HScroll( int x, int y, float value )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->HScroll( x, y, value );
+}
+
+bool Tr2NoesisView::TouchDown( int x, int y, uint64_t id )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->TouchDown( x, y, id );
+}
+
+bool Tr2NoesisView::TouchMove( int x, int y, uint64_t id )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->TouchMove( x, y, id );
+}
+
+bool Tr2NoesisView::TouchUp( int x, int y, uint64_t id )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->TouchUp( x, y, id );
+}
+
+bool Tr2NoesisView::KeyDown( int key )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	const Noesis::Key noesisKey = KeyFromVirtualKey( key );
+	if( noesisKey == Noesis::Key_None )
+	{
+		return false;
+	}
+	return m_view->KeyDown( noesisKey );
+}
+
+bool Tr2NoesisView::KeyUp( int key )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	const Noesis::Key noesisKey = KeyFromVirtualKey( key );
+	if( noesisKey == Noesis::Key_None )
+	{
+		return false;
+	}
+	return m_view->KeyUp( noesisKey );
+}
+
+bool Tr2NoesisView::Char( uint32_t ch )
+{
+	if( m_view == nullptr )
+	{
+		return false;
+	}
+	return m_view->Char( ch );
 }
 
 #if !WITH_NOESIS_STUDIO
