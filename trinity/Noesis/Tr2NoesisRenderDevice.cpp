@@ -511,7 +511,6 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 {
 	Tr2Noesis::EnsureInitialized();
 
-	m_caps.centerPixelOffset = 0.0f;
 	m_caps.linearRendering = false;
 	m_caps.subpixelRendering = true;
 	m_caps.depthRangeZeroToOne = true;

@@ -165,6 +165,17 @@ void EnsureInitialized()
 	// NOESIS_LICENSE_KEY CMake cache variables, so no key ever lands in the source tree.
 	Noesis::SetLicense( NS_LICENSE_NAME, NS_LICENSE_KEY );
 
+	// 4.0 rewrote the Inspector protocol and starts device-discovery threads from Init in
+	// Debug/Profile. Those threads call our CCP_MALLOC hooks; Carbon's heap is not safe for
+	// that. Hot reload and sockets ride along. Opt back in with /noesisInspector.
+	const auto inspectorArg = BeOS->GetStartupArgValue( L"noesisInspector" );
+	if( inspectorArg.empty() || inspectorArg == L"0" )
+	{
+		Noesis::GUI::DisableHotReload();
+		Noesis::GUI::DisableInspector();
+		Noesis::GUI::DisableSocketInit();
+	}
+
 	Noesis::Init();
 
 	// Providers go in after Init, unlike the handlers above. One global provider rather than a
