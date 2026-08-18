@@ -103,9 +103,21 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		renderContext.m_esm.SetViewport( m_overrideWidth, m_overrideHeight, m_overrideX, m_overrideY, 0.0f, 1.0f );
 	}
 
+	// SetupViewport clips a rect that extends past the render target. 3D recovers with
+	// viewport2projectionAdjustment; Noesis owns its projection, so that clip would
+	// squash the UI into the remaining pixels. Put the logical rect on the device
+	// instead. D3D12 scissor is always on and covers the full target, so overflow is
+	// clipped rather than scaled. Restore the esm's clipped copy afterwards so later
+	// draws still match what SetupViewport recorded.
+	Tr2Viewport logicalVp;
+	renderContext.m_esm.GetViewport().ConvertToTr2Viewport( logicalVp );
+	renderContext.SetViewport( logicalVp );
+
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
 	renderer->Render( false, false );
+
+	renderContext.SetViewport( renderContext.m_esm.GetDeviceViewport() );
 
 	// Noesis leaves its own vertex buffer and program bound, and the state manager's cache no
 	// longer describes the device, so hand back something neutral.

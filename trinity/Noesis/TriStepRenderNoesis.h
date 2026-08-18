@@ -39,7 +39,9 @@ public:
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
-	// so the step follows the viewport the job already bound.
+	// so the step follows the viewport the job already bound. The rect is the layout
+	// size even when it extends past the target; onscreen draws use that full rect so
+	// the GPU clips overflow instead of scaling into the remaining pixels.
 	void SetOverrideViewport( int x, int y, int width, int height );
 	void ClearOverrideViewport();
 
