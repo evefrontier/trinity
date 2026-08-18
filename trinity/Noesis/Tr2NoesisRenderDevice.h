@@ -19,8 +19,8 @@
 //   NoesisGUI Texture and RenderTarget over Tr2TextureAL, plus the RenderDevice that
 //   owns shaders, layouts, samplers and the dynamic vertex/index rings.
 //
-//   DrawBatch draws every permutation that was compiled and asserts on the ten that
-//   were not: the nine SDF_LCD_* (subpixelRendering = false) and Custom_Effect.
+//   DrawBatch draws every permutation that was compiled and asserts on Custom_Effect,
+//   which is supplied by the effect itself rather than compiled here.
 //   BeginTile/EndTile are no-ops (gap G1: TrinityAL has no scissor rect).
 //   EndUpdatingTextures is not overridden: UpdateSubresource restores shader-read
 //   state before it returns (see UpdateTexture).

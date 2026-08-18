@@ -29,7 +29,7 @@ const uint32_t PS_T2 = 1 << 6;
 const uint32_t PS_T3 = 1 << 7;
 const uint32_t PS_T4 = 1 << 8;
 
-// Indexed by Shader::Enum. LCD and Custom_Effect stay zero: we did not build those permutations.
+// Indexed by Shader::Enum. Custom_Effect stays zero: the effect supplies that shader.
 const uint32_t PROGRAM_FLAGS[Shader::Count] = {
 	VS_CB0 | PS_CB0, // RGBA
 	VS_CB0, // Mask
@@ -61,7 +61,15 @@ const uint32_t PROGRAM_FLAGS[Shader::Count] = {
 	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_MirrorU
 	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_MirrorV
 	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_Mirror
-	0, 0, 0, 0, 0, 0, 0, 0, 0, // SDF_LCD_* (subpixelRendering = false)
+	VS_CB0 | VS_CB1 | PS_T3, // SDF_LCD_Solid
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T1 | PS_T3, // SDF_LCD_Linear
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T1 | PS_T3, // SDF_LCD_Radial
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_Clamp
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_Repeat
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_MirrorU
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_MirrorV
+	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_Mirror
 	VS_CB0 | PS_T2, // Opacity_Solid
 	VS_CB0 | PS_CB0 | PS_T1 | PS_T2, // Opacity_Linear
 	VS_CB0 | PS_CB0 | PS_T1 | PS_T2, // Opacity_Radial
@@ -155,15 +163,10 @@ const VertexAttrDesc VERTEX_ATTRS[Shader::Vertex::Format::Attr::Count] = {
 	{ Tr2VertexDefinition::TEXCOORD, 5, Tr2VertexDefinition::FLOAT32_4, Tr2ShaderPipelineInputAL::FLOAT, 4 },
 };
 
-// The nine SDF_LCD_* permutations are not built (subpixelRendering = false), so every
-// shader after them is nine slots ahead of its bytecode index.
-const int LCD_PERMUTATION_COUNT = 9;
-
 static_assert( Tr2Noesis::VERTEX_SHADER_COUNT == Shader::Vertex::Count, "vertex shader table must match Shader::Vertex::Enum" );
-static_assert( Tr2Noesis::PIXEL_SHADER_COUNT == 43, "pixel shader table must stay at the 43 non-LCD permutations" );
+static_assert( Tr2Noesis::PIXEL_SHADER_COUNT == Shader::Custom_Effect,
+			   "pixel shader table covers every permutation except Custom_Effect" );
 static_assert( Shader::Count == 53, "Noesis shader enum changed; revisit the tables below" );
-static_assert( Shader::SDF_LCD_Pattern_Mirror - Shader::SDF_LCD_Solid + 1 == LCD_PERMUTATION_COUNT,
-			   "the skipped SDF_LCD block is no longer nine permutations" );
 static_assert( sizeof( SamplerState ) == 1, "SamplerState is a packed uint8_t" );
 static_assert( WrapMode::Count <= ( 1u << 3 ), "SamplerState.wrapMode is 3 bits" );
 static_assert( MinMagFilter::Count <= ( 1u << 1 ), "SamplerState.minmagFilter is 1 bit" );
@@ -171,13 +174,9 @@ static_assert( MipFilter::Count <= ( 1u << 2 ), "SamplerState.mipFilter is 2 bit
 
 int PixelBytecodeIndex( uint8_t shader )
 {
-	if( shader <= Shader::SDF_Pattern_Mirror )
+	if( shader < Shader::Custom_Effect )
 	{
 		return shader;
-	}
-	if( shader >= Shader::Opacity_Solid && shader <= Shader::Blur )
-	{
-		return shader - LCD_PERMUTATION_COUNT;
 	}
 	return -1;
 }
@@ -514,7 +513,7 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 
 	m_caps.centerPixelOffset = 0.0f;
 	m_caps.linearRendering = false;
-	m_caps.subpixelRendering = false;
+	m_caps.subpixelRendering = true;
 	m_caps.depthRangeZeroToOne = true;
 	m_caps.clipSpaceYInverted = false;
 
@@ -890,9 +889,8 @@ void Tr2NoesisRenderDevice::ReportUnwiredShader( uint8_t shader )
 
 	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
 	// that an unwired shader is still being asked for.
-	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) was never compiled. The nine SDF_LCD_* "
-					   "permutations are skipped because subpixelRendering is false, and "
-					   "Custom_Effect needs a shader supplied by the effect itself.",
+	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) was never compiled. Custom_Effect needs "
+					   "a shader supplied by the effect itself.",
 					   SHADER_NAMES[shader], shader );
 	CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation was never compiled" );
 }
@@ -1333,9 +1331,9 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const Batch& batch )
 			add( RS_DESTBLEND, BM_ONE );
 			break;
 		case Noesis::BlendMode::SrcOver_Dual:
-			CCP_ASSERT_M( false, "SrcOver_Dual requires dual-source blending, which is off (no LCD text)" );
 			add( RS_SRCBLEND, BM_ONE );
-			add( RS_DESTBLEND, BM_INVSRCALPHA );
+			add( RS_DESTBLEND, BM_INVSRC1COLOR );
+			add( RS_DESTBLENDALPHA, BM_INVSRC1ALPHA );
 			break;
 		default:
 			CCP_ASSERT_M( false, "Unknown Noesis blend mode" );

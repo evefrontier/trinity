@@ -1890,13 +1890,13 @@ if(WITH_NOESIS)
     )
 
     #[[
-        Transcribed from the SDK's own build_shaders.bat, dropping three groups:
+        Transcribed from the SDK's own build_shaders.bat, dropping two groups:
           - the _Stereo_ pass, since we have no VR
           - the _SRGB variants, since we report linearRendering = false
-          - the SDF_LCD_ pixel shaders, since we report subpixelRendering = false
-        That takes 56 vertex and 52 pixel permutations down to 21 and 43. The first token of each
-        entry is the permutation name, the rest are its preprocessor defines. Tr2NoesisShaders.cpp
-        consumes these in this order.
+        That takes 56 vertex and 52 pixel permutations down to 21 and 52 (Custom_Effect is
+        supplied by the effect, not compiled here). The first token of each entry is the
+        permutation name, the rest are its preprocessor defines. Tr2NoesisShaders.cpp consumes
+        these in this order, which matches Shader::Enum.
     ]]
     set(NOESIS_VERTEX_SHADERS
         "Pos"
@@ -1953,6 +1953,15 @@ if(WITH_NOESIS)
         "SDF_Pattern_MirrorU EFFECT_SDF PAINT_PATTERN MIRRORU_PATTERN"
         "SDF_Pattern_MirrorV EFFECT_SDF PAINT_PATTERN MIRRORV_PATTERN"
         "SDF_Pattern_Mirror EFFECT_SDF PAINT_PATTERN MIRROR_PATTERN"
+        "SDF_LCD_Solid EFFECT_SDF_LCD PAINT_SOLID"
+        "SDF_LCD_Linear EFFECT_SDF_LCD PAINT_LINEAR"
+        "SDF_LCD_Radial EFFECT_SDF_LCD PAINT_RADIAL"
+        "SDF_LCD_Pattern EFFECT_SDF_LCD PAINT_PATTERN"
+        "SDF_LCD_Pattern_Clamp EFFECT_SDF_LCD PAINT_PATTERN CLAMP_PATTERN"
+        "SDF_LCD_Pattern_Repeat EFFECT_SDF_LCD PAINT_PATTERN REPEAT_PATTERN"
+        "SDF_LCD_Pattern_MirrorU EFFECT_SDF_LCD PAINT_PATTERN MIRRORU_PATTERN"
+        "SDF_LCD_Pattern_MirrorV EFFECT_SDF_LCD PAINT_PATTERN MIRRORV_PATTERN"
+        "SDF_LCD_Pattern_Mirror EFFECT_SDF_LCD PAINT_PATTERN MIRROR_PATTERN"
         "Opacity_Solid EFFECT_OPACITY PAINT_SOLID"
         "Opacity_Linear EFFECT_OPACITY PAINT_LINEAR"
         "Opacity_Radial EFFECT_OPACITY PAINT_RADIAL"

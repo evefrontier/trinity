@@ -271,6 +271,8 @@ MTLBlendFactor MetalUtils::GetMTLBlendFactor( uint32_t value )
 		MTLBlendFactorOneMinusBlendColor, // D3DBLEND_INVBLENDFACTOR
 		MTLBlendFactorSource1Color, // D3DBLEND_SRCCOLOR2
 		MTLBlendFactorOneMinusSource1Color, // D3DBLEND_INVSRCCOLOR2
+		MTLBlendFactorSource1Alpha, // D3D12_BLEND_SRC1_ALPHA
+		MTLBlendFactorOneMinusSource1Alpha, // D3D12_BLEND_INV_SRC1_ALPHA
 
 	};
 

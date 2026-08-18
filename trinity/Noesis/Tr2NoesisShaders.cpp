@@ -168,6 +168,33 @@ const uint8_t SDF_Pattern_MirrorV_PS[] = {
 const uint8_t SDF_Pattern_Mirror_PS[] = {
 #include NOESIS_SHADER_CODE( SDF_Pattern_Mirror_PS )
 };
+const uint8_t SDF_LCD_Solid_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Solid_PS )
+};
+const uint8_t SDF_LCD_Linear_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Linear_PS )
+};
+const uint8_t SDF_LCD_Radial_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Radial_PS )
+};
+const uint8_t SDF_LCD_Pattern_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Pattern_PS )
+};
+const uint8_t SDF_LCD_Pattern_Clamp_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Pattern_Clamp_PS )
+};
+const uint8_t SDF_LCD_Pattern_Repeat_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Pattern_Repeat_PS )
+};
+const uint8_t SDF_LCD_Pattern_MirrorU_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Pattern_MirrorU_PS )
+};
+const uint8_t SDF_LCD_Pattern_MirrorV_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Pattern_MirrorV_PS )
+};
+const uint8_t SDF_LCD_Pattern_Mirror_PS[] = {
+#include NOESIS_SHADER_CODE( SDF_LCD_Pattern_Mirror_PS )
+};
 const uint8_t Opacity_Solid_PS[] = {
 #include NOESIS_SHADER_CODE( Opacity_Solid_PS )
 };
@@ -275,6 +302,15 @@ const ShaderBytecode PIXEL_SHADERS[] = {
 	NOESIS_SHADER_ENTRY( SDF_Pattern_MirrorU_PS ),
 	NOESIS_SHADER_ENTRY( SDF_Pattern_MirrorV_PS ),
 	NOESIS_SHADER_ENTRY( SDF_Pattern_Mirror_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Solid_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Linear_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Radial_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Pattern_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Pattern_Clamp_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Pattern_Repeat_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Pattern_MirrorU_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Pattern_MirrorV_PS ),
+	NOESIS_SHADER_ENTRY( SDF_LCD_Pattern_Mirror_PS ),
 	NOESIS_SHADER_ENTRY( Opacity_Solid_PS ),
 	NOESIS_SHADER_ENTRY( Opacity_Linear_PS ),
 	NOESIS_SHADER_ENTRY( Opacity_Radial_PS ),

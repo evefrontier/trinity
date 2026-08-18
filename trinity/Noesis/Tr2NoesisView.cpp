@@ -84,10 +84,9 @@ bool Tr2NoesisView::SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, c
 		return false;
 	}
 
-	// Per-primitive antialiasing puts the rectangle through Path_AA_Solid and the
-	// PosColorCoverage vertex format, which is the only path that exercises the COVERAGE
-	// semantic rename. Without it the renames would go untested until text arrives.
-	m_view->SetFlags( Noesis::RenderFlags_PPAA );
+	// PPAA exercises the COVERAGE semantic rename. LCD enables the SDF_LCD_* shaders and
+	// SrcOver_Dual dual-source blending, which is how Noesis does subpixel text on RGB LCDs.
+	m_view->SetFlags( Noesis::RenderFlags_PPAA | Noesis::RenderFlags_LCD );
 
 	if( m_width != 0 && m_height != 0 )
 	{
