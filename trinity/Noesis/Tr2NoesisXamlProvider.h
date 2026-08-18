@@ -21,6 +21,8 @@
 //   ResFile is synchronous, which is what XamlProvider::LoadXaml demands: it must return
 //   a readable stream immediately, and BeResMan->GetResource returns before loading
 //   completes. A cold disk read therefore stalls the calling frame (gap G6).
+//
+//   The owning Stream lives in Tr2NoesisResFile, shared with the font provider.
 // --------------------------------------------------------------------------------------
 
 class Tr2NoesisXamlProvider : public Noesis::XamlProvider

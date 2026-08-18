@@ -1837,7 +1837,11 @@ if(WITH_GRANNY)
 endif()
 
 set(NOESIS_RELATED_SOURCES
+    Noesis/Tr2NoesisFontProvider.cpp
+    Noesis/Tr2NoesisFontProvider.h
     Noesis/Tr2NoesisLog.h
+    Noesis/Tr2NoesisResFile.cpp
+    Noesis/Tr2NoesisResFile.h
     Noesis/Tr2NoesisRenderDevice.cpp
     Noesis/Tr2NoesisRenderDevice.h
     Noesis/Tr2NoesisShaders.cpp

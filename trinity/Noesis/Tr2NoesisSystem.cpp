@@ -6,6 +6,7 @@
 
 #if WITH_NOESIS
 
+#include "Noesis/Tr2NoesisFontProvider.h"
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisXamlProvider.h"
 
@@ -33,6 +34,7 @@ bool s_logVerbose = false;
 // Held for the process lifetime, like everything else Noesis owns. Registered after Init,
 // which is when providers may be installed.
 Noesis::Ptr<Tr2NoesisXamlProvider> s_xamlProvider;
+Noesis::Ptr<Tr2NoesisFontProvider> s_fontProvider;
 
 void NoesisLogHandler( const char* /*file*/, uint32_t /*line*/, uint32_t level, const char* channel, const char* message )
 {
@@ -167,9 +169,13 @@ void EnsureInitialized()
 
 	// Providers go in after Init, unlike the handlers above. One global provider rather than a
 	// scheme-scoped one: a XAML file's merged dictionaries arrive as Uris combined against the
-	// parent's, and a provider bound to the 'res' scheme would never be asked for those.
+	// parent's, and a provider bound to the 'res' scheme would never be asked for those. Font
+	// folders are the same global provider, with 'res:/' prefixed onto the Studio-style path.
 	s_xamlProvider = Noesis::MakePtr<Tr2NoesisXamlProvider>();
 	Noesis::GUI::SetXamlProvider( s_xamlProvider );
+
+	s_fontProvider = Noesis::MakePtr<Tr2NoesisFontProvider>();
+	Noesis::GUI::SetFontProvider( s_fontProvider );
 
 	CCP_NOESIS_LOGNOTICE( "NoesisGUI %s initialised, %u allocations through Carbon's allocator",
 						  Noesis::GetBuildVersion(),
