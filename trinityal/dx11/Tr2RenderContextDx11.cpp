@@ -76,7 +76,7 @@ const D3D11_RASTERIZER_DESC defaultRasterizer = {
 	0,
 	0,
 	true,
-	false,
+	true, // ScissorEnable: always on, matching D3D12/Metal. SetScissorRect selects the rect; RT bind resets it to the full target.
 	false,
 	false
 };
@@ -1407,15 +1407,17 @@ ALResult Tr2RenderContextAL::SetRtDsToDevice( uint32_t changedSlot ) throw()
 	{
 		if( m_boundRenderTarget[0].texture.IsValid() )
 		{
-			SetViewport( Tr2Viewport( bb.GetDesc().GetWidth(), bb.GetDesc().GetHeight() ) );
-			D3D11_RECT rect = { 0, 0, LONG( bb.GetDesc().GetWidth() ), LONG( bb.GetDesc().GetHeight() ) };
-			m_context->RSSetScissorRects( 1, &rect );
+			const uint32_t width = bb.GetDesc().GetWidth();
+			const uint32_t height = bb.GetDesc().GetHeight();
+			SetViewport( Tr2Viewport( width, height ) );
+			SetScissorRect( Tr2ScissorRect( width, height ) );
 		}
 		else if( m_boundDepthStencil.IsValid() )
 		{
-			SetViewport( Tr2Viewport( m_boundDepthStencil.GetDesc().GetWidth(), m_boundDepthStencil.GetDesc().GetHeight() ) );
-			D3D11_RECT rect = { 0, 0, LONG( m_boundDepthStencil.GetDesc().GetWidth() ), LONG( m_boundDepthStencil.GetDesc().GetHeight() ) };
-			m_context->RSSetScissorRects( 1, &rect );
+			const uint32_t width = m_boundDepthStencil.GetDesc().GetWidth();
+			const uint32_t height = m_boundDepthStencil.GetDesc().GetHeight();
+			SetViewport( Tr2Viewport( width, height ) );
+			SetScissorRect( Tr2ScissorRect( width, height ) );
 		}
 	}
 
@@ -2172,6 +2174,20 @@ ALResult Tr2RenderContextAL::GetViewport( Tr2Viewport& viewport ) throw()
 {
 	uint32_t count = 1;
 	m_context->RSGetViewports( &count, reinterpret_cast<D3D11_VIEWPORT*>( &viewport ) );
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::SetScissorRect( const Tr2ScissorRect& rect ) throw()
+{
+	m_scissorRect = rect;
+	const D3D11_RECT d3dRect = { rect.m_left, rect.m_top, rect.m_right, rect.m_bottom };
+	m_context->RSSetScissorRects( 1, &d3dRect );
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::GetScissorRect( Tr2ScissorRect& rect ) throw()
+{
+	rect = m_scissorRect;
 	return S_OK;
 }
 

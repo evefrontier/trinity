@@ -91,6 +91,7 @@ Tr2RenderContextAL::Tr2RenderContextAL() throw() :
 	m_dirtyPso( true ),
 	m_readOnlyDepth( false ),
 	m_viewport(),
+	m_scissorRect(),
 	m_dynamicVBs( 0 ),
 	m_dynamicIB( false ),
 	m_separateAlphaBlendEnabled( false ),
@@ -1045,17 +1046,19 @@ ALResult Tr2RenderContextAL::SetRenderTarget( const Tr2TextureAL& renderTarget, 
 
 		if( m_boundRenderTargets[0].texture.IsValid() )
 		{
-			SetViewport( Tr2Viewport( m_boundRenderTargets[0].texture.GetWidth(), m_boundRenderTargets[0].texture.GetHeight() ) );
-			D3D12_RECT rect = { 0, 0, LONG( m_boundRenderTargets[0].texture.GetWidth() ), LONG( m_boundRenderTargets[0].texture.GetHeight() ) };
-			m_commandList->RSSetScissorRects( 1, &rect );
+			const uint32_t width = m_boundRenderTargets[0].texture.GetWidth();
+			const uint32_t height = m_boundRenderTargets[0].texture.GetHeight();
+			SetViewport( Tr2Viewport( width, height ) );
+			SetScissorRect( Tr2ScissorRect( width, height ) );
 		}
 		else
 		{
 			if( m_boundDepthStencil.IsValid() )
 			{
-				SetViewport( Tr2Viewport( m_boundDepthStencil.GetWidth(), m_boundDepthStencil.GetHeight() ) );
-				D3D12_RECT rect = { 0, 0, LONG( m_boundDepthStencil.GetWidth() ), LONG( m_boundDepthStencil.GetHeight() ) };
-				m_commandList->RSSetScissorRects( 1, &rect );
+				const uint32_t width = m_boundDepthStencil.GetWidth();
+				const uint32_t height = m_boundDepthStencil.GetHeight();
+				SetViewport( Tr2Viewport( width, height ) );
+				SetScissorRect( Tr2ScissorRect( width, height ) );
 			}
 		}
 		m_psoDescription.m_renderTargetCount = count;
@@ -1139,17 +1142,19 @@ ALResult Tr2RenderContextAL::SetDepthStencil( const Tr2TextureAL& depthStencil )
 
 		if( m_boundRenderTargets[0].texture.IsValid() )
 		{
-			SetViewport( Tr2Viewport( m_boundRenderTargets[0].texture.GetWidth(), m_boundRenderTargets[0].texture.GetHeight() ) );
-			D3D12_RECT rect = { 0, 0, LONG( m_boundRenderTargets[0].texture.GetWidth() ), LONG( m_boundRenderTargets[0].texture.GetHeight() ) };
-			m_commandList->RSSetScissorRects( 1, &rect );
+			const uint32_t width = m_boundRenderTargets[0].texture.GetWidth();
+			const uint32_t height = m_boundRenderTargets[0].texture.GetHeight();
+			SetViewport( Tr2Viewport( width, height ) );
+			SetScissorRect( Tr2ScissorRect( width, height ) );
 		}
 		else
 		{
 			if( m_boundDepthStencil.IsValid() )
 			{
-				SetViewport( Tr2Viewport( m_boundDepthStencil.GetWidth(), m_boundDepthStencil.GetHeight() ) );
-				D3D12_RECT rect = { 0, 0, LONG( m_boundDepthStencil.GetWidth() ), LONG( m_boundDepthStencil.GetHeight() ) };
-				m_commandList->RSSetScissorRects( 1, &rect );
+				const uint32_t width = m_boundDepthStencil.GetWidth();
+				const uint32_t height = m_boundDepthStencil.GetHeight();
+				SetViewport( Tr2Viewport( width, height ) );
+				SetScissorRect( Tr2ScissorRect( width, height ) );
 			}
 		}
 		m_psoDescription.m_renderTargetCount = count;
@@ -1237,6 +1242,20 @@ ALResult Tr2RenderContextAL::SetViewport( const Tr2Viewport& viewport ) throw()
 ALResult Tr2RenderContextAL::GetViewport( Tr2Viewport& viewport ) throw()
 {
 	viewport = m_viewport;
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::SetScissorRect( const Tr2ScissorRect& rect ) throw()
+{
+	m_scissorRect = rect;
+	const D3D12_RECT d3dRect = { rect.m_left, rect.m_top, rect.m_right, rect.m_bottom };
+	m_commandList->RSSetScissorRects( 1, &d3dRect );
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::GetScissorRect( Tr2ScissorRect& rect ) throw()
+{
+	rect = m_scissorRect;
 	return S_OK;
 }
 
@@ -1568,6 +1587,7 @@ void Tr2RenderContextAL::ResetDx12()
 
 	m_readOnlyDepth = false;
 	m_viewport = Tr2Viewport();
+	m_scissorRect = Tr2ScissorRect();
 	m_separateAlphaBlendEnabled = false;
 	m_srgbWriteEnable = false;
 }
@@ -1645,8 +1665,7 @@ void Tr2RenderContextAL::ReApplyStateDx12()
 	SetViewport( m_viewport );
 	if( m_boundRenderTargets[0].texture.IsValid() )
 	{
-		D3D12_RECT rect = { 0, 0, LONG( m_boundRenderTargets[0].texture.GetWidth() ), LONG( m_boundRenderTargets[0].texture.GetHeight() ) };
-		m_commandList->RSSetScissorRects( 1, &rect );
+		SetScissorRect( m_scissorRect );
 	}
 	DirtyDescriptorCache();
 }

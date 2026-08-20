@@ -2170,6 +2170,45 @@ void MetalWorkQueue::SetViewport( float originX, float originY, float width, flo
 	m_validViewport = true;
 }
 
+void MetalWorkQueue::SetScissorRect( NSUInteger x, NSUInteger y, NSUInteger width, NSUInteger height )
+{
+	NSUInteger maxWidth = 0;
+	NSUInteger maxHeight = 0;
+	if( m_currentRenderPassDescriptor.depthAttachment.texture )
+	{
+		maxWidth = m_currentRenderPassDescriptor.depthAttachment.texture.width;
+		maxHeight = m_currentRenderPassDescriptor.depthAttachment.texture.height;
+	}
+	else if( m_currentRenderPassDescriptor.colorAttachments[0].texture )
+	{
+		maxWidth = m_currentRenderPassDescriptor.colorAttachments[0].texture.width;
+		maxHeight = m_currentRenderPassDescriptor.colorAttachments[0].texture.height;
+	}
+
+	if( maxWidth > 0 && maxHeight > 0 )
+	{
+		if( x > maxWidth )
+		{
+			x = maxWidth;
+		}
+		if( y > maxHeight )
+		{
+			y = maxHeight;
+		}
+		if( x + width > maxWidth )
+		{
+			width = maxWidth - x;
+		}
+		if( y + height > maxHeight )
+		{
+			height = maxHeight - y;
+		}
+	}
+
+	m_scissorRect = { x, y, width, height };
+	m_dirtyRenderEncoderState |= METAL_RENDERENCODERDIRTYSTATE_VIEWPORT;
+}
+
 void MetalWorkQueue::SetCullMode( MTLCullMode cullMode )
 {
 	if( m_cullMode != cullMode )

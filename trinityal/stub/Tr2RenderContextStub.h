@@ -211,6 +211,8 @@ public:
 
 	ALResult SetViewport( const Tr2Viewport& viewport );
 	ALResult GetViewport( Tr2Viewport& viewport );
+	ALResult SetScissorRect( const Tr2ScissorRect& rect );
+	ALResult GetScissorRect( Tr2ScissorRect& rect );
 
 	ALResult PushRenderTarget( uint32_t slot = 0 );
 	ALResult PopRenderTarget( uint32_t slot = 0 );
@@ -286,6 +288,7 @@ private:
 	bool m_isValid;
 	Tr2TextureAL m_defaultBackBuffer;
 	Tr2Viewport m_viewport;
+	Tr2ScissorRect m_scissorRect;
 	TrackableStdStack<Tr2TextureAL> m_stackRT[MAX_RENDER_TARGET];
 	uint64_t m_frameNumber;
 

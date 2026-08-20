@@ -761,8 +761,10 @@ ALResult Tr2RenderContextAL::SetRenderTarget( const Tr2TextureAL& renderTarget, 
 
 	if( m_boundRenderTargets[0].texture.IsValid() )
 	{
-		SetViewport(
-			Tr2Viewport( m_boundRenderTargets[0].texture.GetWidth(), m_boundRenderTargets[0].texture.GetHeight() ) );
+		const uint32_t width = m_boundRenderTargets[0].texture.GetWidth();
+		const uint32_t height = m_boundRenderTargets[0].texture.GetHeight();
+		SetViewport( Tr2Viewport( width, height ) );
+		SetScissorRect( Tr2ScissorRect( width, height ) );
 	}
 
 	return S_OK;
@@ -1189,6 +1191,23 @@ ALResult Tr2RenderContextAL::SetViewport( const Tr2Viewport& viewport )
 ALResult Tr2RenderContextAL::GetViewport( Tr2Viewport& viewport )
 {
 	viewport = m_viewport;
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::SetScissorRect( const Tr2ScissorRect& rect )
+{
+	m_scissorRect = rect;
+	const NSUInteger x = NSUInteger( rect.m_left < 0 ? 0 : rect.m_left );
+	const NSUInteger y = NSUInteger( rect.m_top < 0 ? 0 : rect.m_top );
+	const NSUInteger width = NSUInteger( rect.m_right > rect.m_left ? rect.m_right - rect.m_left : 0 );
+	const NSUInteger height = NSUInteger( rect.m_bottom > rect.m_top ? rect.m_bottom - rect.m_top : 0 );
+	m_workQueue->SetScissorRect( x, y, width, height );
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::GetScissorRect( Tr2ScissorRect& rect )
+{
+	rect = m_scissorRect;
 	return S_OK;
 }
 

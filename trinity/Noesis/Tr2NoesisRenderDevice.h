@@ -21,7 +21,8 @@
 //
 //   DrawBatch draws every permutation that was compiled and asserts on Custom_Effect,
 //   which is supplied by the effect itself rather than compiled here.
-//   BeginTile/EndTile are no-ops (gap G1: TrinityAL has no scissor rect).
+//   BeginTile sets the AL scissor to the tile (Y-flipped from Noesis's lower-left origin).
+//   EndTile is a no-op: the next SetRenderTarget resets scissor to the full target.
 //   EndUpdatingTextures is not overridden: UpdateSubresource restores shader-read
 //   state before it returns (see UpdateTexture).
 // --------------------------------------------------------------------------------------

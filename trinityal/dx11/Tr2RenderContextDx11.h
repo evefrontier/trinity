@@ -7,6 +7,7 @@
 
 #include "../Tr2RenderContextEnum.h"
 #include "../Tr2DrawUPHelper.h"
+#include "../Tr2HalHelperStructures.h"
 #include "../include/Tr2ConstantBufferAL.h"
 #include "../include/Tr2ResourceSetAL.h"
 #include "../include/Tr2TextureAL.h"
@@ -24,6 +25,7 @@ class Tr2SamplerStateAL;
 class Tr2BufferAL;
 class Tr2RtShaderTableAL;
 struct Tr2Viewport;
+struct Tr2ScissorRect;
 
 
 #if ( TRINITY_PLATFORM == TRINITY_DIRECTX11 )
@@ -184,6 +186,8 @@ public:
 
 	ALResult SetViewport( const Tr2Viewport& viewport ) throw();
 	ALResult GetViewport( Tr2Viewport& viewport ) throw();
+	ALResult SetScissorRect( const Tr2ScissorRect& rect ) throw();
+	ALResult GetScissorRect( Tr2ScissorRect& rect ) throw();
 
 	ALResult PushRenderTarget( uint32_t slot = 0 ) throw();
 	ALResult PopRenderTarget( uint32_t slot = 0 ) throw();
@@ -305,6 +309,7 @@ private:
 	uint32_t m_renderTargetHighWaterMark;
 
 	Tr2TextureAL m_boundDepthStencil;
+	Tr2ScissorRect m_scissorRect;
 
 	Tr2RenderStateEmulation m_renderStateEmulation;
 

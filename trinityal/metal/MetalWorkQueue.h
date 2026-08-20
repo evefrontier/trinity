@@ -261,6 +261,7 @@ public:
 					 const ShaderResourceMask* resourceMasks );
 
 	void SetViewport( float originX, float originY, float width, float height, float znear, float zfar );
+	void SetScissorRect( NSUInteger x, NSUInteger y, NSUInteger width, NSUInteger height );
 	void SetCullMode( MTLCullMode cullMode );
 	void SetFillMode( MTLTriangleFillMode fillMode );
 	void SetDepthBias( float* depthBias, float* slopeScale, float* clamp );

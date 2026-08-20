@@ -46,6 +46,32 @@ struct Tr2Viewport
 	float m_maxZ;
 };
 
+// -------------------------------------------------------------
+// Description:
+//  Scissor rectangle for Tr2RenderContextAL, in framebuffer pixels with
+//  origin at the top-left. Binding render-target slot 0 (or the depth
+//  stencil when slot 0 is empty) resets this to the full target.
+//  D3D12 and Metal always clip to it; D3D11 rasterizer scissor is on
+//  to match.
+// -------------------------------------------------------------
+struct Tr2ScissorRect
+{
+	Tr2ScissorRect() :
+		m_left( 0 ), m_top( 0 ), m_right( 0 ), m_bottom( 0 )
+	{
+	}
+
+	Tr2ScissorRect( uint32_t width, uint32_t height ) :
+		m_left( 0 ), m_top( 0 ), m_right( int32_t( width ) ), m_bottom( int32_t( height ) )
+	{
+	}
+
+	int32_t m_left;
+	int32_t m_top;
+	int32_t m_right;
+	int32_t m_bottom;
+};
+
 struct Tr2TextureCoordBox
 {
 	uint32_t left;

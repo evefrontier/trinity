@@ -174,6 +174,8 @@ public:
 
 	ALResult SetViewport( const Tr2Viewport& viewport );
 	ALResult GetViewport( Tr2Viewport& viewport );
+	ALResult SetScissorRect( const Tr2ScissorRect& rect );
+	ALResult GetScissorRect( Tr2ScissorRect& rect );
 
 	ALResult PushRenderTarget( uint32_t slot = 0 );
 	ALResult PopRenderTarget( uint32_t slot = 0 );
@@ -295,6 +297,7 @@ protected:
 	Tr2TextureAL m_defaultBackBuffer;
 
 	Tr2Viewport m_viewport;
+	Tr2ScissorRect m_scissorRect;
 	TrinityALImpl::MetalContext* m_metalContext;
 	TrinityALImpl::MetalWorkQueue* m_workQueue;
 

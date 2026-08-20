@@ -34,6 +34,23 @@ TEST_F( RenderContext, CanSetViewport )
 	EXPECT_EQ( viewport.m_maxZ, gotViewport.m_maxZ );
 }
 
+TEST_F( RenderContext, CanSetScissorRect )
+{
+	ENSURE_GPU_OR_SKIP
+	Tr2ScissorRect rect;
+	rect.m_left = 10;
+	rect.m_top = 20;
+	rect.m_right = 80;
+	rect.m_bottom = 60;
+	ASSERT_HRESULT_SUCCEEDED( renderContext->SetScissorRect( rect ) );
+	Tr2ScissorRect gotRect;
+	ASSERT_HRESULT_SUCCEEDED( renderContext->GetScissorRect( gotRect ) );
+	EXPECT_EQ( rect.m_left, gotRect.m_left );
+	EXPECT_EQ( rect.m_top, gotRect.m_top );
+	EXPECT_EQ( rect.m_right, gotRect.m_right );
+	EXPECT_EQ( rect.m_bottom, gotRect.m_bottom );
+}
+
 TEST_F( PrimaryRenderContext, CanGetBackbufferFormat )
 {
 	ENSURE_GPU_OR_SKIP

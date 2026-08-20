@@ -322,6 +322,18 @@ ALResult Tr2RenderContextAL::GetViewport( Tr2Viewport& viewport )
 	return S_OK;
 }
 
+ALResult Tr2RenderContextAL::SetScissorRect( const Tr2ScissorRect& rect )
+{
+	m_scissorRect = rect;
+	return S_OK;
+}
+
+ALResult Tr2RenderContextAL::GetScissorRect( Tr2ScissorRect& rect )
+{
+	rect = m_scissorRect;
+	return S_OK;
+}
+
 long Tr2RenderContextAL::GetTotalVideoMemory()
 {
 	return 0;

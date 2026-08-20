@@ -764,14 +764,25 @@ void Tr2NoesisRenderDevice::SetRenderTarget( RenderTarget* surface_ )
 	m_context->SetViewport( Tr2Viewport( surface->GetWidth(), surface->GetHeight() ) );
 }
 
-void Tr2NoesisRenderDevice::BeginTile( RenderTarget* /*surface*/, const Tile& /*tile*/ )
+void Tr2NoesisRenderDevice::BeginTile( RenderTarget* surface_, const Tile& tile )
 {
-	// TODO G1: TrinityAL has no scissor rect. Noesis clears regions by drawing with the Clear
-	// shader, so without scissor those draws may cover more than the intended tile.
+	CCP_ASSERT_M( m_context != nullptr, "BeginTile without a render context" );
+	CCP_ASSERT_M( surface_ != nullptr, "BeginTile with null surface" );
+
+	Tr2NoesisRenderTarget* surface = static_cast<Tr2NoesisRenderTarget*>( surface_ );
+	Tr2ScissorRect rect;
+	rect.m_left = int32_t( tile.x );
+	rect.m_top = int32_t( surface->GetHeight() - ( tile.y + tile.height ) );
+	rect.m_right = int32_t( tile.x + tile.width );
+	rect.m_bottom = int32_t( surface->GetHeight() - tile.y );
+	m_context->SetScissorRect( rect );
 }
 
 void Tr2NoesisRenderDevice::EndTile( RenderTarget* /*surface*/ )
 {
+	// Empty, matching D3D12RenderDevice. The next SetRenderTarget - or the
+	// step's PopRenderTarget after the offscreen phase - resets scissor to
+	// the full target.
 }
 
 void Tr2NoesisRenderDevice::ResolveRenderTarget( RenderTarget* /*surface*/, const Tile* /*tiles*/, uint32_t /*numTiles*/ )

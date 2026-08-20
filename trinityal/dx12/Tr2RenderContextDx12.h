@@ -27,6 +27,7 @@ class Tr2SamplerStateAL;
 class Tr2BufferAL;
 class Tr2RtShaderTableAL;
 struct Tr2Viewport;
+struct Tr2ScissorRect;
 
 
 class Tr2BindlessResourcesAL
@@ -169,6 +170,8 @@ public:
 
 	ALResult SetViewport( const Tr2Viewport& viewport ) throw();
 	ALResult GetViewport( Tr2Viewport& viewport ) throw();
+	ALResult SetScissorRect( const Tr2ScissorRect& rect ) throw();
+	ALResult GetScissorRect( Tr2ScissorRect& rect ) throw();
 
 	ALResult SetRenderTarget( const Tr2TextureAL& renderTarget, uint32_t slot = 0, uint32_t slice = 0 ) throw();
 	ALResult PushRenderTarget( uint32_t slot = 0 ) throw();
@@ -294,6 +297,7 @@ protected:
 	bool m_readOnlyDepth;
 
 	Tr2Viewport m_viewport;
+	Tr2ScissorRect m_scissorRect;
 
 	Tr2RenderContextEnum::Topology m_topology;
 	TrinityALImpl::Tr2DrawUPHelper m_drawUPHelper;
