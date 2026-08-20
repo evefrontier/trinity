@@ -8,6 +8,7 @@
 
 #include "Noesis/Tr2NoesisFontProvider.h"
 #include "Noesis/Tr2NoesisLog.h"
+#include "Noesis/Tr2NoesisTextureProvider.h"
 #include "Noesis/Tr2NoesisXamlProvider.h"
 
 #include <NoesisLicense.h>
@@ -16,7 +17,12 @@
 #include <NsCore/Log.h>
 #include <NsCore/Memory.h>
 #include <NsCore/Version.h>
+#include <NsGui/FontProperties.h>
 #include <NsGui/IntegrationAPI.h>
+#include <NsGui/ResourceDictionary.h>
+
+#include <string>
+#include <vector>
 
 CCP_STATS_DECLARE( noesisMem, "Trinity/NoesisMemory", false, CST_MEMORY, "Memory used by NoesisGUI" );
 
@@ -35,6 +41,11 @@ bool s_logVerbose = false;
 // which is when providers may be installed.
 Noesis::Ptr<Tr2NoesisXamlProvider> s_xamlProvider;
 Noesis::Ptr<Tr2NoesisFontProvider> s_fontProvider;
+Noesis::Ptr<Tr2NoesisTextureProvider> s_textureProvider;
+
+// Owned copies for SetFontFallbacks: Noesis keeps the char* pointers it is given.
+std::vector<std::string> s_fontFallbackNames;
+std::vector<const char*> s_fontFallbackPtrs;
 
 void NoesisLogHandler( const char* /*file*/, uint32_t /*line*/, uint32_t level, const char* channel, const char* message )
 {
@@ -181,12 +192,16 @@ void EnsureInitialized()
 	// Providers go in after Init, unlike the handlers above. One global provider rather than a
 	// scheme-scoped one: a XAML file's merged dictionaries arrive as Uris combined against the
 	// parent's, and a provider bound to the 'res' scheme would never be asked for those. Font
-	// folders are the same global provider, with 'res:/' prefixed onto the Studio-style path.
+	// folders and textures are the same global provider, with 'res:/' prefixed onto the
+	// Studio-style path.
 	s_xamlProvider = Noesis::MakePtr<Tr2NoesisXamlProvider>();
 	Noesis::GUI::SetXamlProvider( s_xamlProvider );
 
 	s_fontProvider = Noesis::MakePtr<Tr2NoesisFontProvider>();
 	Noesis::GUI::SetFontProvider( s_fontProvider );
+
+	s_textureProvider = Noesis::MakePtr<Tr2NoesisTextureProvider>();
+	Noesis::GUI::SetTextureProvider( s_textureProvider );
 
 	CCP_NOESIS_LOGNOTICE( "NoesisGUI %s initialised, %u allocations through Carbon's allocator",
 						  Noesis::GetBuildVersion(),
@@ -225,6 +240,91 @@ bool IsStudioAvailable()
 #else
 	return false;
 #endif
+}
+
+bool SetApplicationResources( const char* resPath )
+{
+	EnsureInitialized();
+
+	if( resPath == nullptr || resPath[0] == '\0' )
+	{
+		CCP_NOESIS_LOGERR( "SetApplicationResources was given an empty path" );
+		return false;
+	}
+
+	const Noesis::Uri uri( resPath );
+	Noesis::Ptr<Noesis::ResourceDictionary> resources =
+		Noesis::GUI::LoadXaml<Noesis::ResourceDictionary>( uri );
+	if( resources == nullptr )
+	{
+		CCP_NOESIS_LOGERR( "SetApplicationResources failed for '%s'. Either the resource is missing "
+						   "or the XAML did not parse into a ResourceDictionary; the parse error is "
+						   "logged above.",
+						   resPath );
+		return false;
+	}
+
+	Noesis::GUI::SetApplicationResources( resources );
+	Noesis::GUI::RefreshDefaultStyles();
+	CCP_NOESIS_LOGNOTICE( "Set application resources from '%s'", resPath );
+	return true;
+}
+
+bool SetFontFallbacks( const std::vector<std::string>& familyNames )
+{
+	EnsureInitialized();
+
+	for( const std::string& name : familyNames )
+	{
+		if( name.empty() )
+		{
+			CCP_NOESIS_LOGERR( "SetFontFallbacks was given an empty family name" );
+			return false;
+		}
+	}
+
+	// Noesis keeps the char* pointers; own the bytes for the process lifetime.
+	s_fontFallbackNames = familyNames;
+	s_fontFallbackPtrs.clear();
+	s_fontFallbackPtrs.reserve( s_fontFallbackNames.size() );
+	for( const std::string& name : s_fontFallbackNames )
+	{
+		s_fontFallbackPtrs.push_back( name.c_str() );
+	}
+
+	Noesis::GUI::SetFontFallbacks(
+		s_fontFallbackPtrs.empty() ? nullptr : s_fontFallbackPtrs.data(),
+		static_cast<uint32_t>( s_fontFallbackPtrs.size() ) );
+
+	CCP_NOESIS_LOGNOTICE( "Set %u font fallback(s)", static_cast<uint32_t>( s_fontFallbackPtrs.size() ) );
+	return true;
+}
+
+bool SetFontDefaultProperties( float size, int weight, int stretch, int style )
+{
+	EnsureInitialized();
+
+	if( !( size > 0.0f ) )
+	{
+		CCP_NOESIS_LOGERR( "SetFontDefaultProperties size must be positive, got %f", size );
+		return false;
+	}
+	if( weight <= 0 || stretch < 1 || stretch > 9 || style < 0 || style > 2 )
+	{
+		CCP_NOESIS_LOGERR( "SetFontDefaultProperties got out-of-range weight=%d stretch=%d style=%d",
+						   weight, stretch, style );
+		return false;
+	}
+
+	Noesis::GUI::SetFontDefaultProperties(
+		size,
+		static_cast<Noesis::FontWeight>( weight ),
+		static_cast<Noesis::FontStretch>( stretch ),
+		static_cast<Noesis::FontStyle>( style ) );
+
+	CCP_NOESIS_LOGNOTICE( "Set font defaults size=%g weight=%d stretch=%d style=%d",
+						  size, weight, stretch, style );
+	return true;
 }
 
 }

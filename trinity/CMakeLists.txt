@@ -1839,6 +1839,10 @@ endif()
 set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisFontProvider.cpp
     Noesis/Tr2NoesisFontProvider.h
+    Noesis/Tr2NoesisTextureDecode.cpp
+    Noesis/Tr2NoesisTextureDecode.h
+    Noesis/Tr2NoesisTextureProvider.cpp
+    Noesis/Tr2NoesisTextureProvider.h
     Noesis/Tr2NoesisLog.h
     Noesis/Tr2NoesisResFile.cpp
     Noesis/Tr2NoesisResFile.h
