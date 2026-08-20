@@ -11,6 +11,8 @@
 
 namespace Noesis { class FrameworkElement; }
 
+BLUE_DECLARE( Tr2NoesisDataModel );
+
 // --------------------------------------------------------------------------------------
 // Description:
 //   A NoesisGUI view holding one XAML tree, driven by TriStepRenderNoesis
@@ -42,6 +44,9 @@ public:
 	bool LoadXamlString( const char* xaml );
 
 	bool GetIsLoaded() const;
+
+	void SetDataContext( Tr2NoesisDataModel* model );
+	Tr2NoesisDataModel* GetDataContext() const;
 
 	// C++ only. Used by LoadXaml, LoadXamlString and Tr2Noesis::LoadStudio. Not Blue-mapped.
 	bool SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, const char* source );
@@ -79,8 +84,10 @@ public:
 
 private:
 	void ReleaseView();
+	void ApplyDataContext();
 
 	Noesis::Ptr<Noesis::IView> m_view;
+	Tr2NoesisDataModelPtr m_dataContext;
 	bool m_rendererInitialized;
 	uint32_t m_width;
 	uint32_t m_height;

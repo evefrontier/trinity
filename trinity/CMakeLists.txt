@@ -1868,6 +1868,19 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisFileXamlProvider.cpp
     Noesis/Tr2NoesisFileXamlProvider.h
     Noesis/Tr2NoesisStudio.cpp
+    Noesis/Tr2NoesisTypes.cpp
+    Noesis/Tr2NoesisTypes.h
+    Noesis/Tr2NoesisCommand.cpp
+    Noesis/Tr2NoesisCommand.h
+    Noesis/Tr2NoesisObject.cpp
+    Noesis/Tr2NoesisObject.h
+    Noesis/Tr2NoesisDataModel.cpp
+    Noesis/Tr2NoesisDataModel.h
+    Noesis/Tr2NoesisDataModel_Blue.cpp
+    Noesis/Tr2NoesisCollection.cpp
+    Noesis/Tr2NoesisCollection.h
+    Noesis/Tr2NoesisCollection_Blue.cpp
+    Noesis/Tr2NoesisPython.h
 )
 
 if(WITH_NOESIS)

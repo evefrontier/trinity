@@ -6,7 +6,9 @@
 
 #if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
 
+#include "Noesis/Tr2NoesisDataModel.h"
 #include "Noesis/Tr2NoesisLog.h"
+#include "Noesis/Tr2NoesisObject.h"
 #include "Noesis/Tr2NoesisRenderDevice.h"
 #include "Noesis/Tr2NoesisSystem.h"
 
@@ -267,7 +269,34 @@ bool Tr2NoesisView::SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, c
 	}
 
 	CCP_NOESIS_LOGNOTICE( "Loaded XAML from '%s'", source );
+	ApplyDataContext();
 	return true;
+}
+
+void Tr2NoesisView::SetDataContext( Tr2NoesisDataModel* model )
+{
+	m_dataContext = model;
+	ApplyDataContext();
+}
+
+Tr2NoesisDataModel* Tr2NoesisView::GetDataContext() const
+{
+	return m_dataContext;
+}
+
+void Tr2NoesisView::ApplyDataContext()
+{
+	if( m_view == nullptr )
+	{
+		return;
+	}
+	Noesis::FrameworkElement* root = m_view->GetContent();
+	if( root == nullptr )
+	{
+		return;
+	}
+	Tr2NoesisObject* native = m_dataContext != nullptr ? m_dataContext->GetNative() : nullptr;
+	root->SetDataContext( native );
 }
 
 void Tr2NoesisView::ReleaseView()

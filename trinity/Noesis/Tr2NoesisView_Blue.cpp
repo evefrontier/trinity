@@ -6,6 +6,8 @@
 
 #if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
 
+#include "Noesis/Tr2NoesisDataModel.h"
+
 BLUE_DEFINE( Tr2NoesisView );
 
 const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
@@ -33,6 +35,12 @@ const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 			"isLoaded",
 			GetIsLoaded,
 			"True once XAML has been loaded successfully." )
+
+		MAP_PROPERTY(
+			"dataContext",
+			GetDataContext,
+			SetDataContext,
+			"Observable model installed as the XAML tree DataContext. Re-applied after LoadXaml." )
 
 		MAP_METHOD_AND_WRAP(
 			"Activate",
