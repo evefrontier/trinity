@@ -295,8 +295,10 @@ void Tr2NoesisView::ApplyDataContext()
 	{
 		return;
 	}
-	Tr2NoesisObject* native = m_dataContext != nullptr ? m_dataContext->GetNative() : nullptr;
-	root->SetDataContext( native );
+	if( m_dataContext != nullptr )
+	{
+		root->SetDataContext( m_dataContext->GetNative() );
+	}
 }
 
 void Tr2NoesisView::ReleaseView()
