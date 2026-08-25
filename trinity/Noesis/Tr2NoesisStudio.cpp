@@ -34,7 +34,10 @@ Tr2NoesisView* LoadStudio( Tr2NoesisView* view, const char* projectPath )
 		return nullptr;
 	}
 
-	EnsureInitialized();
+	if( !RequireInitialized() )
+	{
+		return nullptr;
+	}
 
 	Noesis::Studio::Options options;
 	options.darkTheme = true;

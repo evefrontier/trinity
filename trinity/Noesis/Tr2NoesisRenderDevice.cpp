@@ -509,7 +509,11 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 	m_unwiredReported( 0 ),
 	m_logBatchDetail( true )
 {
-	Tr2Noesis::EnsureInitialized();
+	if( !Tr2Noesis::RequireInitialized() )
+	{
+		m_valid = false;
+		return;
+	}
 
 	m_caps.linearRendering = false;
 	m_caps.subpixelRendering = true;

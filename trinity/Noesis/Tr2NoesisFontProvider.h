@@ -11,7 +11,7 @@
 // --------------------------------------------------------------------------------------
 // Description:
 //   Serves fonts to NoesisGUI out of Trinity's resource tree. Registered globally from
-//   Tr2Noesis::EnsureInitialized.
+//   Tr2Noesis::Initialize.
 //
 //   XAML uses Studio-style folder URIs with no 'res:' scheme, for example
 //   FontFamily="/ui/fonts/#Arial Unicode MS". ScanFolder and OpenFont prefix 'res:/' so

@@ -8,14 +8,16 @@
 
 static void NoesisInitialize()
 {
-	Tr2Noesis::EnsureInitialized();
+	Tr2Noesis::Initialize();
 }
 
 MAP_FUNCTION_AND_WRAP( "NoesisInitialize",
 					   NoesisInitialize,
 					   "Initialises NoesisGUI, installing Carbon's log, assert, error and memory handlers first.\n"
-					   "Does nothing if NoesisGUI is already initialised. NoesisGUI has no error channel of its\n"
-					   "own during initialisation, so watch the Noesis log channel for the outcome.\n"
+					   "Does nothing if NoesisGUI is already initialised. Call the Disable* functions first;\n"
+					   "Python should use noesis.initialize() rather than calling this directly.\n"
+					   "NoesisGUI has no error channel of its own during initialisation, so watch the Noesis\n"
+					   "log channel for the outcome.\n"
 					   ":rtype: None" );
 
 static bool NoesisIsInitialized()
@@ -35,8 +37,63 @@ static const char* NoesisGetVersion()
 
 MAP_FUNCTION_AND_WRAP( "NoesisGetVersion",
 					   NoesisGetVersion,
-					   "Returns the build version reported by Noesis.dll, initialising NoesisGUI if needed.\n"
+					   "Returns the build version reported by Noesis.dll. Requires NoesisInitialize first.\n"
 					   ":rtype: str" );
+
+static void NoesisDisableHotReload()
+{
+	Tr2Noesis::DisableHotReload();
+}
+
+MAP_FUNCTION_AND_WRAP( "NoesisDisableHotReload",
+					   NoesisDisableHotReload,
+					   "Disables NoesisGUI hot reload. Must be called before NoesisInitialize; a no-op after.\n"
+					   ":rtype: None" );
+
+static void NoesisDisableInspector()
+{
+	Tr2Noesis::DisableInspector();
+}
+
+MAP_FUNCTION_AND_WRAP( "NoesisDisableInspector",
+					   NoesisDisableInspector,
+					   "Disables the Noesis Inspector and its device-discovery threads. Must be called before\n"
+					   "NoesisInitialize; a no-op after.\n"
+					   ":rtype: None" );
+
+static void NoesisDisableSocketInit()
+{
+	Tr2Noesis::DisableSocketInit();
+}
+
+MAP_FUNCTION_AND_WRAP( "NoesisDisableSocketInit",
+					   NoesisDisableSocketInit,
+					   "Stops NoesisGUI from initialising sockets (WSAStartup). Must be called before\n"
+					   "NoesisInitialize; a no-op after.\n"
+					   ":rtype: None" );
+
+static void NoesisRaiseXamlChanged( const char* uri )
+{
+	Tr2Noesis::RaiseXamlChanged( uri );
+}
+
+MAP_FUNCTION_AND_WRAP( "NoesisRaiseXamlChanged",
+					   NoesisRaiseXamlChanged,
+					   "Notifies NoesisGUI that the XAML at the given URI has changed, so live trees can hot-reload.\n"
+					   ":param uri: resource path, for example 'res:/ui/noesis/theme/NoesisTheme.DarkBlue.xaml'\n"
+					   ":rtype: None" );
+
+static void NoesisRaiseTextureChanged( const char* uri )
+{
+	Tr2Noesis::RaiseTextureChanged( uri );
+}
+
+MAP_FUNCTION_AND_WRAP( "NoesisRaiseTextureChanged",
+					   NoesisRaiseTextureChanged,
+					   "Notifies NoesisGUI that the texture at the given URI has changed, so live Image sources can\n"
+					   "hot-reload.\n"
+					   ":param uri: resource path, for example 'res:/ui/noesis/icon.png'\n"
+					   ":rtype: None" );
 
 static bool NoesisStudioIsAvailable()
 {

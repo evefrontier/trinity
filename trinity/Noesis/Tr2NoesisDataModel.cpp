@@ -23,7 +23,10 @@ void Tr2NoesisDataModel::EnsureObject( const char* schemaName )
 	{
 		return;
 	}
-	Tr2Noesis::EnsureInitialized();
+	if( !Tr2Noesis::RequireInitialized() )
+	{
+		return;
+	}
 	m_object = Noesis::MakePtr<Tr2NoesisObject>( schemaName );
 }
 

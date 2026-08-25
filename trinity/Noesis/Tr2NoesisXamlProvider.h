@@ -12,7 +12,7 @@
 // --------------------------------------------------------------------------------------
 // Description:
 //   Serves XAML to NoesisGUI out of Trinity's resource system, through the Blue ResFile
-//   class. Registered globally from Tr2Noesis::EnsureInitialized.
+//   class. Registered globally from Tr2Noesis::Initialize.
 //
 //   Each Uri is treated as a Trinity resource path verbatim, so callers pass full
 //   'res:/...' paths. A XAML file's own dependencies arrive already combined against its

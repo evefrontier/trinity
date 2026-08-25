@@ -210,7 +210,10 @@ bool Tr2NoesisView::LoadXaml( const char* resPath )
 		return false;
 	}
 
-	Tr2Noesis::EnsureInitialized();
+	if( !Tr2Noesis::RequireInitialized() )
+	{
+		return false;
+	}
 
 	// Goes through Tr2NoesisXamlProvider, which treats the Uri as a Trinity resource path.
 	Noesis::Ptr<Noesis::FrameworkElement> content =
@@ -234,7 +237,10 @@ bool Tr2NoesisView::LoadXamlString( const char* xaml )
 		return false;
 	}
 
-	Tr2Noesis::EnsureInitialized();
+	if( !Tr2Noesis::RequireInitialized() )
+	{
+		return false;
+	}
 
 	// No provider involved, so this reaches pixels without the resource system in the picture.
 	Noesis::Ptr<Noesis::FrameworkElement> content = Noesis::GUI::ParseXaml<Noesis::FrameworkElement>( xaml );

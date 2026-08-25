@@ -11,7 +11,7 @@
 // --------------------------------------------------------------------------------------
 // Description:
 //   Serves textures to NoesisGUI out of Trinity's resource tree. Registered globally
-//   from Tr2Noesis::EnsureInitialized.
+//   from Tr2Noesis::Initialize.
 //
 //   XAML Image Source URIs are mapped the same way as font folders: a res: Uri is used
 //   as a Trinity resource path verbatim, and a scheme-less Studio path such as

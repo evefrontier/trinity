@@ -218,7 +218,10 @@ std::string MakeSchemaName( const char* schemaName )
 Tr2NoesisObject::Tr2NoesisObject( const char* schemaName )
 	: m_schema( nullptr )
 {
-	Tr2Noesis::EnsureInitialized();
+	if( !Tr2Noesis::RequireInitialized() )
+	{
+		return;
+	}
 	m_schemaName = MakeSchemaName( schemaName );
 	m_schema = GetOrCreateSchema( m_schemaName.c_str() );
 }

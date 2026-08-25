@@ -20,17 +20,33 @@
 namespace Tr2Noesis
 {
 
-// Installs the host-service callbacks and initialises Noesis. Every entry point into the
-// SDK must call this first; all calls after the first one do nothing.
-void EnsureInitialized();
+// Installs the host-service callbacks and initialises Noesis. The only caller is
+// trinity.NoesisInitialize, which Python's noesis.initialize() invokes after the
+// Disable* flags. Subsequent calls do nothing. Do not call this from C++ entry
+// points — use RequireInitialized so a missing Python init fails loudly.
+void Initialize();
+
+// True when Initialize has run. Logs, asserts, and returns false otherwise.
+bool RequireInitialized();
 
 bool IsInitialized();
+
+// SDK Disable* forwards. Must be called before Initialize; no-ops with a warning
+// after Init. Do not initialise the library.
+void DisableHotReload();
+void DisableInspector();
+void DisableSocketInit();
+
+// Notifies Noesis that a provider URI's bytes changed. No-op if not initialised
+// or the uri is empty.
+void RaiseXamlChanged( const char* uri );
+void RaiseTextureChanged( const char* uri );
 
 // True when /noesisLogVerbose was set at startup. Gates named-channel traces from
 // the vendor and our own routine resource-creation logs.
 bool IsLogVerbose();
 
-// The version string reported from inside Noesis.dll. Initialises the library.
+// The version string reported from inside Noesis.dll. Requires Initialize first.
 const char* GetVersion();
 
 // True when this binary was built with WITH_NOESIS_STUDIO on the DX12 target.

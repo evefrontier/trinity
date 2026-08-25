@@ -11,7 +11,10 @@
 
 Tr2NoesisCollection::Tr2NoesisCollection( IRoot* )
 {
-	Tr2Noesis::EnsureInitialized();
+	if( !Tr2Noesis::RequireInitialized() )
+	{
+		return;
+	}
 	m_items = Noesis::MakePtr<Noesis::ObservableCollection<Noesis::BaseComponent>>();
 }
 

@@ -20,6 +20,7 @@
 #include <NsGui/FontProperties.h>
 #include <NsGui/IntegrationAPI.h>
 #include <NsGui/ResourceDictionary.h>
+#include <NsGui/Uri.h>
 
 #include <string>
 #include <vector>
@@ -29,7 +30,7 @@ CCP_STATS_DECLARE( noesisMem, "Trinity/NoesisMemory", false, CST_MEMORY, "Memory
 namespace
 {
 
-// Only ever written by EnsureInitialized, which Blue calls from the Python thread.
+// Only ever written by Initialize, which Blue calls from the Python thread.
 bool s_initialized = false;
 
 // Noesis's own launcher drops everything below warning that came from a named channel, on the
@@ -143,7 +144,7 @@ Noesis::SizeT NoesisAllocSize( void* /*user*/, void* ptr )
 namespace Tr2Noesis
 {
 
-void EnsureInitialized()
+void Initialize()
 {
 	if( s_initialized )
 	{
@@ -176,16 +177,9 @@ void EnsureInitialized()
 	// NOESIS_LICENSE_KEY CMake cache variables, so no key ever lands in the source tree.
 	Noesis::SetLicense( NS_LICENSE_NAME, NS_LICENSE_KEY );
 
-	// 4.0 rewrote the Inspector protocol and starts device-discovery threads from Init in
-	// Debug/Profile. Those threads call our CCP_MALLOC hooks; Carbon's heap is not safe for
-	// that. Hot reload and sockets ride along. Opt back in with /noesisInspector.
-	const auto inspectorArg = BeOS->GetStartupArgValue( L"noesisInspector" );
-	if( inspectorArg.empty() || inspectorArg == L"0" )
-	{
-		Noesis::GUI::DisableHotReload();
-		Noesis::GUI::DisableInspector();
-		Noesis::GUI::DisableSocketInit();
-	}
+	// DisableHotReload / DisableInspector / DisableSocketInit are Python's job, via
+	// noesis.initialize(), and must already have been applied. Calling them here would
+	// override that policy.
 
 	Noesis::Init();
 
@@ -216,9 +210,84 @@ void EnsureInitialized()
 	}
 }
 
+bool RequireInitialized()
+{
+	if( s_initialized )
+	{
+		return true;
+	}
+	CCP_NOESIS_LOGERR( "NoesisGUI is not initialised; Python must call noesis.initialize() first" );
+	CCP_ASSERT_M( false, "NoesisGUI is not initialised; Python must call noesis.initialize() first" );
+	return false;
+}
+
 bool IsInitialized()
 {
 	return s_initialized;
+}
+
+void DisableHotReload()
+{
+	if( s_initialized )
+	{
+		CCP_NOESIS_LOGWARN( "NoesisDisableHotReload is a no-op after NoesisGUI has been initialised" );
+		return;
+	}
+	Noesis::GUI::DisableHotReload();
+}
+
+void DisableInspector()
+{
+	if( s_initialized )
+	{
+		CCP_NOESIS_LOGWARN( "NoesisDisableInspector is a no-op after NoesisGUI has been initialised" );
+		return;
+	}
+	Noesis::GUI::DisableInspector();
+}
+
+void DisableSocketInit()
+{
+	if( s_initialized )
+	{
+		CCP_NOESIS_LOGWARN( "NoesisDisableSocketInit is a no-op after NoesisGUI has been initialised" );
+		return;
+	}
+	Noesis::GUI::DisableSocketInit();
+}
+
+void RaiseXamlChanged( const char* uri )
+{
+	if( !RequireInitialized() )
+	{
+		return;
+	}
+	if( uri == nullptr || uri[0] == '\0' )
+	{
+		CCP_NOESIS_LOGERR( "NoesisRaiseXamlChanged was given an empty uri" );
+		return;
+	}
+	if( s_xamlProvider != nullptr )
+	{
+		s_xamlProvider->RaiseXamlChanged( Noesis::Uri( uri ) );
+	}
+}
+
+void RaiseTextureChanged( const char* uri )
+{
+	if( !RequireInitialized() )
+	{
+		return;
+	}
+	if( uri == nullptr || uri[0] == '\0' )
+	{
+		CCP_NOESIS_LOGERR( "NoesisRaiseTextureChanged was given an empty uri" );
+		return;
+	}
+	if( s_textureProvider != nullptr )
+	{
+		s_textureProvider->RaiseTextureChanged( Noesis::Uri( uri ) );
+	}
 }
 
 bool IsLogVerbose()
@@ -228,7 +297,10 @@ bool IsLogVerbose()
 
 const char* GetVersion()
 {
-	EnsureInitialized();
+	if( !RequireInitialized() )
+	{
+		return "";
+	}
 
 	return Noesis::GetBuildVersion();
 }
@@ -244,7 +316,10 @@ bool IsStudioAvailable()
 
 bool SetApplicationResources( const char* resPath )
 {
-	EnsureInitialized();
+	if( !RequireInitialized() )
+	{
+		return false;
+	}
 
 	if( resPath == nullptr || resPath[0] == '\0' )
 	{
@@ -272,7 +347,10 @@ bool SetApplicationResources( const char* resPath )
 
 bool SetFontFallbacks( const std::vector<std::string>& familyNames )
 {
-	EnsureInitialized();
+	if( !RequireInitialized() )
+	{
+		return false;
+	}
 
 	for( const std::string& name : familyNames )
 	{
@@ -302,7 +380,10 @@ bool SetFontFallbacks( const std::vector<std::string>& familyNames )
 
 bool SetFontDefaultProperties( float size, int weight, int stretch, int style )
 {
-	EnsureInitialized();
+	if( !RequireInitialized() )
+	{
+		return false;
+	}
 
 	if( !( size > 0.0f ) )
 	{
