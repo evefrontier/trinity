@@ -9,7 +9,6 @@
 #include "Noesis/Tr2NoesisDataModel.h"
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisObject.h"
-#include "Noesis/Tr2NoesisRenderDevice.h"
 #include "Noesis/Tr2NoesisSystem.h"
 
 #include <NsGui/Cursor.h>
@@ -18,6 +17,7 @@
 #include <NsGui/IRenderer.h>
 #include <NsGui/IntegrationAPI.h>
 #include <NsGui/Uri.h>
+#include <NsRender/RenderDevice.h>
 
 #include <unordered_map>
 
@@ -390,21 +390,15 @@ bool Tr2NoesisView::GetIsLoaded() const
 	return m_view != nullptr;
 }
 
-bool Tr2NoesisView::EnsureRenderer()
+bool Tr2NoesisView::EnsureRenderer( Noesis::RenderDevice* device )
 {
-	if( m_view == nullptr )
+	if( m_view == nullptr || device == nullptr )
 	{
 		return false;
 	}
 	if( m_rendererInitialized )
 	{
 		return true;
-	}
-
-	Tr2NoesisRenderDevice* device = Tr2Noesis::GetRenderDevice();
-	if( device == nullptr )
-	{
-		return false;
 	}
 
 	m_view->GetRenderer()->Init( device );

@@ -38,8 +38,10 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// though ApplyRenderState sets it per batch as well.
 	renderContext.m_esm.BeginManagedRendering( Tr2RenderContextEnum::CULLMODE_NONE );
 
-	// IRenderer::Init creates GPU resources and is therefore inside the bracket too.
-	if( !m_view->EnsureRenderer() )
+	// The device is Trinity-owned. IRenderer::Init creates GPU resources on it and
+	// therefore belongs inside the bracket; the view only stores the resulting renderer.
+	Tr2NoesisRenderDevice* device = Tr2Noesis::GetRenderDevice();
+	if( device == nullptr || !m_view->EnsureRenderer( device ) )
 	{
 		renderContext.m_esm.EndManagedRendering();
 		return RS_OK;
@@ -64,12 +66,6 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	Noesis::IView* view = m_view->GetNoesisView();
 	Noesis::IRenderer* renderer = view->GetRenderer();
 
-	Tr2NoesisRenderDevice* device = Tr2Noesis::GetRenderDevice();
-	if( device == nullptr )
-	{
-		renderContext.m_esm.EndManagedRendering();
-		return RS_OK;
-	}
 	device->SetRenderContext( renderContext );
 
 	// Absolute seconds since an arbitrary origin, not a delta. Be::Time counts 100ns ticks.

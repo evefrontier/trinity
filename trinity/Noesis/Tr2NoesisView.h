@@ -9,7 +9,7 @@
 #include <NsCore/Ptr.h>
 #include <NsGui/IView.h>
 
-namespace Noesis { class Cursor; class FrameworkElement; }
+namespace Noesis { class Cursor; class FrameworkElement; class RenderDevice; }
 
 BLUE_DECLARE( Tr2NoesisDataModel );
 
@@ -24,7 +24,8 @@ BLUE_DECLARE( Tr2NoesisDataModel );
 //
 //   The renderer is initialised on the step's first Execute rather than here, because
 //   IRenderer::Init alters GPU device state and so belongs inside the step's managed
-//   rendering bracket. Shutdown runs from the destructor: Trinity has no render thread
+//   rendering bracket. The step supplies the RenderDevice; this class does not construct
+//   it. Shutdown runs from the destructor: Trinity has no render thread
 //   (TriDevice::OnTick drives everything on the Carbon main thread), so the SDK's
 //   "shut down on the thread that initialised" rule is satisfied by construction.
 // --------------------------------------------------------------------------------------
@@ -56,7 +57,9 @@ public:
 	void NotifyCursorChange( Noesis::Cursor* cursor );
 
 	// Render-thread entry points. Called by TriStepRenderNoesis, not from Python.
-	bool EnsureRenderer();
+	// device is the process-wide render device; Init is skipped if it is null or the
+	// renderer is already up. The view does not own or construct the device.
+	bool EnsureRenderer( Noesis::RenderDevice* device );
 	void SyncSize( uint32_t width, uint32_t height );
 	Noesis::IView* GetNoesisView();
 
