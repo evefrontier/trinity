@@ -42,6 +42,17 @@ const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 			SetDataContext,
 			"Observable model installed as the XAML tree DataContext. Re-applied after LoadXaml." )
 
+		MAP_PROPERTY(
+			"onCursorChange",
+			GetOnCursorChange,
+			SetOnCursorChange,
+			"Callable(cursorType, filename) invoked when this view's mouse cursor should change.\n"
+			"cursorType is Noesis CursorType: 0 None, 1 No, 2 Arrow, 3 AppStarting, 4 Cross, 5 Help,\n"
+			"6 IBeam, 7 SizeAll, 8 SizeNESW, 9 SizeNS, 10 SizeNWSE, 11 SizeWE, 12 UpArrow, 13 Wait,\n"
+			"14 Hand, 15 Pen, 16 ScrollNS, 17 ScrollWE, 18 ScrollAll, 19 ScrollN, 20 ScrollS,\n"
+			"21 ScrollW, 22 ScrollE, 23 ScrollNW, 24 ScrollNE, 25 ScrollSW, 26 ScrollSE,\n"
+			"27 ArrowCD, 28 Custom. filename is empty except for Custom, where it is the cursor URI." )
+
 		MAP_METHOD_AND_WRAP(
 			"Activate",
 			Activate,

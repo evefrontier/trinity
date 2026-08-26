@@ -11,6 +11,10 @@
 #include "Noesis/Tr2NoesisTextureProvider.h"
 #include "Noesis/Tr2NoesisXamlProvider.h"
 
+#if TRINITY_PLATFORM == TRINITY_DIRECTX12
+#include "Noesis/Tr2NoesisView.h"
+#endif
+
 #include <NoesisLicense.h>
 #include <NsCore/Error.h>
 #include <NsCore/Init.h>
@@ -196,6 +200,10 @@ void Initialize()
 
 	s_textureProvider = Noesis::MakePtr<Tr2NoesisTextureProvider>();
 	Noesis::GUI::SetTextureProvider( s_textureProvider );
+
+#if TRINITY_PLATFORM == TRINITY_DIRECTX12
+	InstallCursorCallback();
+#endif
 
 	CCP_NOESIS_LOGNOTICE( "NoesisGUI %s initialised, %u allocations through Carbon's allocator",
 						  Noesis::GetBuildVersion(),

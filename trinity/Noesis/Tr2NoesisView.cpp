@@ -12,11 +12,14 @@
 #include "Noesis/Tr2NoesisRenderDevice.h"
 #include "Noesis/Tr2NoesisSystem.h"
 
+#include <NsGui/Cursor.h>
 #include <NsGui/FrameworkElement.h>
 #include <NsGui/InputEnums.h>
 #include <NsGui/IRenderer.h>
 #include <NsGui/IntegrationAPI.h>
 #include <NsGui/Uri.h>
+
+#include <unordered_map>
 
 namespace
 {
@@ -188,6 +191,22 @@ bool TryMouseButton( int button, Noesis::MouseButton& mouseButton )
 	return true;
 }
 
+std::unordered_map<Noesis::IView*, Tr2NoesisView*> s_views;
+
+void OnNoesisCursor( void* /*user*/, Noesis::IView* view, Noesis::Cursor* cursor )
+{
+	if( view == nullptr )
+	{
+		return;
+	}
+	const auto it = s_views.find( view );
+	if( it == s_views.end() )
+	{
+		return;
+	}
+	it->second->NotifyCursorChange( cursor );
+}
+
 }
 
 Tr2NoesisView::Tr2NoesisView( IRoot* ) :
@@ -274,6 +293,8 @@ bool Tr2NoesisView::SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, c
 		m_view->SetSize( m_width, m_height );
 	}
 
+	s_views[m_view.GetPtr()] = this;
+
 	CCP_NOESIS_LOGNOTICE( "Loaded XAML from '%s'", source );
 	ApplyDataContext();
 	return true;
@@ -288,6 +309,43 @@ void Tr2NoesisView::SetDataContext( Tr2NoesisDataModel* model )
 Tr2NoesisDataModel* Tr2NoesisView::GetDataContext() const
 {
 	return m_dataContext;
+}
+
+void Tr2NoesisView::SetOnCursorChange( const BlueScriptCallback& callback )
+{
+	m_onCursorChange = callback;
+}
+
+const BlueScriptCallback& Tr2NoesisView::GetOnCursorChange() const
+{
+	return m_onCursorChange;
+}
+
+void Tr2NoesisView::NotifyCursorChange( Noesis::Cursor* cursor )
+{
+	if( !m_onCursorChange )
+	{
+		return;
+	}
+
+	const int type = cursor != nullptr ? static_cast<int>( cursor->Type() ) : static_cast<int>( Noesis::CursorType_Arrow );
+	const char* filename = "";
+	if( cursor != nullptr )
+	{
+		filename = cursor->Filename().Str();
+		if( filename == nullptr )
+		{
+			filename = "";
+		}
+	}
+
+	if( !m_onCursorChange.CallVoid( type, filename ) )
+	{
+		CCP_NOESIS_LOGERR( "onCursorChange callback failed" );
+#if BLUE_WITH_PYTHON
+		PyOS->PyFlushError( "Tr2NoesisView: onCursorChange callback failed" );
+#endif
+	}
 }
 
 void Tr2NoesisView::ApplyDataContext()
@@ -313,6 +371,8 @@ void Tr2NoesisView::ReleaseView()
 	{
 		return;
 	}
+
+	s_views.erase( m_view.GetPtr() );
 
 	if( m_rendererInitialized )
 	{
@@ -536,10 +596,15 @@ bool Tr2NoesisView::Char( uint32_t ch )
 	return m_view->Char( ch );
 }
 
-#if !WITH_NOESIS_STUDIO
-
 namespace Tr2Noesis
 {
+
+void InstallCursorCallback()
+{
+	Noesis::GUI::SetCursorCallback( nullptr, OnNoesisCursor );
+}
+
+#if !WITH_NOESIS_STUDIO
 
 Tr2NoesisView* LoadStudio( Tr2NoesisView* /*view*/, const char* /*projectPath*/ )
 {
@@ -547,8 +612,8 @@ Tr2NoesisView* LoadStudio( Tr2NoesisView* /*view*/, const char* /*projectPath*/ 
 	return nullptr;
 }
 
-}
-
 #endif
+
+}
 
 #endif
