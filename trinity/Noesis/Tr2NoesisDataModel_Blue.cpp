@@ -69,6 +69,33 @@ static PyObject* PySet( PyObject* self, PyObject* args )
 	Py_RETURN_NONE;
 }
 
+static PyObject* PyGetPythonWrapper( PyObject* self, PyObject* /*args*/ )
+{
+	Tr2NoesisDataModel* model = BluePythonCast<Tr2NoesisDataModel*>( self );
+	Tr2NoesisObject* object = model->GetNative();
+	if( object == nullptr )
+	{
+		Py_RETURN_NONE;
+	}
+	return object->GetPythonWrapper();
+}
+
+static PyObject* PySetPythonWrapper( PyObject* self, PyObject* args )
+{
+	Tr2NoesisDataModel* model = BluePythonCast<Tr2NoesisDataModel*>( self );
+	PyObject* value = nullptr;
+	if( !PyArg_ParseTuple( args, "O", &value ) )
+	{
+		return nullptr;
+	}
+	Tr2NoesisObject* object = model->GetNative();
+	if( object != nullptr )
+	{
+		object->SetPythonWrapper( value );
+	}
+	Py_RETURN_NONE;
+}
+
 #endif
 
 const Be::ClassInfo* Tr2NoesisDataModel::ExposeToBlue()
@@ -141,6 +168,17 @@ const Be::ClassInfo* Tr2NoesisDataModel::ExposeToBlue()
 			GetOnPropertyChanged,
 			SetOnPropertyChanged,
 			"Callable(name) invoked after a property changes, including two-way writes from the UI." )
+
+		MAP_METHOD(
+			"GetPythonWrapper",
+			PyGetPythonWrapper,
+			"Returns the weak Python facade installed with SetPythonWrapper, or None." )
+
+		MAP_METHOD(
+			"SetPythonWrapper",
+			PySetPythonWrapper,
+			"Stores a weak reference to the Python Model facade for CommandParameter round-trips.\n"
+			":param wrapper: noesis.Model instance or None" )
 
 	EXPOSURE_END()
 }

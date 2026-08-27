@@ -9,6 +9,9 @@
 #include "Noesis/Tr2NoesisCommand.h"
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisSystem.h"
+#if BLUE_WITH_PYTHON
+#include "Noesis/Tr2NoesisPythonWeak.h"
+#endif
 
 #include <NsCore/Boxing.h>
 #include <NsCore/DynamicCast.h>
@@ -228,6 +231,9 @@ Tr2NoesisObject::Tr2NoesisObject( const char* schemaName )
 
 Tr2NoesisObject::~Tr2NoesisObject()
 {
+#if BLUE_WITH_PYTHON
+	Tr2NoesisClearPythonWeakRef( m_pythonWrapperWeak );
+#endif
 }
 
 const char* Tr2NoesisObject::GetSchemaName() const
@@ -384,6 +390,20 @@ const BlueScriptCallback& Tr2NoesisObject::GetOnPropertyChanged() const
 {
 	return m_onPropertyChanged;
 }
+
+#if BLUE_WITH_PYTHON
+
+void Tr2NoesisObject::SetPythonWrapper( PyObject* wrapper )
+{
+	Tr2NoesisSetPythonWeakRef( m_pythonWrapperWeak, wrapper );
+}
+
+PyObject* Tr2NoesisObject::GetPythonWrapper() const
+{
+	return Tr2NoesisGetPythonWeakRef( m_pythonWrapperWeak );
+}
+
+#endif
 
 const Noesis::TypeClass* Tr2NoesisObject::GetClassType() const
 {

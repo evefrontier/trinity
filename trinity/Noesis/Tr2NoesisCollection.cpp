@@ -15,12 +15,33 @@ Tr2NoesisCollection::Tr2NoesisCollection( IRoot* )
 	{
 		return;
 	}
-	m_items = Noesis::MakePtr<Noesis::ObservableCollection<Noesis::BaseComponent>>();
+	m_items = Noesis::MakePtr<Tr2NoesisObservableCollection>();
 }
 
 Tr2NoesisCollection::~Tr2NoesisCollection()
 {
 }
+
+#if BLUE_WITH_PYTHON
+
+void Tr2NoesisCollection::SetPythonWrapper( PyObject* wrapper )
+{
+	if( m_items != nullptr )
+	{
+		m_items->SetPythonWrapper( wrapper );
+	}
+}
+
+PyObject* Tr2NoesisCollection::GetPythonWrapper() const
+{
+	if( m_items == nullptr )
+	{
+		Py_RETURN_NONE;
+	}
+	return m_items->GetPythonWrapper();
+}
+
+#endif
 
 Noesis::BaseObservableCollection* Tr2NoesisCollection::GetNative() const
 {

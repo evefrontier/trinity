@@ -16,6 +16,13 @@
 
 #include <unordered_map>
 
+#if BLUE_WITH_PYTHON
+#ifndef PyObject_HEAD
+struct _object;
+typedef struct _object PyObject;
+#endif
+#endif
+
 // --------------------------------------------------------------------------------------
 // Description:
 //   Native-owned observable bag used as a Noesis DataContext. Properties are declared
@@ -45,6 +52,11 @@ public:
 	void SetOnPropertyChanged( const BlueScriptCallback& callback );
 	const BlueScriptCallback& GetOnPropertyChanged() const;
 
+#if BLUE_WITH_PYTHON
+	void SetPythonWrapper( PyObject* wrapper );
+	PyObject* GetPythonWrapper() const;
+#endif
+
 	const Noesis::TypeClass* GetClassType() const override;
 	static const Noesis::TypeClass* StaticGetClassType( Noesis::TypeTag<Tr2NoesisObject>* );
 
@@ -72,6 +84,9 @@ private:
 	std::unordered_map<uint32_t, Slot> m_values;
 	Noesis::PropertyChangedEventHandler m_propertyChanged;
 	BlueScriptCallback m_onPropertyChanged;
+#if BLUE_WITH_PYTHON
+	PyObject* m_pythonWrapperWeak = nullptr;
+#endif
 };
 
 #endif

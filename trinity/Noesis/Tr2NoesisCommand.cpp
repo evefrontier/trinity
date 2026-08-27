@@ -8,6 +8,10 @@
 
 #include "Noesis/Tr2NoesisLog.h"
 
+#if BLUE_WITH_PYTHON
+#include "Noesis/Tr2NoesisPython.h"
+#endif
+
 #include <NsCore/ReflectionImplement.h>
 
 Tr2NoesisCommand::Tr2NoesisCommand()
@@ -35,7 +39,7 @@ Noesis::EventHandler& Tr2NoesisCommand::CanExecuteChanged()
 	return m_canExecuteChanged;
 }
 
-bool Tr2NoesisCommand::CanExecute( Noesis::BaseComponent* ) const
+bool Tr2NoesisCommand::CanExecute( Noesis::BaseComponent* param ) const
 {
 	if( !m_canExecute )
 	{
@@ -43,7 +47,14 @@ bool Tr2NoesisCommand::CanExecute( Noesis::BaseComponent* ) const
 	}
 
 	bool result = false;
-	if( !m_canExecute.Call( result ) )
+#if BLUE_WITH_PYTHON
+	PyObject* pyParam = Tr2NoesisCommandParamToPython( param );
+	const bool ok = static_cast<bool>( m_canExecute.Call( result, pyParam ) );
+	Py_DECREF( pyParam );
+#else
+	const bool ok = static_cast<bool>( m_canExecute.Call( result ) );
+#endif
+	if( !ok )
 	{
 		CCP_NOESIS_LOGERR( "Tr2NoesisCommand CanExecute callback failed" );
 #if BLUE_WITH_PYTHON
@@ -54,13 +65,20 @@ bool Tr2NoesisCommand::CanExecute( Noesis::BaseComponent* ) const
 	return result;
 }
 
-void Tr2NoesisCommand::Execute( Noesis::BaseComponent* ) const
+void Tr2NoesisCommand::Execute( Noesis::BaseComponent* param ) const
 {
 	if( !m_execute )
 	{
 		return;
 	}
-	if( !m_execute.CallVoid() )
+#if BLUE_WITH_PYTHON
+	PyObject* pyParam = Tr2NoesisCommandParamToPython( param );
+	const bool ok = static_cast<bool>( m_execute.CallVoid( pyParam ) );
+	Py_DECREF( pyParam );
+#else
+	const bool ok = static_cast<bool>( m_execute.CallVoid() );
+#endif
+	if( !ok )
 	{
 		CCP_NOESIS_LOGERR( "Tr2NoesisCommand Execute callback failed" );
 #if BLUE_WITH_PYTHON

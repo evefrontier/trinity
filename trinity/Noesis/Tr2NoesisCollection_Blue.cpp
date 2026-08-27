@@ -102,6 +102,24 @@ static PyObject* PyInsert( PyObject* self, PyObject* args )
 	Py_RETURN_NONE;
 }
 
+static PyObject* PyGetPythonWrapper( PyObject* self, PyObject* /*args*/ )
+{
+	Tr2NoesisCollection* collection = BluePythonCast<Tr2NoesisCollection*>( self );
+	return collection->GetPythonWrapper();
+}
+
+static PyObject* PySetPythonWrapper( PyObject* self, PyObject* args )
+{
+	Tr2NoesisCollection* collection = BluePythonCast<Tr2NoesisCollection*>( self );
+	PyObject* value = nullptr;
+	if( !PyArg_ParseTuple( args, "O", &value ) )
+	{
+		return nullptr;
+	}
+	collection->SetPythonWrapper( value );
+	Py_RETURN_NONE;
+}
+
 #endif
 
 const Be::ClassInfo* Tr2NoesisCollection::ExposeToBlue()
@@ -152,6 +170,17 @@ const Be::ClassInfo* Tr2NoesisCollection::ExposeToBlue()
 			Clear,
 			"Removes every item.\n"
 			":rtype: None" )
+
+		MAP_METHOD(
+			"GetPythonWrapper",
+			PyGetPythonWrapper,
+			"Returns the weak Python facade installed with SetPythonWrapper, or None." )
+
+		MAP_METHOD(
+			"SetPythonWrapper",
+			PySetPythonWrapper,
+			"Stores a weak reference to the Python Collection facade for CommandParameter round-trips.\n"
+			":param wrapper: noesis.Collection instance or None" )
 
 	EXPOSURE_END()
 }

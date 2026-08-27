@@ -9,6 +9,8 @@
 #include "Noesis/Tr2NoesisCollection.h"
 #include "Noesis/Tr2NoesisDataModel.h"
 #include "Noesis/Tr2NoesisLog.h"
+#include "Noesis/Tr2NoesisObject.h"
+#include "Noesis/Tr2NoesisObservableCollection.h"
 
 #include <NsCore/Boxing.h>
 #include <NsCore/DynamicCast.h>
@@ -158,6 +160,32 @@ inline bool Tr2NoesisPythonToComponent( PyObject* value, Tr2NoesisPropertyType e
 
 	PyErr_SetString( PyExc_TypeError, "unsupported value for Noesis data model" );
 	return false;
+}
+
+inline PyObject* Tr2NoesisCommandParamToPython( Noesis::BaseComponent* param )
+{
+	if( param == nullptr )
+	{
+		Py_RETURN_NONE;
+	}
+	if( Tr2NoesisObject* object = Noesis::DynamicCast<Tr2NoesisObject*>( param ) )
+	{
+		return object->GetPythonWrapper();
+	}
+	if( Tr2NoesisObservableCollection* items = Noesis::DynamicCast<Tr2NoesisObservableCollection*>( param ) )
+	{
+		return items->GetPythonWrapper();
+	}
+	PyObject* py = Tr2NoesisComponentToPython( param, nullptr );
+	if( py == Py_None
+		&& !Noesis::Boxing::CanUnbox<bool>( param )
+		&& !Noesis::Boxing::CanUnbox<int>( param )
+		&& !Noesis::Boxing::CanUnbox<float>( param )
+		&& !Noesis::Boxing::CanUnbox<Noesis::String>( param ) )
+	{
+		CCP_NOESIS_LOGWARN( "CommandParameter could not be converted to a Python value" );
+	}
+	return py;
 }
 
 #endif

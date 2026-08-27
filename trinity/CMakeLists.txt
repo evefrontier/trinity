@@ -1884,7 +1884,10 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisCollection.cpp
     Noesis/Tr2NoesisCollection.h
     Noesis/Tr2NoesisCollection_Blue.cpp
+    Noesis/Tr2NoesisObservableCollection.cpp
+    Noesis/Tr2NoesisObservableCollection.h
     Noesis/Tr2NoesisPython.h
+    Noesis/Tr2NoesisPythonWeak.h
 )
 
 if(WITH_NOESIS)
