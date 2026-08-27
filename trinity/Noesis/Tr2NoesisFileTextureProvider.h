@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisFileTextureProvider_H
 #define Tr2NoesisFileTextureProvider_H
 
-#if WITH_NOESIS && WITH_NOESIS_STUDIO
+#if WITH_NOESIS
 
 #include <NsGui/TextureProvider.h>
 

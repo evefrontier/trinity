@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisFilePath_H
 #define Tr2NoesisFilePath_H
 
-#if WITH_NOESIS && WITH_NOESIS_STUDIO
+#if WITH_NOESIS
 
 #include <NsCore/String.h>
 #include <NsCore/StringUtils.h>

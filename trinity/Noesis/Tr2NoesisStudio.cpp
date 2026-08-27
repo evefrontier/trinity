@@ -4,7 +4,7 @@
 
 #include "Noesis/Tr2NoesisView.h"
 
-#if WITH_NOESIS && WITH_NOESIS_STUDIO && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisFileFontProvider.h"
 #include "Noesis/Tr2NoesisFileTextureProvider.h"
@@ -36,6 +36,12 @@ Tr2NoesisView* LoadStudio( Tr2NoesisView* view, const char* projectPath )
 
 	if( !RequireInitialized() )
 	{
+		return nullptr;
+	}
+
+	if( !IsStudioAvailable() )
+	{
+		CCP_NOESIS_LOGERR( "NoesisLoadStudio: NoesisEditor.dll was not loaded" );
 		return nullptr;
 	}
 

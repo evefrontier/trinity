@@ -9,11 +9,8 @@
 #include "Noesis/Tr2NoesisFontProvider.h"
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisTextureProvider.h"
-#include "Noesis/Tr2NoesisXamlProvider.h"
-
-#if TRINITY_PLATFORM == TRINITY_DIRECTX12
 #include "Noesis/Tr2NoesisView.h"
-#endif
+#include "Noesis/Tr2NoesisXamlProvider.h"
 
 #include <NoesisLicense.h>
 #include <NsCore/Error.h>
@@ -36,6 +33,7 @@ namespace
 
 // Only ever written by Initialize, which Blue calls from the Python thread.
 bool s_initialized = false;
+bool s_studioAvailable = false;
 
 // Noesis's own launcher drops everything below warning that came from a named channel, on the
 // grounds that per-channel traces are overwhelming. Lifted with the /noesisLogVerbose startup
@@ -201,9 +199,17 @@ void Initialize()
 	s_textureProvider = Noesis::MakePtr<Tr2NoesisTextureProvider>();
 	Noesis::GUI::SetTextureProvider( s_textureProvider );
 
-#if TRINITY_PLATFORM == TRINITY_DIRECTX12
 	InstallCursorCallback();
-#endif
+
+	s_studioAvailable = LoadLibraryW( L"NoesisEditor.dll" ) != nullptr;
+	if( s_studioAvailable )
+	{
+		CCP_NOESIS_LOGNOTICE( "NoesisEditor.dll loaded" );
+	}
+	else
+	{
+		CCP_NOESIS_LOGNOTICE( "NoesisEditor.dll was not found; Studio is unavailable" );
+	}
 
 	CCP_NOESIS_LOGNOTICE( "NoesisGUI %s initialised, %u allocations through Carbon's allocator",
 						  Noesis::GetBuildVersion(),
@@ -315,11 +321,7 @@ const char* GetVersion()
 
 bool IsStudioAvailable()
 {
-#if WITH_NOESIS_STUDIO
-	return true;
-#else
-	return false;
-#endif
+	return s_studioAvailable;
 }
 
 bool SetApplicationResources( const char* resPath )

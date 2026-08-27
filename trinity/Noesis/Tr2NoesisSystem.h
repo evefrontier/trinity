@@ -49,7 +49,7 @@ bool IsLogVerbose();
 // The version string reported from inside Noesis.dll. Requires Initialize first.
 const char* GetVersion();
 
-// True when this binary was built with WITH_NOESIS_STUDIO on the DX12 target.
+// True when Initialize successfully loaded NoesisEditor.dll.
 bool IsStudioAvailable();
 
 // Loads a ResourceDictionary from a Trinity resource path and installs it as the

@@ -598,16 +598,6 @@ void InstallCursorCallback()
 	Noesis::GUI::SetCursorCallback( nullptr, OnNoesisCursor );
 }
 
-#if !WITH_NOESIS_STUDIO
-
-Tr2NoesisView* LoadStudio( Tr2NoesisView* /*view*/, const char* /*projectPath*/ )
-{
-	CCP_NOESIS_LOGERR( "NoesisLoadStudio: this build was not configured with WITH_NOESIS_STUDIO" );
-	return nullptr;
-}
-
-#endif
-
 }
 
 #endif

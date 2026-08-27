@@ -107,7 +107,7 @@ namespace Tr2Noesis
 {
 
 // Fills view with the in-process Studio editor for the given .noesis project.
-// Returns view on success, nullptr on failure or when Studio was not compiled in.
+// Returns view on success, nullptr if Studio is unavailable or Create fails.
 Tr2NoesisView* LoadStudio( Tr2NoesisView* view, const char* projectPath );
 
 void InstallCursorCallback();

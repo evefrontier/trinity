@@ -2116,8 +2116,8 @@ function(set_shared_trinity_properties target)
     endif()
 
     if(WITH_NOESIS)
-        target_link_libraries(${target} PRIVATE Noesis::Noesis)
-        target_compile_definitions(${target} PRIVATE WITH_NOESIS)
+        target_link_libraries(${target} PRIVATE Noesis::Noesis Noesis::NoesisEditor delayimp)
+        target_compile_definitions(${target} PRIVATE WITH_NOESIS NS_HAVE_STUDIO)
         target_include_directories(${target} PRIVATE ${NOESIS_GENERATED_SOURCES_DIR})
         add_dependencies(${target} trinity_noesis_shaders)
 
@@ -2138,14 +2138,18 @@ function(set_shared_trinity_properties target)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_DLL}" "$<TARGET_FILE_DIR:${target}>"
         )
 
-        if(WITH_NOESIS_STUDIO)
-            target_link_libraries(${target} PRIVATE Noesis::NoesisEditor)
-            target_compile_definitions(${target} PRIVATE WITH_NOESIS_STUDIO NS_HAVE_STUDIO)
-            add_custom_command(
-                TARGET ${target} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_EDITOR_DLL}" "$<TARGET_FILE_DIR:${target}>"
-            )
+        #[[
+            Studio::Create lives in NoesisEditor.dll. Built clients omit that file, so
+            delay-load it and let Initialize LoadLibrary it. Without DELAYLOAD the pyd
+            would not start when the DLL is missing.
+        ]]
+        if(MSVC)
+            target_link_options(${target} PRIVATE "/DELAYLOAD:NoesisEditor.dll")
         endif()
+        add_custom_command(
+            TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_EDITOR_DLL}" "$<TARGET_FILE_DIR:${target}>"
+        )
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)

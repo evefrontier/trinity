@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisFileXamlProvider_H
 #define Tr2NoesisFileXamlProvider_H
 
-#if WITH_NOESIS && WITH_NOESIS_STUDIO
+#if WITH_NOESIS
 
 #include <NsGui/XamlProvider.h>
 

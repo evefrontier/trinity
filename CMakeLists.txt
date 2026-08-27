@@ -50,11 +50,6 @@ endif()
 
 # NoesisGUI ships as a prebuilt SDK with no vcpkg port, so it has no manifest feature.
 option(WITH_NOESIS "Compile with NoesisGUI support" OFF)
-option(WITH_NOESIS_STUDIO "Embed Noesis Studio (requires WITH_NOESIS; not for release builds)" OFF)
-
-if(WITH_NOESIS_STUDIO AND NOT WITH_NOESIS)
-    message(FATAL_ERROR "WITH_NOESIS_STUDIO requires WITH_NOESIS")
-endif()
 
 project(carbon-trinity VERSION 1.0.0)
 
@@ -82,12 +77,30 @@ if(WITH_NOESIS)
         endif()
     endforeach()
 
+    set(NOESIS_EDITOR_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/windows_x86_64/NoesisEditor.lib")
+    set(NOESIS_EDITOR_DLL "${NOESIS_GUI_SDK_PATH}/Bin/windows_x86_64/NoesisEditor.dll")
+
+    foreach(_noesis_editor_artefact "${NOESIS_EDITOR_IMPLIB}" "${NOESIS_EDITOR_DLL}")
+        if(NOT EXISTS "${_noesis_editor_artefact}")
+            message(FATAL_ERROR
+                "WITH_NOESIS: '${_noesis_editor_artefact}' not found under "
+                "NOESIS_GUI_SDK_PATH='${NOESIS_GUI_SDK_PATH}'")
+        endif()
+    endforeach()
+
     message(STATUS "Compiling with NoesisGUI from ${NOESIS_GUI_SDK_PATH}")
 
     add_library(Noesis::Noesis SHARED IMPORTED GLOBAL)
     set_target_properties(Noesis::Noesis PROPERTIES
         IMPORTED_IMPLIB "${NOESIS_IMPLIB}"
         IMPORTED_LOCATION "${NOESIS_DLL}"
+        INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
+    )
+
+    add_library(Noesis::NoesisEditor SHARED IMPORTED GLOBAL)
+    set_target_properties(Noesis::NoesisEditor PROPERTIES
+        IMPORTED_IMPLIB "${NOESIS_EDITOR_IMPLIB}"
+        IMPORTED_LOCATION "${NOESIS_EDITOR_DLL}"
         INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
     )
 
@@ -100,28 +113,6 @@ if(WITH_NOESIS)
     ]]
     set(NOESIS_LICENSE_NAME "" CACHE STRING "NoesisGUI licence name")
     set(NOESIS_LICENSE_KEY "" CACHE STRING "NoesisGUI licence key")
-
-    if(WITH_NOESIS_STUDIO)
-        set(NOESIS_EDITOR_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/windows_x86_64/NoesisEditor.lib")
-        set(NOESIS_EDITOR_DLL "${NOESIS_GUI_SDK_PATH}/Bin/windows_x86_64/NoesisEditor.dll")
-
-        foreach(_noesis_editor_artefact "${NOESIS_EDITOR_IMPLIB}" "${NOESIS_EDITOR_DLL}")
-            if(NOT EXISTS "${_noesis_editor_artefact}")
-                message(FATAL_ERROR
-                    "WITH_NOESIS_STUDIO: '${_noesis_editor_artefact}' not found under "
-                    "NOESIS_GUI_SDK_PATH='${NOESIS_GUI_SDK_PATH}'")
-            endif()
-        endforeach()
-
-        message(STATUS "Compiling with Noesis Studio from ${NOESIS_GUI_SDK_PATH}")
-
-        add_library(Noesis::NoesisEditor SHARED IMPORTED GLOBAL)
-        set_target_properties(Noesis::NoesisEditor PROPERTIES
-            IMPORTED_IMPLIB "${NOESIS_EDITOR_IMPLIB}"
-            IMPORTED_LOCATION "${NOESIS_EDITOR_DLL}"
-            INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
-        )
-    endif()
 endif()
 
 if (BUILD_FOR_PYTHON_2)

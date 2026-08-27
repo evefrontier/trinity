@@ -4,7 +4,7 @@
 
 #include "Noesis/Tr2NoesisFileFontProvider.h"
 
-#if WITH_NOESIS && WITH_NOESIS_STUDIO
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisFilePath.h"
 #include "Noesis/Tr2NoesisLog.h"

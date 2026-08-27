@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisFileFontProvider_H
 #define Tr2NoesisFileFontProvider_H
 
-#if WITH_NOESIS && WITH_NOESIS_STUDIO
+#if WITH_NOESIS
 
 #include <NsGui/CachedFontProvider.h>
 

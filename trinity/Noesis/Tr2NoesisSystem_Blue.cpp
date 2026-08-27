@@ -102,8 +102,7 @@ static bool NoesisStudioIsAvailable()
 
 MAP_FUNCTION_AND_WRAP( "NoesisStudioIsAvailable",
 					   NoesisStudioIsAvailable,
-					   "Returns True if this binary was built with Noesis Studio embedded "
-					   "(WITH_NOESIS_STUDIO on the DX12 target).\n"
+					   "Returns True if NoesisInitialize loaded NoesisEditor.dll, so Studio can be used.\n"
 					   ":rtype: bool" );
 
 static bool NoesisSetApplicationResources( const char* resPath )
@@ -302,8 +301,6 @@ MAP_FUNCTION(
 
 #endif
 
-#if TRINITY_PLATFORM == TRINITY_DIRECTX12
-
 #include "Noesis/Tr2NoesisView.h"
 
 static Tr2NoesisView* NoesisLoadStudio( Tr2NoesisView* view, const char* projectPath )
@@ -315,12 +312,10 @@ MAP_FUNCTION_AND_WRAP( "NoesisLoadStudio",
 					   NoesisLoadStudio,
 					   "Loads the in-process Noesis Studio editor into the given view from a filesystem\n"
 					   ".noesis project path. Returns the same view on success, or None if Studio is not\n"
-					   "compiled in, the path is empty, or Studio::Create fails. The parse or load error\n"
-					   "is logged on the Noesis channel.\n"
+					   "available, the path is empty, or Studio::Create fails. The load error is logged\n"
+					   "on the Noesis channel. Requires NoesisInitialize first.\n"
 					   ":param view: Tr2NoesisView to fill\n"
 					   ":param projectPath: filesystem path to a .noesis project file\n"
 					   ":rtype: Tr2NoesisView" );
-
-#endif
 
 #endif
