@@ -12,6 +12,8 @@
 
 #include <NsCore/Ptr.h>
 
+#include <utility>
+
 using namespace Noesis;
 using namespace Tr2RenderContextEnum;
 
@@ -179,6 +181,85 @@ int PixelBytecodeIndex( uint8_t shader )
 		return shader;
 	}
 	return -1;
+}
+
+void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
+{
+	if( flags & PS_CB0 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
+	}
+	if( flags & PS_CB1 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
+	}
+	if( flags & PS_T0 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 0 );
+		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 0 );
+	}
+	if( flags & PS_T1 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 1 );
+		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 1 );
+	}
+	if( flags & PS_T2 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 2 );
+		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 2 );
+	}
+	if( flags & PS_T3 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 3 );
+		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 3 );
+	}
+	if( flags & PS_T4 )
+	{
+		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 4 );
+		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 4 );
+	}
+}
+
+uint32_t GetBatchSignature( const Batch& batch )
+{
+	uint32_t signature = 0;
+	if( batch.pattern )
+	{
+		signature |= PS_T0;
+	}
+	if( batch.ramps )
+	{
+		signature |= PS_T1;
+	}
+	if( batch.image )
+	{
+		signature |= PS_T2;
+	}
+	if( batch.glyphs )
+	{
+		signature |= PS_T3;
+	}
+	if( batch.shadow )
+	{
+		signature |= PS_T4;
+	}
+	if( batch.vertexUniforms[0].values )
+	{
+		signature |= VS_CB0;
+	}
+	if( batch.vertexUniforms[1].values )
+	{
+		signature |= VS_CB1;
+	}
+	if( batch.pixelUniforms[0].values )
+	{
+		signature |= PS_CB0;
+	}
+	if( batch.pixelUniforms[1].values )
+	{
+		signature |= PS_CB1;
+	}
+	return signature;
 }
 
 PixelFormat ToPixelFormat( TextureFormat::Enum format )
@@ -689,6 +770,97 @@ Ptr<Texture> Tr2NoesisRenderDevice::CreateTexture( const char* label, uint32_t w
 	return MakePtr<Tr2NoesisTexture>( textureAL, width, height, numLevels, format == TextureFormat::RGBA8 );
 }
 
+Ptr<Texture> Tr2NoesisRenderDevice::WrapTexture( const Tr2TextureAL& texture, bool hasAlpha )
+{
+	CCP_ASSERT_M( texture.IsValid(), "WrapTexture with an invalid Trinity texture" );
+	if( !texture.IsValid() )
+	{
+		return nullptr;
+	}
+
+	return MakePtr<Tr2NoesisTexture>( texture, texture.GetWidth(), texture.GetHeight(),
+									  texture.GetMipCount(), hasAlpha );
+}
+
+void* Tr2NoesisRenderDevice::CreatePixelShader( const char* label, uint8_t shader, const void* hlsl, uint32_t size )
+{
+	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
+	CCP_ASSERT_M( shader < Shader::Count, "CreatePixelShader with an out-of-range shader enum" );
+	CCP_ASSERT_M( hlsl != nullptr, "CreatePixelShader with null bytecode" );
+	CCP_ASSERT_M( size > sizeof( uint32_t ), "CreatePixelShader blob is too small for the signature prefix" );
+
+	if( shader >= Shader::Count || hlsl == nullptr || size <= sizeof( uint32_t ) )
+	{
+		return nullptr;
+	}
+
+	// ShaderCompiler blobs start with the same root-signature flags the stock
+	// permutations use (VS_CB0 / PS_T2 / ...), then the DXBC. D3D11 and D3D12
+	// backends skip the same 4 bytes.
+	uint32_t flags = 0;
+	memcpy( &flags, hlsl, sizeof( flags ) );
+	const uint8_t* dxbc = static_cast<const uint8_t*>( hlsl ) + sizeof( flags );
+	const uint32_t dxbcSize = size - sizeof( flags );
+
+	const uint8_t vsIndex = VertexForShader[shader];
+	CCP_ASSERT_M( vsIndex < Shader::Vertex::Count, "CreatePixelShader vertex shader index is out of range" );
+	if( vsIndex >= Shader::Vertex::Count || !m_vertexShaders[vsIndex].IsValid() )
+	{
+		CCP_NOESIS_LOGERR( "CreatePixelShader '%s': stock vertex shader %u is missing",
+						   SafeLabel( label, "" ), vsIndex );
+		CCP_ASSERT_M( false, "CreatePixelShader is missing the stock vertex shader" );
+		return nullptr;
+	}
+
+	Tr2ShaderSignatureAL signature;
+	FillPixelSignature( signature, flags );
+
+	CustomProgram custom;
+	custom.flags = flags;
+	custom.vertexFormat = FormatForVertex[vsIndex];
+
+	const char* name = SafeLabel( label, "Custom" );
+	const ALResult result = custom.pixelShader.Create(
+		PIXEL_SHADER,
+		Tr2ShaderBytecodeAL( dxbc, dxbcSize ),
+		signature,
+		name,
+		*m_primary );
+	if( FAILED( result ) )
+	{
+		CCP_NOESIS_LOGERR( "Failed to create Noesis custom pixel shader '%s'", name );
+		CCP_ASSERT_M( false, "Failed to create Noesis custom pixel shader" );
+		return nullptr;
+	}
+	custom.pixelShader.SetName( name );
+
+	Tr2ShaderAL stages[] = { m_vertexShaders[vsIndex], custom.pixelShader };
+	const ALResult programResult = custom.program.Create( stages, 2, *m_primary );
+	if( FAILED( programResult ) )
+	{
+		CCP_NOESIS_LOGERR( "Failed to create Noesis custom shader program '%s'", name );
+		CCP_ASSERT_M( false, "Failed to create Noesis custom shader program" );
+		return nullptr;
+	}
+	custom.program.SetName( name );
+
+	m_customShaders.push_back( std::move( custom ) );
+	if( Tr2Noesis::IsLogVerbose() )
+	{
+		CCP_NOESIS_LOG( "Custom pixel shader '%s' shader=%u flags=0x%x handle=%zu",
+						name, shader, flags, m_customShaders.size() );
+	}
+	return reinterpret_cast<void*>( m_customShaders.size() );
+}
+
+void Tr2NoesisRenderDevice::ClearPixelShaders()
+{
+	m_customShaders.clear();
+	// Resource sets cache the custom program by handle. Drop them rather than
+	// leave entries keyed to indices that CreatePixelShader will reuse.
+	m_resourceSets.clear();
+}
+
 void Tr2NoesisRenderDevice::UpdateTexture( Texture* texture_, uint32_t level, uint32_t x, uint32_t y,
 										   uint32_t width, uint32_t height, const void* data )
 {
@@ -842,11 +1014,50 @@ void Tr2NoesisRenderDevice::DrawBatch( const Batch& batch )
 
 	++m_batchCounts[shader];
 
-	const uint32_t flags = PROGRAM_FLAGS[shader];
-	if( flags == 0 || !m_programs[shader].IsValid() )
+	Tr2ShaderProgramAL* program = nullptr;
+	uint32_t flags = 0;
+	uint8_t format = 0;
+	uint64_t programId = shader;
+
+	if( batch.pixelShader != nullptr )
 	{
-		ReportUnwiredShader( shader );
-		return;
+		const uintptr_t index = reinterpret_cast<uintptr_t>( batch.pixelShader );
+		if( index == 0 || index > m_customShaders.size() )
+		{
+			CCP_ASSERT_M( false, "Noesis DrawBatch: custom pixel shader handle is invalid" );
+			return;
+		}
+
+		CustomProgram& custom = m_customShaders[index - 1];
+		if( !custom.program.IsValid() )
+		{
+			ReportUnwiredShader( shader );
+			return;
+		}
+
+		// Same skip D3D12RenderDevice uses: the custom permutation declared registers
+		// this batch did not bind.
+		if( ( custom.flags & GetBatchSignature( batch ) ) != custom.flags )
+		{
+			return;
+		}
+
+		program = &custom.program;
+		flags = custom.flags;
+		format = custom.vertexFormat;
+		programId = 0x80000000ull | ( index - 1 );
+	}
+	else
+	{
+		flags = PROGRAM_FLAGS[shader];
+		if( flags == 0 || !m_programs[shader].IsValid() )
+		{
+			ReportUnwiredShader( shader );
+			return;
+		}
+
+		program = &m_programs[shader];
+		format = FormatForVertex[VertexForShader[shader]];
 	}
 
 	// Noesis filters the 256 render-state combinations itself, so a rejection here means our
@@ -854,12 +1065,9 @@ void Tr2NoesisRenderDevice::DrawBatch( const Batch& batch )
 	CCP_ASSERT_M( RenderDevice::IsValidState( batch.shader, batch.renderState ),
 				  "Noesis sent a render state that its own validator rejects" );
 
-	const uint8_t vertexShader = VertexForShader[shader];
-	const uint8_t format = FormatForVertex[vertexShader];
-
 	ApplyRenderState( batch );
 
-	m_context->SetShaderProgram( m_programs[shader] );
+	m_context->SetShaderProgram( *program );
 	m_context->SetVertexLayout( m_vertexLayouts[format] );
 	m_context->SetTopology( TOP_TRIANGLES );
 
@@ -869,7 +1077,7 @@ void Tr2NoesisRenderDevice::DrawBatch( const Batch& batch )
 	m_context->SetIndices( m_indices.CurrentPage(), 2 );
 
 	BindUniforms( batch, flags );
-	BindResources( batch, flags );
+	BindResources( batch, flags, *program, programId );
 
 	CCP_ASSERT_M( ( batch.numIndices % 3 ) == 0, "Noesis batch index count is not a whole number of triangles" );
 
@@ -903,8 +1111,8 @@ void Tr2NoesisRenderDevice::ReportUnwiredShader( uint8_t shader )
 
 	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
 	// that an unwired shader is still being asked for.
-	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) was never compiled. Custom_Effect needs "
-					   "a shader supplied by the effect itself.",
+	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) has no program. Custom_Effect and BrushShader "
+					   "permutations need CreatePixelShader plus SetPixelShader on the effect.",
 					   SHADER_NAMES[shader], shader );
 	CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation was never compiled" );
 }
@@ -1020,7 +1228,7 @@ void Tr2NoesisRenderDevice::BindUniforms( const Batch& batch, uint32_t flags )
 	}
 }
 
-void Tr2NoesisRenderDevice::BindResources( const Batch& batch, uint32_t flags )
+void Tr2NoesisRenderDevice::BindResources( const Batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId )
 {
 	if( ( flags & ( PS_T0 | PS_T1 | PS_T2 | PS_T3 | PS_T4 ) ) == 0 )
 	{
@@ -1028,7 +1236,6 @@ void Tr2NoesisRenderDevice::BindResources( const Batch& batch, uint32_t flags )
 		return;
 	}
 
-	const uint8_t shader = batch.shader.v;
 	const struct
 	{
 		uint32_t flag;
@@ -1043,7 +1250,7 @@ void Tr2NoesisRenderDevice::BindResources( const Batch& batch, uint32_t flags )
 		{ PS_T4, 4, batch.shadow, batch.shadowSampler },
 	};
 
-	Tr2ResourceSetDescriptionAL description( m_programs[shader] );
+	Tr2ResourceSetDescriptionAL description( program );
 	for( const auto& binding : bindings )
 	{
 		if( ( flags & binding.flag ) == 0 )
@@ -1068,19 +1275,19 @@ void Tr2NoesisRenderDevice::BindResources( const Batch& batch, uint32_t flags )
 		CCP_ASSERT_M( samplerSet, "Noesis shader program has no sampler at the register PROGRAM_FLAGS claims" );
 	}
 
-	const uint64_t key = ( static_cast<uint64_t>( shader ) << 32 ) | description.ComputeHash();
+	const uint64_t key = ( programId << 32 ) | description.ComputeHash();
 	ResourceSetEntry& entry = m_resourceSets[key];
 	if( !entry.set.IsValid() || !( entry.description == description ) )
 	{
 		Tr2ResourceSetAL set;
-		const ALResult result = set.Create( description, m_programs[shader], *m_primary );
+		const ALResult result = set.Create( description, program, *m_primary );
 		if( FAILED( result ) )
 		{
-			CCP_NOESIS_LOGERR( "Failed to create a Noesis resource set for shader '%s'", SHADER_NAMES[shader] );
+			CCP_NOESIS_LOGERR( "Failed to create a Noesis resource set for shader '%s'", SHADER_NAMES[batch.shader.v] );
 			CCP_ASSERT_M( false, "Failed to create a Noesis resource set" );
 			return;
 		}
-		set.SetName( SHADER_NAMES[shader] );
+		set.SetName( SHADER_NAMES[batch.shader.v] );
 		entry.description = description;
 		entry.set = set;
 	}
@@ -1150,39 +1357,7 @@ void Tr2NoesisRenderDevice::CreateShaders()
 
 		const uint32_t flags = PROGRAM_FLAGS[shader];
 		Tr2ShaderSignatureAL signature;
-		if( flags & PS_CB0 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
-		}
-		if( flags & PS_CB1 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
-		}
-		if( flags & PS_T0 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 0 );
-			signature.Add( Tr2ShaderRegisterAL::SAMPLER, 0 );
-		}
-		if( flags & PS_T1 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 1 );
-			signature.Add( Tr2ShaderRegisterAL::SAMPLER, 1 );
-		}
-		if( flags & PS_T2 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 2 );
-			signature.Add( Tr2ShaderRegisterAL::SAMPLER, 2 );
-		}
-		if( flags & PS_T3 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 3 );
-			signature.Add( Tr2ShaderRegisterAL::SAMPLER, 3 );
-		}
-		if( flags & PS_T4 )
-		{
-			signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 4 );
-			signature.Add( Tr2ShaderRegisterAL::SAMPLER, 4 );
-		}
+		FillPixelSignature( signature, flags );
 
 		const Tr2Noesis::ShaderBytecode& bytecode = Tr2Noesis::PIXEL_SHADERS[bytecodeIndex];
 		const ALResult result = m_pixelShaders[shader].Create(
