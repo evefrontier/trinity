@@ -963,17 +963,21 @@ void Tr2NoesisRenderDevice::BeginOnscreenRender()
 		return;
 	}
 
-	// ClipToBounds (ScrollViewer, etc.) is a stencil mask. The sprite 2D path
-	// unbinds DS, and the 3D scene's D32F has no stencil plane, so the host
-	// buffer is unusable. Bind our own D24S8. DX12 SetDepthStencil resets
-	// viewport and scissor to the full target; put the caller's rect back.
+	// ClipToBounds is a stencil mask. Transform3D enables Z-test (GREATEREQUAL,
+	// reverse-Z) but never writes depth, so the far plane has to be 0. The
+	// sprite 2D path unbinds DS and the scene's D32F has no stencil, so the
+	// host buffer is unusable -- this private D24S8 is not the scene's
+	// pre-cleared depth and would otherwise stay undefined, rejecting
+	// fragments at random and punching holes in the colour target.
+	// DX12 SetDepthStencil resets viewport and scissor to the full target;
+	// put the caller's rect back.
 	if( EnsureOnscreenStencil( rtWidth, rtHeight ) )
 	{
 		m_context->PushDepthStencil();
 		if( SUCCEEDED( m_context->SetDepthStencil( m_onscreenStencil ) ) )
 		{
 			m_pushedOnscreenStencil = true;
-			m_context->Clear( CLEARFLAGS_STENCIL, 0, 0.0f, 0 );
+			m_context->Clear( CLEARFLAGS_ZBUFFER | CLEARFLAGS_STENCIL, 0, 0.0f, 0 );
 		}
 		else
 		{
