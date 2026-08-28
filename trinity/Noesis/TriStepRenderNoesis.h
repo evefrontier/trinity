@@ -4,7 +4,7 @@
 #ifndef TriStepRenderNoesis_H
 #define TriStepRenderNoesis_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisView.h"
 #include "RenderJob/TriRenderStep.h"

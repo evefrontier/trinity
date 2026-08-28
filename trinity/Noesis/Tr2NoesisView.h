@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisView_H
 #define Tr2NoesisView_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include <NsCore/Ptr.h>
 #include <NsGui/IView.h>

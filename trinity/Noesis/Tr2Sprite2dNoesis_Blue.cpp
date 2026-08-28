@@ -4,7 +4,7 @@
 
 #include "Noesis/Tr2Sprite2dNoesis.h"
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 BLUE_DEFINE( Tr2Sprite2dNoesis );
 

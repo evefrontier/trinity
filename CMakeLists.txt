@@ -56,10 +56,6 @@ project(carbon-trinity VERSION 1.0.0)
 if(WITH_NOESIS)
     set(NOESIS_GUI_SDK_PATH "$ENV{NOESIS_GUI_SDK_PATH}" CACHE PATH "Path to the NoesisGUI SDK")
 
-    if(NOT BUILD_DX12)
-        message(FATAL_ERROR "WITH_NOESIS currently requires BUILD_DX12")
-    endif()
-
     if(NOT NOESIS_GUI_SDK_PATH)
         message(FATAL_ERROR
             "WITH_NOESIS: NOESIS_GUI_SDK_PATH is empty. Set the NOESIS_GUI_SDK_PATH environment "

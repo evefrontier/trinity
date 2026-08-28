@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisPython_H
 #define Tr2NoesisPython_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 ) && BLUE_WITH_PYTHON
+#if WITH_NOESIS && BLUE_WITH_PYTHON
 
 #include "Noesis/Tr2NoesisCollection.h"
 #include "Noesis/Tr2NoesisDataModel.h"

@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisCommand_H
 #define Tr2NoesisCommand_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include <NsCore/BaseComponent.h>
 #include <NsCore/Delegate.h>

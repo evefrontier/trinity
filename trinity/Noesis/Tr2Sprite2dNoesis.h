@@ -4,7 +4,7 @@
 #ifndef Tr2Sprite2dNoesis_h
 #define Tr2Sprite2dNoesis_h
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Sprite2d/Tr2SpriteObject.h"
 #include "Noesis/Tr2NoesisView.h"

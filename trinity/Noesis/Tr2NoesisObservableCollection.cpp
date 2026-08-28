@@ -4,7 +4,7 @@
 
 #include "Noesis/Tr2NoesisObservableCollection.h"
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #if BLUE_WITH_PYTHON
 #include "Noesis/Tr2NoesisPythonWeak.h"

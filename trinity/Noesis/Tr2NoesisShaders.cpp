@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "Noesis/Tr2NoesisShaders.h"
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 // clang-format off
 #define NOESIS_SHADER_STRINGIZE_( x ) #x

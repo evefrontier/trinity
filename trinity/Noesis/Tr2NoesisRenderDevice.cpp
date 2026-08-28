@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "Noesis/Tr2NoesisRenderDevice.h"
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisShaders.h"
@@ -488,10 +488,6 @@ bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t stride, uint32_t size,
 	drawPos = 0;
 	mapped = false;
 
-	const uint32_t backBufferCount = primary.GetBackBufferCount();
-	CCP_ASSERT_M( backBufferCount == 0 || backBufferCount == PAGE_COUNT,
-				  "Noesis dynamic ring PAGE_COUNT must match the swap-chain buffer count" );
-
 	const Tr2CpuUsage::Type cpuUsage = Tr2CpuUsage::WRITE_OFTEN | Tr2CpuUsage::NON_SYNCRONIZED_WRITE;
 	for( uint32_t i = 0; i < PAGE_COUNT; ++i )
 	{
@@ -507,7 +503,7 @@ bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t stride, uint32_t size,
 		pages[i].SetName( pageName );
 	}
 
-	SyncFrame( primary.GetCurrentBackBufferIndex() );
+	SyncFrame( Tr2NoesisRenderDevice::RingPageIndex( primary ) );
 	return true;
 }
 
@@ -976,7 +972,7 @@ void* Tr2NoesisRenderDevice::MapVertices( uint32_t bytes )
 {
 	CCP_ASSERT_M( m_context != nullptr, "MapVertices without a render context" );
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	m_vertices.SyncFrame( m_primary->GetCurrentBackBufferIndex() );
+	m_vertices.SyncFrame( RingPageIndex( *m_primary ) );
 	return m_vertices.Map( bytes, *m_context );
 }
 
@@ -990,7 +986,7 @@ void* Tr2NoesisRenderDevice::MapIndices( uint32_t bytes )
 {
 	CCP_ASSERT_M( m_context != nullptr, "MapIndices without a render context" );
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	m_indices.SyncFrame( m_primary->GetCurrentBackBufferIndex() );
+	m_indices.SyncFrame( RingPageIndex( *m_primary ) );
 	return m_indices.Map( bytes, *m_context );
 }
 
@@ -1197,10 +1193,16 @@ void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const Unif
 		return;
 	}
 	memcpy( mapped, uniforms.values, bytes );
+	if( buffer.GetSize() > bytes )
+	{
+		// DX11 Map WRITE_DISCARD leaves the rest of the buffer undefined, and SetConstants
+		// binds the whole allocation. DX12 uploads the whole buffer too; keep the tail zero.
+		memset( static_cast<uint8_t*>( mapped ) + bytes, 0, buffer.GetSize() - bytes );
+	}
 	buffer.Unlock( *m_context );
 
-	// Unlock invalidates the residency token, so this uploads into the frame's ring rather
-	// than reusing the address the previous batch was given.
+	// Unlock invalidates the residency token on DX12, so this uploads into the frame's ring
+	// rather than reusing the address the previous batch was given. DX11 DISCARD-maps.
 	const ALResult result = m_context->SetConstants( buffer, stage, registerIndex );
 	if( FAILED( result ) )
 	{
@@ -1455,15 +1457,20 @@ void Tr2NoesisRenderDevice::CreateRings()
 void Tr2NoesisRenderDevice::SyncRingsToCurrentFrame()
 {
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	const uint32_t frameIndex = m_primary->GetCurrentBackBufferIndex();
+	const uint32_t frameIndex = RingPageIndex( *m_primary );
 	m_vertices.SyncFrame( frameIndex );
 	m_indices.SyncFrame( frameIndex );
 }
 
+uint32_t Tr2NoesisRenderDevice::RingPageIndex( const Tr2PrimaryRenderContextAL& primary )
+{
+	return static_cast<uint32_t>( primary.GetRecordingFrameNumber() % DynamicRing::PAGE_COUNT );
+}
+
 void Tr2NoesisRenderDevice::ApplyRenderState( const Batch& batch )
 {
-	// Emitted in full for every batch, never as a delta: on DX12 any state we leave out
-	// survives in the sticky PSO description from whichever render step ran before us.
+	// Emitted in full for every batch, never as a delta: any state we leave out can
+	// survive from whichever render step ran before us.
 	CCP_ASSERT_M( m_context != nullptr, "ApplyRenderState without a render context" );
 
 	const Noesis::RenderState state = batch.renderState;

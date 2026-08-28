@@ -4,7 +4,7 @@
 
 #include "Noesis/Tr2NoesisObject.h"
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisCommand.h"
 #include "Noesis/Tr2NoesisLog.h"

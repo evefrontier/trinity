@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisPythonWeak_H
 #define Tr2NoesisPythonWeak_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 ) && BLUE_WITH_PYTHON
+#if WITH_NOESIS && BLUE_WITH_PYTHON
 
 inline void Tr2NoesisSetPythonWeakRef( PyObject*& slot, PyObject* obj )
 {

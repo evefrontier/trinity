@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisObservableCollection_H
 #define Tr2NoesisObservableCollection_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include <NsCore/ReflectionImplementEmpty.h>
 #include <NsGui/ObservableCollection.h>

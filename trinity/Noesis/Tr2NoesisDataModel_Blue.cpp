@@ -4,7 +4,7 @@
 
 #include "Noesis/Tr2NoesisDataModel.h"
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisPython.h"
 

@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisRenderDevice_H
 #define Tr2NoesisRenderDevice_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include <NsRender/RenderDevice.h>
 #include <NsRender/RenderTarget.h>
@@ -119,8 +119,9 @@ public:
 private:
 	struct DynamicRing
 	{
-		// One page per in-flight swap-chain buffer (Tr2SwapChainUtils::BACK_BUFFER_COUNT).
-		// CPU writes only the current back-buffer's page; the GPU is still reading the others.
+		// One page per in-flight frame. Indexed by recording-frame % PAGE_COUNT, which
+		// is on every AL backend. CPU writes only the current page; the GPU is still
+		// reading the others.
 		static const uint32_t PAGE_COUNT = 3;
 
 		Tr2BufferAL pages[PAGE_COUNT];
@@ -156,6 +157,7 @@ private:
 	void CreateSamplers();
 	void CreateRings();
 	void SyncRingsToCurrentFrame();
+	static uint32_t RingPageIndex( const Tr2PrimaryRenderContextAL& primary );
 	void ApplyRenderState( const Noesis::Batch& batch );
 	void BindUniform( Tr2ConstantBufferAL& buffer, const Noesis::UniformData& uniforms,
 					  Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name );
@@ -218,7 +220,7 @@ namespace Tr2Noesis
 // Every view's renderer shares it, which is Noesis's own model: the glyph atlas, the 64
 // shader programs and the dynamic rings all live here. Deliberately never destroyed --
 // TrinityAL objects in a static's destructor would be released after Trinity has torn the
-// D3D12 device down. Surviving a device reset is gap G2, not this function's business.
+// GPU device down. Surviving a device reset is gap G2, not this function's business.
 //
 // Call only from the render path. Construction creates AL resources, so it must not happen
 // from arbitrary Python.

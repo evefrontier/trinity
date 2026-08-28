@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisObject_H
 #define Tr2NoesisObject_H
 
-#if WITH_NOESIS && ( TRINITY_PLATFORM == TRINITY_DIRECTX12 )
+#if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisTypes.h"
 
