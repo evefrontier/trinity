@@ -37,6 +37,12 @@ const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 			"True once XAML has been loaded successfully." )
 
 		MAP_PROPERTY(
+			"lcd",
+			GetLcd,
+			SetLcd,
+			"LCD subpixel text rendering (Noesis RenderFlags_LCD)." )
+
+		MAP_PROPERTY(
 			"dataContext",
 			GetDataContext,
 			SetDataContext,

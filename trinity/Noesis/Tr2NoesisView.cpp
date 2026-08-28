@@ -211,6 +211,7 @@ void OnNoesisCursor( void* /*user*/, Noesis::IView* view, Noesis::Cursor* cursor
 
 Tr2NoesisView::Tr2NoesisView( IRoot* ) :
 	m_rendererInitialized( false ),
+	m_lcd( false ),
 	m_width( 0 ),
 	m_height( 0 )
 {
@@ -284,9 +285,8 @@ bool Tr2NoesisView::SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, c
 		return false;
 	}
 
-	// PPAA exercises the COVERAGE semantic rename. LCD enables the SDF_LCD_* shaders and
-	// SrcOver_Dual dual-source blending, which is how Noesis does subpixel text on RGB LCDs.
-	m_view->SetFlags( Noesis::RenderFlags_PPAA | Noesis::RenderFlags_LCD );
+	m_view->SetFlags( Noesis::RenderFlags_PPAA );
+	ApplyLcdFlag();
 
 	if( m_width != 0 && m_height != 0 )
 	{
@@ -388,6 +388,36 @@ void Tr2NoesisView::ReleaseView()
 bool Tr2NoesisView::GetIsLoaded() const
 {
 	return m_view != nullptr;
+}
+
+bool Tr2NoesisView::GetLcd() const
+{
+	return m_lcd;
+}
+
+void Tr2NoesisView::SetLcd( bool enable )
+{
+	m_lcd = enable;
+	ApplyLcdFlag();
+}
+
+void Tr2NoesisView::ApplyLcdFlag()
+{
+	if( m_view == nullptr )
+	{
+		return;
+	}
+
+	uint32_t flags = m_view->GetFlags();
+	if( m_lcd )
+	{
+		flags |= Noesis::RenderFlags_LCD;
+	}
+	else
+	{
+		flags &= ~static_cast<uint32_t>( Noesis::RenderFlags_LCD );
+	}
+	m_view->SetFlags( flags );
 }
 
 bool Tr2NoesisView::EnsureRenderer( Noesis::RenderDevice* device )

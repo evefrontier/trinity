@@ -46,6 +46,9 @@ public:
 
 	bool GetIsLoaded() const;
 
+	bool GetLcd() const;
+	void SetLcd( bool enable );
+
 	void SetDataContext( Tr2NoesisDataModel* model );
 	Tr2NoesisDataModel* GetDataContext() const;
 
@@ -92,11 +95,13 @@ public:
 private:
 	void ReleaseView();
 	void ApplyDataContext();
+	void ApplyLcdFlag();
 
 	Noesis::Ptr<Noesis::IView> m_view;
 	Tr2NoesisDataModelPtr m_dataContext;
 	BlueScriptCallback m_onCursorChange;
 	bool m_rendererInitialized;
+	bool m_lcd;
 	uint32_t m_width;
 	uint32_t m_height;
 };
