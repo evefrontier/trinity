@@ -102,9 +102,10 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// SetupViewport clips a rect that extends past the render target. 3D recovers with
 	// viewport2projectionAdjustment; Noesis owns its projection, so that clip would
 	// squash the UI into the remaining pixels. Put the logical rect on the device
-	// instead. DX11 and DX12 scissor is always on and covers the full target, so overflow is
-	// clipped rather than scaled. Restore the esm's clipped copy afterwards so later
-	// draws still match what SetupViewport recorded.
+	// instead. BeginOnscreenRender scissors to that rect (clamped to the target) so
+	// overflow is clipped rather than scaled, and binds a stencil for ClipToBounds.
+	// Restore the esm's clipped copy afterwards so later draws still match what
+	// SetupViewport recorded.
 	Tr2Viewport logicalVp;
 	renderContext.m_esm.GetViewport().ConvertToTr2Viewport( logicalVp );
 	renderContext.SetViewport( logicalVp );

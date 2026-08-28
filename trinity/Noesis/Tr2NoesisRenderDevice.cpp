@@ -12,6 +12,7 @@
 
 #include <NsCore/Ptr.h>
 
+#include <cmath>
 #include <utility>
 
 using namespace Noesis;
@@ -382,6 +383,49 @@ const char* FormatDebugName( char ( &out )[128], const char* label, const char* 
 	return out;
 }
 
+// IRenderer::Render uses the host viewport and scissor. D3D12 scissor is always
+// on, and SetDepthStencil resets it to the full target, so the rect has to match
+// the viewport (clamped to the target — D3D12 rejects a scissor that extends past it).
+Tr2ScissorRect ScissorForViewport( const Tr2Viewport& vp, uint32_t rtWidth, uint32_t rtHeight )
+{
+	const int rtW = int( rtWidth );
+	const int rtH = int( rtHeight );
+	int left = int( floorf( vp.m_x ) );
+	int top = int( floorf( vp.m_y ) );
+	int right = int( ceilf( vp.m_x + vp.m_width ) );
+	int bottom = int( ceilf( vp.m_y + vp.m_height ) );
+	if( left < 0 )
+	{
+		left = 0;
+	}
+	if( top < 0 )
+	{
+		top = 0;
+	}
+	if( right > rtW )
+	{
+		right = rtW;
+	}
+	if( bottom > rtH )
+	{
+		bottom = rtH;
+	}
+	if( right < left )
+	{
+		right = left;
+	}
+	if( bottom < top )
+	{
+		bottom = top;
+	}
+	Tr2ScissorRect rect;
+	rect.m_left = left;
+	rect.m_top = top;
+	rect.m_right = right;
+	rect.m_bottom = bottom;
+	return rect;
+}
+
 }
 
 // --------------------------------------------------------------------------------------
@@ -581,6 +625,7 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 	m_primary( &primaryContext ),
 	m_context( &primaryContext ),
 	m_valid( true ),
+	m_pushedOnscreenStencil( false ),
 	m_batchCounts{},
 	m_reportedCounts{},
 	m_unwiredReported( 0 ),
@@ -907,11 +952,58 @@ void Tr2NoesisRenderDevice::BeginOnscreenRender()
 	CCP_ASSERT_M( m_context != nullptr, "BeginOnscreenRender without a render context" );
 	SyncRingsToCurrentFrame();
 	m_context->PushGpuMarker( "Noesis" );
+
+	Tr2Viewport vp;
+	m_context->GetViewport( vp );
+
+	uint32_t rtWidth = 0;
+	uint32_t rtHeight = 0;
+	if( FAILED( m_context->GetRenderTargetSize( rtWidth, rtHeight ) ) || rtWidth == 0 || rtHeight == 0 )
+	{
+		return;
+	}
+
+	// ClipToBounds (ScrollViewer, etc.) is a stencil mask. The sprite 2D path
+	// unbinds DS, and the 3D scene's D32F has no stencil plane, so the host
+	// buffer is unusable. Bind our own D24S8. DX12 SetDepthStencil resets
+	// viewport and scissor to the full target; put the caller's rect back.
+	if( EnsureOnscreenStencil( rtWidth, rtHeight ) )
+	{
+		m_context->PushDepthStencil();
+		if( SUCCEEDED( m_context->SetDepthStencil( m_onscreenStencil ) ) )
+		{
+			m_pushedOnscreenStencil = true;
+			m_context->Clear( CLEARFLAGS_STENCIL, 0, 0.0f, 0 );
+		}
+		else
+		{
+			m_context->PopDepthStencil();
+		}
+	}
+
+	m_context->SetViewport( vp );
+	m_context->SetScissorRect( ScissorForViewport( vp, rtWidth, rtHeight ) );
 }
 
 void Tr2NoesisRenderDevice::EndOnscreenRender()
 {
 	CCP_ASSERT_M( m_context != nullptr, "EndOnscreenRender without a render context" );
+
+	if( m_pushedOnscreenStencil )
+	{
+		m_context->PopDepthStencil();
+		m_pushedOnscreenStencil = false;
+	}
+
+	// DX11 does not reset scissor when only the DS changes. Sprite 2D after
+	// this job would otherwise stay clipped to the Noesis viewport.
+	uint32_t rtWidth = 0;
+	uint32_t rtHeight = 0;
+	if( SUCCEEDED( m_context->GetRenderTargetSize( rtWidth, rtHeight ) ) )
+	{
+		m_context->SetScissorRect( Tr2ScissorRect( rtWidth, rtHeight ) );
+	}
+
 	m_context->PopGpuMarker();
 
 	// Last Noesis call of the frame, so this is where a frame's worth of batches is complete.
@@ -1465,6 +1557,31 @@ void Tr2NoesisRenderDevice::SyncRingsToCurrentFrame()
 uint32_t Tr2NoesisRenderDevice::RingPageIndex( const Tr2PrimaryRenderContextAL& primary )
 {
 	return static_cast<uint32_t>( primary.GetRecordingFrameNumber() % DynamicRing::PAGE_COUNT );
+}
+
+bool Tr2NoesisRenderDevice::EnsureOnscreenStencil( uint32_t width, uint32_t height )
+{
+	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
+
+	if( m_onscreenStencil.IsValid() &&
+		m_onscreenStencil.GetWidth() == width &&
+		m_onscreenStencil.GetHeight() == height )
+	{
+		return true;
+	}
+
+	m_onscreenStencil = Tr2TextureAL();
+	const Tr2BitmapDimensions desc( width, height, 1, PIXEL_FORMAT_D24_UNORM_S8_UINT );
+	const ALResult result = m_onscreenStencil.Create( desc, Tr2GpuUsage::DEPTH_STENCIL, *m_primary );
+	if( FAILED( result ) )
+	{
+		CCP_NOESIS_LOGERR( "Failed to create Noesis onscreen stencil %u x %u", width, height );
+		m_onscreenStencil = Tr2TextureAL();
+		return false;
+	}
+
+	m_onscreenStencil.SetName( "Noesis_OnscreenStencil" );
+	return true;
 }
 
 void Tr2NoesisRenderDevice::ApplyRenderState( const Batch& batch )
