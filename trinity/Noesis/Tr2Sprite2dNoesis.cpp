@@ -89,12 +89,44 @@ bool Tr2Sprite2dNoesis::SyncOverrideViewport( Tr2Sprite2dScene* renderer )
 		return false;
 	}
 
+	// Layout stays the sprite rect. Parent clipChildren (scroll, clipper, ...) is a
+	// tighter scissor so the XAML does not reflow as it scrolls out of view.
+	// Only convert a clip edge that actually tightens the sprite, so the
+	// unconstrained (-FLT_MAX/FLT_MAX) stack default is never cast to int.
+	const Tr2Sprite2dClipRect& clip = renderer->GetClipRectangle();
+	int clipLeft = x;
+	int clipTop = y;
+	int clipRight = x + width;
+	int clipBottom = y + height;
+	if( clip.left > origin.x )
+	{
+		clipLeft = vp.x + static_cast<int>( floorf( clip.left ) );
+	}
+	if( clip.top > origin.y )
+	{
+		clipTop = vp.y + static_cast<int>( floorf( clip.top ) );
+	}
+	if( clip.right < origin.x + m_displayWidth )
+	{
+		clipRight = vp.x + static_cast<int>( ceilf( clip.right ) );
+	}
+	if( clip.bottom < origin.y + m_displayHeight )
+	{
+		clipBottom = vp.y + static_cast<int>( ceilf( clip.bottom ) );
+	}
+	if( clipRight <= clipLeft || clipBottom <= clipTop )
+	{
+		return false;
+	}
+
 	m_step->SetOverrideViewport( x, y, width, height );
+	m_step->SetOverrideClip( clipLeft, clipTop, clipRight, clipBottom );
 
 	if( Tr2Noesis::IsLogVerbose() )
 	{
-		CCP_NOESIS_LOG( "Tr2Sprite2dNoesis viewport (%d, %d) %dx%d (sprite %.0f,%.0f %.0fx%.0f)",
+		CCP_NOESIS_LOG( "Tr2Sprite2dNoesis viewport (%d, %d) %dx%d clip (%d,%d)-(%d,%d) (sprite %.0f,%.0f %.0fx%.0f)",
 						x, y, width, height,
+						clipLeft, clipTop, clipRight, clipBottom,
 						origin.x, origin.y, m_displayWidth, m_displayHeight );
 	}
 

@@ -26,7 +26,8 @@
 //   BeginTile sets the AL scissor to the tile (Y-flipped from Noesis's lower-left origin).
 //   EndTile is a no-op: the next SetRenderTarget resets scissor to the full target.
 //   BeginOnscreenRender binds a D24S8 (ClipToBounds stencil, Transform3D depth)
-//   and scissors to the current viewport; EndOnscreenRender restores both.
+//   and scissors to the current viewport intersected with an optional host clip
+//   (CarbonUI clipChildren); EndOnscreenRender restores both.
 //   EndUpdatingTextures is not overridden: UpdateSubresource restores shader-read
 //   state before it returns (see UpdateTexture).
 // --------------------------------------------------------------------------------------
@@ -86,6 +87,13 @@ public:
 	// The frame's deferred context. Must be set before Map*, UpdateTexture, SetRenderTarget
 	// or the Begin/End render markers. Defaults to the primary context passed at construction.
 	void SetRenderContext( Tr2RenderContextAL& renderContext );
+
+	// Extra onscreen scissor in render-target pixels, intersected with the viewport
+	// (already clamped to the target). Sprite 2d uses this for parent clipChildren
+	// so Noesis can keep its layout viewport while the GPU clips overflow. The
+	// overlay path leaves it cleared. Set before IRenderer::Render; clear after.
+	void SetHostScissor( const Tr2ScissorRect& rect );
+	void ClearHostScissor();
 
 	const Noesis::DeviceCaps& GetCaps() const override;
 	Noesis::Ptr<Noesis::RenderTarget> CreateRenderTarget( const char* label, uint32_t width, uint32_t height,
@@ -178,6 +186,8 @@ private:
 	// D32F buffer). One D24S8 matching the colour target, cleared each frame.
 	Tr2TextureAL m_onscreenStencil;
 	bool m_pushedOnscreenStencil;
+	bool m_hasHostScissor;
+	Tr2ScissorRect m_hostScissor;
 
 	Tr2ShaderAL m_vertexShaders[Noesis::Shader::Vertex::Count];
 	Tr2ShaderAL m_pixelShaders[Noesis::Shader::Count];

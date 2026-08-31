@@ -426,6 +426,24 @@ Tr2ScissorRect ScissorForViewport( const Tr2Viewport& vp, uint32_t rtWidth, uint
 	return rect;
 }
 
+Tr2ScissorRect IntersectScissor( const Tr2ScissorRect& a, const Tr2ScissorRect& b )
+{
+	Tr2ScissorRect rect;
+	rect.m_left = a.m_left > b.m_left ? a.m_left : b.m_left;
+	rect.m_top = a.m_top > b.m_top ? a.m_top : b.m_top;
+	rect.m_right = a.m_right < b.m_right ? a.m_right : b.m_right;
+	rect.m_bottom = a.m_bottom < b.m_bottom ? a.m_bottom : b.m_bottom;
+	if( rect.m_right < rect.m_left )
+	{
+		rect.m_right = rect.m_left;
+	}
+	if( rect.m_bottom < rect.m_top )
+	{
+		rect.m_bottom = rect.m_top;
+	}
+	return rect;
+}
+
 }
 
 // --------------------------------------------------------------------------------------
@@ -626,6 +644,7 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 	m_context( &primaryContext ),
 	m_valid( true ),
 	m_pushedOnscreenStencil( false ),
+	m_hasHostScissor( false ),
 	m_batchCounts{},
 	m_reportedCounts{},
 	m_unwiredReported( 0 ),
@@ -682,6 +701,17 @@ void Tr2NoesisRenderDevice::SetRenderContext( Tr2RenderContextAL& renderContext 
 		m_indices.Unmap( *m_context );
 	}
 	m_context = &renderContext;
+}
+
+void Tr2NoesisRenderDevice::SetHostScissor( const Tr2ScissorRect& rect )
+{
+	m_hasHostScissor = true;
+	m_hostScissor = rect;
+}
+
+void Tr2NoesisRenderDevice::ClearHostScissor()
+{
+	m_hasHostScissor = false;
 }
 
 const DeviceCaps& Tr2NoesisRenderDevice::GetCaps() const
@@ -986,7 +1016,13 @@ void Tr2NoesisRenderDevice::BeginOnscreenRender()
 	}
 
 	m_context->SetViewport( vp );
-	m_context->SetScissorRect( ScissorForViewport( vp, rtWidth, rtHeight ) );
+	// Viewport clamped to the target, then the sprite-tree clipChildren rect if any.
+	Tr2ScissorRect scissor = ScissorForViewport( vp, rtWidth, rtHeight );
+	if( m_hasHostScissor )
+	{
+		scissor = IntersectScissor( scissor, m_hostScissor );
+	}
+	m_context->SetScissorRect( scissor );
 }
 
 void Tr2NoesisRenderDevice::EndOnscreenRender()

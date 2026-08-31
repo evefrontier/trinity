@@ -19,7 +19,12 @@ TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
 	m_overrideX( 0 ),
 	m_overrideY( 0 ),
 	m_overrideWidth( 0 ),
-	m_overrideHeight( 0 )
+	m_overrideHeight( 0 ),
+	m_hasOverrideClip( false ),
+	m_overrideClipLeft( 0 ),
+	m_overrideClipTop( 0 ),
+	m_overrideClipRight( 0 ),
+	m_overrideClipBottom( 0 )
 {
 }
 
@@ -102,17 +107,31 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// SetupViewport clips a rect that extends past the render target. 3D recovers with
 	// viewport2projectionAdjustment; Noesis owns its projection, so that clip would
 	// squash the UI into the remaining pixels. Put the logical rect on the device
-	// instead. BeginOnscreenRender scissors to that rect (clamped to the target) so
-	// overflow is clipped rather than scaled, and binds a stencil for ClipToBounds.
-	// Restore the esm's clipped copy afterwards so later draws still match what
-	// SetupViewport recorded.
+	// instead. BeginOnscreenRender scissors to that rect (clamped to the target and
+	// the parent CarbonUI clip) so overflow is clipped rather than scaled, and binds
+	// a stencil for ClipToBounds. Restore the esm's clipped copy afterwards so later
+	// draws still match what SetupViewport recorded.
 	Tr2Viewport logicalVp;
 	renderContext.m_esm.GetViewport().ConvertToTr2Viewport( logicalVp );
 	renderContext.SetViewport( logicalVp );
 
+	// Only meaningful alongside the override viewport: the overlay path draws into the
+	// rect the job bound and has no parent sprite to clip against.
+	if( m_hasOverrideViewport && m_hasOverrideClip )
+	{
+		Tr2ScissorRect clip;
+		clip.m_left = m_overrideClipLeft;
+		clip.m_top = m_overrideClipTop;
+		clip.m_right = m_overrideClipRight;
+		clip.m_bottom = m_overrideClipBottom;
+		device->SetHostScissor( clip );
+	}
+
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
 	renderer->Render( false, false );
+
+	device->ClearHostScissor();
 
 	renderContext.SetViewport( renderContext.m_esm.GetDeviceViewport() );
 
@@ -158,6 +177,16 @@ void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int heig
 void TriStepRenderNoesis::ClearOverrideViewport()
 {
 	m_hasOverrideViewport = false;
+	m_hasOverrideClip = false;
+}
+
+void TriStepRenderNoesis::SetOverrideClip( int left, int top, int right, int bottom )
+{
+	m_hasOverrideClip = true;
+	m_overrideClipLeft = left;
+	m_overrideClipTop = top;
+	m_overrideClipRight = right;
+	m_overrideClipBottom = bottom;
 }
 
 #endif

@@ -40,10 +40,13 @@ public:
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
 	// so the step follows the viewport the job already bound. The rect is the layout
-	// size even when it extends past the target; onscreen draws use that full rect so
-	// the GPU clips overflow instead of scaling into the remaining pixels.
+	// size even when it extends past the target or a parent clip; onscreen draws use
+	// that full rect so the GPU clips overflow instead of scaling into the remaining
+	// pixels. SetOverrideClip is the parent CarbonUI clip in render-target pixels; it
+	// only applies while the override viewport is set, so clearing that clears both.
 	void SetOverrideViewport( int x, int y, int width, int height );
 	void ClearOverrideViewport();
+	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:
 	Tr2NoesisViewPtr m_view;
@@ -52,6 +55,11 @@ private:
 	int m_overrideY;
 	int m_overrideWidth;
 	int m_overrideHeight;
+	bool m_hasOverrideClip;
+	int m_overrideClipLeft;
+	int m_overrideClipTop;
+	int m_overrideClipRight;
+	int m_overrideClipBottom;
 };
 
 TYPEDEF_BLUECLASS( TriStepRenderNoesis );

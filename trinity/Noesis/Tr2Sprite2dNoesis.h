@@ -17,7 +17,9 @@
 //
 //   Internally this owns a TriRenderJob whose only step is TriStepRenderNoesis, so
 //   GatherSprites can go through Tr2Sprite2dScene::RunJob (flush, leave sprite
-//   managed mode, restore) and display-list capture keeps working.
+//   managed mode, restore) and display-list capture keeps working. Parent
+//   clipChildren is applied as an onscreen scissor; the layout viewport stays the
+//   sprite rect so scrolling does not reflow the XAML.
 // --------------------------------------------------------------------------------------
 
 BLUE_DECLARE( TriRenderJob );
