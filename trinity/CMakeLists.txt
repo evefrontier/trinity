@@ -1894,8 +1894,6 @@ if(WITH_NOESIS)
     list(APPEND _SOURCES ${NOESIS_RELATED_SOURCES})
 
     find_program(NOESIS_PYTHON NAMES python3 python REQUIRED)
-
-    set(NOESIS_SHADER_SOURCE_DIR "${NOESIS_GUI_SDK_PATH}/Src/Packages/Render/D3D12RenderDevice/Src")
     set(NOESIS_GENERATED_SOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/GeneratedSources")
     set(NOESIS_GENERATED_SHADER_DIR "${NOESIS_GENERATED_SOURCES_DIR}/NoesisShaders")
 
@@ -2026,9 +2024,9 @@ if(WITH_NOESIS)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
             COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
                     --stage vs
-                    --input "${NOESIS_SHADER_SOURCE_DIR}/ShaderVS.hlsl"
+                    --input "${Noesis_SHADER_SOURCE_DIR}/ShaderVS.hlsl"
                     --output "${NOESIS_MSL_VS}"
-            DEPENDS "${NOESIS_SHADER_SOURCE_DIR}/ShaderVS.hlsl"
+            DEPENDS "${Noesis_SHADER_SOURCE_DIR}/ShaderVS.hlsl"
                     "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
             COMMENT "Translating Noesis ShaderVS.hlsl to MSL"
             VERBATIM
@@ -2038,9 +2036,9 @@ if(WITH_NOESIS)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
             COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
                     --stage ps
-                    --input "${NOESIS_SHADER_SOURCE_DIR}/ShaderPS.hlsl"
+                    --input "${Noesis_SHADER_SOURCE_DIR}/ShaderPS.hlsl"
                     --output "${NOESIS_MSL_PS}"
-            DEPENDS "${NOESIS_SHADER_SOURCE_DIR}/ShaderPS.hlsl"
+            DEPENDS "${Noesis_SHADER_SOURCE_DIR}/ShaderPS.hlsl"
                     "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
             COMMENT "Translating Noesis ShaderPS.hlsl to MSL"
             VERBATIM
@@ -2113,9 +2111,9 @@ if(WITH_NOESIS)
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
                     COMMAND ${FXC_TOOL} /nologo /T${profile} /O3 /Qstrip_reflect
                             ${NOESIS_SEMANTIC_RENAMES} ${defines}
-                            /Fo "${bytecode}" "${NOESIS_SHADER_SOURCE_DIR}/${hlsl}"
+                            /Fo "${bytecode}" "${Noesis_SHADER_SOURCE_DIR}/${hlsl}"
                     COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd" "${bytecode}" "${header}"
-                    DEPENDS "${NOESIS_SHADER_SOURCE_DIR}/${hlsl}" "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd"
+                    DEPENDS "${Noesis_SHADER_SOURCE_DIR}/${hlsl}" "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd"
                     COMMENT "Compiling Noesis shader ${name}_${stage}"
                     VERBATIM
                 )
@@ -2221,7 +2219,7 @@ function(set_shared_trinity_properties target)
         ]]
         add_custom_command(
             TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_DLL}" "$<TARGET_FILE_DIR:${target}>"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Noesis::Noesis>" "$<TARGET_FILE_DIR:${target}>"
         )
 
         #[[
@@ -2232,7 +2230,7 @@ function(set_shared_trinity_properties target)
             target_link_libraries(${target} PRIVATE Noesis::NoesisEditor delayimp)
             target_link_options(${target} PRIVATE "/DELAYLOAD:NoesisEditor.dll")
         elseif(APPLE)
-            target_link_options(${target} PRIVATE "LINKER:-weak_library,${NOESIS_EDITOR_DLL}")
+            target_link_options(${target} PRIVATE "LINKER:-weak_library,$<TARGET_FILE:Noesis::NoesisEditor>")
             set_property(TARGET ${target} APPEND PROPERTY BUILD_RPATH "@loader_path")
             set_property(TARGET ${target} APPEND PROPERTY INSTALL_RPATH "@loader_path")
         else()
@@ -2240,7 +2238,7 @@ function(set_shared_trinity_properties target)
         endif()
         add_custom_command(
             TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NOESIS_EDITOR_DLL}" "$<TARGET_FILE_DIR:${target}>"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Noesis::NoesisEditor>" "$<TARGET_FILE_DIR:${target}>"
         )
     endif()
 

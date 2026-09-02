@@ -41,3 +41,4 @@ CMakeUserPresets.json
 .cmake-build*
 cmake-build*
 .claude/*
+overlay-ports/noesis/dist/
