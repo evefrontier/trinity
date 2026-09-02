@@ -9,9 +9,9 @@
 // --------------------------------------------------------------------------------------
 // Description:
 //   The NoesisGUI shader permutations, compiled from the SDK's own HLSL at build time and
-//   embedded as DXBC blobs. The tables are ordered exactly as NOESIS_VERTEX_SHADERS and
-//   NOESIS_PIXEL_SHADERS in trinity/CMakeLists.txt; the render device maps Noesis's
-//   Shader::Vertex::Enum and Shader::Enum onto these indices.
+//   embedded as DXBC (D3D) or AIR/metallib (Metal) blobs. The tables are ordered exactly
+//   as NOESIS_VERTEX_SHADERS and NOESIS_PIXEL_SHADERS in trinity/CMakeLists.txt; the
+//   render device maps Noesis's Shader::Vertex::Enum and Shader::Enum onto these indices.
 // --------------------------------------------------------------------------------------
 namespace Tr2Noesis
 {

@@ -13,6 +13,12 @@
 #include <NsGui/Stream.h>
 #include <NsGui/Uri.h>
 
+#ifndef _WIN32
+#include <dirent.h>
+#include <cstring>
+#include <strings.h>
+#endif
+
 Tr2NoesisFileFontProvider::Tr2NoesisFileFontProvider( const char* rootPath ) :
 	m_rootPath( rootPath != nullptr ? rootPath : "" )
 {
@@ -29,6 +35,9 @@ void Tr2NoesisFileFontProvider::ScanFolder( const Noesis::Uri& folder )
 void Tr2NoesisFileFontProvider::ScanFolder( const std::string& directory, const Noesis::Uri& folder,
 											const char* extension )
 {
+	uint32_t registered = 0;
+
+#ifdef _WIN32
 	std::string pattern = directory;
 	if( !pattern.empty() && pattern.back() != '/' && pattern.back() != '\\' )
 	{
@@ -45,7 +54,6 @@ void Tr2NoesisFileFontProvider::ScanFolder( const std::string& directory, const 
 		return;
 	}
 
-	uint32_t registered = 0;
 	do
 	{
 		if( ( findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) != 0 )
@@ -60,6 +68,34 @@ void Tr2NoesisFileFontProvider::ScanFolder( const std::string& directory, const 
 	while( FindNextFileW( handle, &findData ) );
 
 	FindClose( handle );
+#else
+	DIR* dir = opendir( directory.c_str() );
+	if( dir == nullptr )
+	{
+		return;
+	}
+
+	const size_t extensionLen = std::strlen( extension );
+	while( dirent* entry = readdir( dir ) )
+	{
+		if( entry->d_name[0] == '.' )
+		{
+			continue;
+		}
+		const size_t nameLen = std::strlen( entry->d_name );
+		if( nameLen < extensionLen )
+		{
+			continue;
+		}
+		if( strcasecmp( entry->d_name + nameLen - extensionLen, extension ) != 0 )
+		{
+			continue;
+		}
+		RegisterFont( folder, entry->d_name );
+		++registered;
+	}
+	closedir( dir );
+#endif
 
 	if( registered > 0 && Tr2Noesis::IsLogVerbose() )
 	{

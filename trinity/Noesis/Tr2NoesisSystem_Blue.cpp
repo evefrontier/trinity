@@ -102,7 +102,7 @@ static bool NoesisStudioIsAvailable()
 
 MAP_FUNCTION_AND_WRAP( "NoesisStudioIsAvailable",
 					   NoesisStudioIsAvailable,
-					   "Returns True if NoesisInitialize loaded NoesisEditor.dll, so Studio can be used.\n"
+					   "Returns True if NoesisInitialize loaded NoesisEditor, so Studio can be used.\n"
 					   ":rtype: bool" );
 
 static bool NoesisSetApplicationResources( const char* resPath )

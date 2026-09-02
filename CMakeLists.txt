@@ -62,8 +62,46 @@ if(WITH_NOESIS)
             "variable or pass -DNOESIS_GUI_SDK_PATH=<path to the NoesisGUI SDK>")
     endif()
 
-    set(NOESIS_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/windows_x86_64/Noesis.lib")
-    set(NOESIS_DLL "${NOESIS_GUI_SDK_PATH}/Bin/windows_x86_64/Noesis.dll")
+    if(WIN32)
+        set(NOESIS_SDK_ARCH windows_x86_64)
+        set(NOESIS_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/${NOESIS_SDK_ARCH}/Noesis.lib")
+        set(NOESIS_DLL "${NOESIS_GUI_SDK_PATH}/Bin/${NOESIS_SDK_ARCH}/Noesis.dll")
+        set(NOESIS_EDITOR_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/${NOESIS_SDK_ARCH}/NoesisEditor.lib")
+        set(NOESIS_EDITOR_DLL "${NOESIS_GUI_SDK_PATH}/Bin/${NOESIS_SDK_ARCH}/NoesisEditor.dll")
+    elseif(APPLE)
+        #[[
+            Native SDK layout is Bin/<arch>/libNoesis.dylib. Arch folder names have
+            drifted across SDK drops (macos_arm64 vs osx_arm64); probe in preference
+            order so either works. There is no separate import library on macOS.
+        ]]
+        if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+            set(_noesis_arch_candidates macos_arm64 osx_arm64 macos_x86_64 osx)
+        elseif(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+            set(_noesis_arch_candidates macos_x86_64 osx_x86_64 osx)
+        else()
+            set(_noesis_arch_candidates macos_arm64 macos_x86_64 osx_arm64 osx)
+        endif()
+
+        set(NOESIS_SDK_ARCH "")
+        foreach(_noesis_arch IN LISTS _noesis_arch_candidates)
+            if(EXISTS "${NOESIS_GUI_SDK_PATH}/Bin/${_noesis_arch}/libNoesis.dylib")
+                set(NOESIS_SDK_ARCH "${_noesis_arch}")
+                break()
+            endif()
+        endforeach()
+        if(NOT NOESIS_SDK_ARCH)
+            message(FATAL_ERROR
+                "WITH_NOESIS: no libNoesis.dylib under NOESIS_GUI_SDK_PATH='${NOESIS_GUI_SDK_PATH}'/Bin "
+                "(tried ${_noesis_arch_candidates})")
+        endif()
+
+        set(NOESIS_DLL "${NOESIS_GUI_SDK_PATH}/Bin/${NOESIS_SDK_ARCH}/libNoesis.dylib")
+        set(NOESIS_IMPLIB "${NOESIS_DLL}")
+        set(NOESIS_EDITOR_DLL "${NOESIS_GUI_SDK_PATH}/Bin/${NOESIS_SDK_ARCH}/libNoesisEditor.dylib")
+        set(NOESIS_EDITOR_IMPLIB "${NOESIS_EDITOR_DLL}")
+    else()
+        message(FATAL_ERROR "WITH_NOESIS: unsupported host for the NoesisGUI SDK")
+    endif()
 
     foreach(_noesis_artefact "${NOESIS_IMPLIB}" "${NOESIS_DLL}" "${NOESIS_GUI_SDK_PATH}/Include")
         if(NOT EXISTS "${_noesis_artefact}")
@@ -73,9 +111,6 @@ if(WITH_NOESIS)
         endif()
     endforeach()
 
-    set(NOESIS_EDITOR_IMPLIB "${NOESIS_GUI_SDK_PATH}/Lib/windows_x86_64/NoesisEditor.lib")
-    set(NOESIS_EDITOR_DLL "${NOESIS_GUI_SDK_PATH}/Bin/windows_x86_64/NoesisEditor.dll")
-
     foreach(_noesis_editor_artefact "${NOESIS_EDITOR_IMPLIB}" "${NOESIS_EDITOR_DLL}")
         if(NOT EXISTS "${_noesis_editor_artefact}")
             message(FATAL_ERROR
@@ -84,21 +119,35 @@ if(WITH_NOESIS)
         endif()
     endforeach()
 
-    message(STATUS "Compiling with NoesisGUI from ${NOESIS_GUI_SDK_PATH}")
+    message(STATUS "Compiling with NoesisGUI from ${NOESIS_GUI_SDK_PATH} (${NOESIS_SDK_ARCH})")
 
     add_library(Noesis::Noesis SHARED IMPORTED GLOBAL)
-    set_target_properties(Noesis::Noesis PROPERTIES
-        IMPORTED_IMPLIB "${NOESIS_IMPLIB}"
-        IMPORTED_LOCATION "${NOESIS_DLL}"
-        INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
-    )
+    if(WIN32)
+        set_target_properties(Noesis::Noesis PROPERTIES
+            IMPORTED_IMPLIB "${NOESIS_IMPLIB}"
+            IMPORTED_LOCATION "${NOESIS_DLL}"
+            INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
+        )
+    else()
+        set_target_properties(Noesis::Noesis PROPERTIES
+            IMPORTED_LOCATION "${NOESIS_DLL}"
+            INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
+        )
+    endif()
 
     add_library(Noesis::NoesisEditor SHARED IMPORTED GLOBAL)
-    set_target_properties(Noesis::NoesisEditor PROPERTIES
-        IMPORTED_IMPLIB "${NOESIS_EDITOR_IMPLIB}"
-        IMPORTED_LOCATION "${NOESIS_EDITOR_DLL}"
-        INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
-    )
+    if(WIN32)
+        set_target_properties(Noesis::NoesisEditor PROPERTIES
+            IMPORTED_IMPLIB "${NOESIS_EDITOR_IMPLIB}"
+            IMPORTED_LOCATION "${NOESIS_EDITOR_DLL}"
+            INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
+        )
+    else()
+        set_target_properties(Noesis::NoesisEditor PROPERTIES
+            IMPORTED_LOCATION "${NOESIS_EDITOR_DLL}"
+            INTERFACE_INCLUDE_DIRECTORIES "${NOESIS_GUI_SDK_PATH}/Include"
+        )
+    endif()
 
     #[[
         NoesisLicense.h defaults both of these to the empty string and tells you not to edit it,

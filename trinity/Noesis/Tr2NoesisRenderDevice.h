@@ -25,7 +25,8 @@
 //   pixelShader. WrapTexture lets a host Tr2TextureAL be sampled as a Noesis texture.
 //   BeginTile sets the AL scissor to the tile (Y-flipped from Noesis's lower-left origin).
 //   EndTile is a no-op: the next SetRenderTarget resets scissor to the full target.
-//   BeginOnscreenRender binds a D24S8 (ClipToBounds stencil, Transform3D depth)
+//   BeginOnscreenRender binds a depth-stencil (D24S8 on D3D, D32S8 on Metal;
+//   ClipToBounds stencil, Transform3D depth)
 //   and scissors to the current viewport intersected with an optional host clip
 //   (CarbonUI clipChildren); EndOnscreenRender restores both.
 //   EndUpdatingTextures is not overridden: UpdateSubresource restores shader-read
@@ -183,7 +184,7 @@ private:
 	bool m_valid;
 	// Onscreen ClipToBounds is stencil; Transform3D is a reverse-Z depth test
 	// with writes off. The sprite/UI path has no S8 plane (null DS, or the 3D
-	// D32F buffer). One D24S8 matching the colour target, cleared each frame.
+	// D32F buffer). One depth-stencil matching the colour target, cleared each frame.
 	Tr2TextureAL m_onscreenStencil;
 	bool m_pushedOnscreenStencil;
 	bool m_hasHostScissor;

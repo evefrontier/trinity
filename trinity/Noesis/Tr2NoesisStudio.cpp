@@ -41,7 +41,7 @@ Tr2NoesisView* LoadStudio( Tr2NoesisView* view, const char* projectPath )
 
 	if( !IsStudioAvailable() )
 	{
-		CCP_NOESIS_LOGERR( "NoesisLoadStudio: NoesisEditor.dll was not loaded" );
+		CCP_NOESIS_LOGERR( "NoesisLoadStudio: NoesisEditor was not loaded" );
 		return nullptr;
 	}
 

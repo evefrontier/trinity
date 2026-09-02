@@ -263,6 +263,16 @@ uint32_t GetBatchSignature( const Batch& batch )
 	return signature;
 }
 
+PixelFormat NoesisStencilFormat()
+{
+#if TRINITY_PLATFORM == TRINITY_METAL
+	// MetalUtils maps D24S8 to Depth32Float with no stencil plane on Apple Silicon.
+	return PIXEL_FORMAT_D32_FLOAT_S8X24_UINT;
+#else
+	return PIXEL_FORMAT_D24_UNORM_S8_UINT;
+#endif
+}
+
 PixelFormat ToPixelFormat( TextureFormat::Enum format )
 {
 	switch( format )
@@ -746,7 +756,7 @@ Ptr<RenderTarget> Tr2NoesisRenderDevice::CreateRenderTarget( const char* label, 
 	Tr2TextureAL stencilAL;
 	if( needsStencil )
 	{
-		const Tr2BitmapDimensions stencilDesc( width, height, 1, PIXEL_FORMAT_D24_UNORM_S8_UINT );
+		const Tr2BitmapDimensions stencilDesc( width, height, 1, NoesisStencilFormat() );
 		const ALResult stencilResult = stencilAL.Create( stencilDesc, Tr2GpuUsage::DEPTH_STENCIL, *m_primary );
 		if( FAILED( stencilResult ) )
 		{
@@ -866,8 +876,8 @@ void* Tr2NoesisRenderDevice::CreatePixelShader( const char* label, uint8_t shade
 	}
 
 	// ShaderCompiler blobs start with the same root-signature flags the stock
-	// permutations use (VS_CB0 / PS_T2 / ...), then the DXBC. D3D11 and D3D12
-	// backends skip the same 4 bytes.
+	// permutations use (VS_CB0 / PS_T2 / ...), then the backend bytecode
+	// (DXBC on D3D, AIR/metallib on Metal). Skip the same 4 bytes on every AL.
 	uint32_t flags = 0;
 	memcpy( &flags, hlsl, sizeof( flags ) );
 	const uint8_t* dxbc = static_cast<const uint8_t*>( hlsl ) + sizeof( flags );
@@ -996,7 +1006,7 @@ void Tr2NoesisRenderDevice::BeginOnscreenRender()
 	// ClipToBounds is a stencil mask. Transform3D enables Z-test (GREATEREQUAL,
 	// reverse-Z) but never writes depth, so the far plane has to be 0. The
 	// sprite 2D path unbinds DS and the scene's D32F has no stencil, so the
-	// host buffer is unusable -- this private D24S8 is not the scene's
+	// host buffer is unusable -- this private depth-stencil is not the scene's
 	// pre-cleared depth and would otherwise stay undefined, rejecting
 	// fragments at random and punching holes in the colour target.
 	// DX12 SetDepthStencil resets viewport and scissor to the full target;
@@ -1611,7 +1621,7 @@ bool Tr2NoesisRenderDevice::EnsureOnscreenStencil( uint32_t width, uint32_t heig
 	}
 
 	m_onscreenStencil = Tr2TextureAL();
-	const Tr2BitmapDimensions desc( width, height, 1, PIXEL_FORMAT_D24_UNORM_S8_UINT );
+	const Tr2BitmapDimensions desc( width, height, 1, NoesisStencilFormat() );
 	const ALResult result = m_onscreenStencil.Create( desc, Tr2GpuUsage::DEPTH_STENCIL, *m_primary );
 	if( FAILED( result ) )
 	{

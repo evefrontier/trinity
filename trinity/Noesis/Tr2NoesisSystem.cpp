@@ -26,6 +26,10 @@
 #include <string>
 #include <vector>
 
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
+
 CCP_STATS_DECLARE( noesisMem, "Trinity/NoesisMemory", false, CST_MEMORY, "Memory used by NoesisGUI" );
 
 namespace
@@ -201,6 +205,7 @@ void Initialize()
 
 	InstallCursorCallback();
 
+#ifdef _WIN32
 	s_studioAvailable = LoadLibraryW( L"NoesisEditor.dll" ) != nullptr;
 	if( s_studioAvailable )
 	{
@@ -210,6 +215,17 @@ void Initialize()
 	{
 		CCP_NOESIS_LOGNOTICE( "NoesisEditor.dll was not found; Studio is unavailable" );
 	}
+#else
+	s_studioAvailable = dlopen( "libNoesisEditor.dylib", RTLD_NOW | RTLD_GLOBAL ) != nullptr;
+	if( s_studioAvailable )
+	{
+		CCP_NOESIS_LOGNOTICE( "libNoesisEditor.dylib loaded" );
+	}
+	else
+	{
+		CCP_NOESIS_LOGNOTICE( "libNoesisEditor.dylib was not found; Studio is unavailable" );
+	}
+#endif
 
 	CCP_NOESIS_LOGNOTICE( "NoesisGUI %s initialised, %u allocations through Carbon's allocator",
 						  Noesis::GetBuildVersion(),
