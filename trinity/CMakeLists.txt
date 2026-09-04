@@ -1853,6 +1853,9 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisSystem.cpp
     Noesis/Tr2NoesisSystem.h
     Noesis/Tr2NoesisSystem_Blue.cpp
+    Noesis/Tr2NoesisVideo.cpp
+    Noesis/Tr2NoesisVideo.h
+    Noesis/Tr2NoesisVideo_Blue.cpp
     Noesis/Tr2NoesisView.cpp
     Noesis/Tr2NoesisView.h
     Noesis/Tr2NoesisView_Blue.cpp

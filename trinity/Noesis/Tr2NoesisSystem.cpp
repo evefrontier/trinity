@@ -9,6 +9,7 @@
 #include "Noesis/Tr2NoesisFontProvider.h"
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisTextureProvider.h"
+#include "Noesis/Tr2NoesisVideo.h"
 #include "Noesis/Tr2NoesisView.h"
 #include "Noesis/Tr2NoesisXamlProvider.h"
 
@@ -17,6 +18,7 @@
 #include <NsCore/Init.h>
 #include <NsCore/Log.h>
 #include <NsCore/Memory.h>
+#include <NsCore/RegisterComponent.h>
 #include <NsCore/Version.h>
 #include <NsGui/FontProperties.h>
 #include <NsGui/IntegrationAPI.h>
@@ -188,6 +190,7 @@ void Initialize()
 	// override that policy.
 
 	Noesis::Init();
+	Noesis::RegisterComponent<Tr2NoesisVideo>();
 
 	// Providers go in after Init, unlike the handlers above. One global provider rather than a
 	// scheme-scoped one: a XAML file's merged dictionaries arrive as Uris combined against the
