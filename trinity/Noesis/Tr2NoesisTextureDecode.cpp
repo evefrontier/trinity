@@ -51,6 +51,47 @@ bool ReadBitmap( IBlueStream& stream, const char* path, const char* providerName
 	return true;
 }
 
+// Narrows R16G16B16A16_UNORM to unpremultiplied RGBA8, which is the only way out of 16 bit:
+// HostBitmap::ConvertFormat has no 16-bit source case, and GetPixel - despite reading like a
+// format-agnostic accessor - rejects everything except BGRA8, BGRX8, BC1 and BC3.
+//
+// Every 16-bit PNG lands in this one format. Tr2PngHandler maps colour type 6 (64bpp) straight
+// to it and upsamples colour type 2 (48bpp) into it with alpha filled to 0xFFFF, so a source
+// without an alpha channel arrives opaque. Channel order is already RGBA, so unlike the 8-bit
+// path below there is no BGRA case to swizzle, and libpng byte-swaps 16-bit samples on read
+// (png_set_swap whenever bit depth > 8), so these are host order.
+// Cannot fail: CopyToRgba has already rejected zero dimensions and null raw data, and
+// ConvertFormat leaves the bitmap untouched when it returns false.
+void CopyRgba16ToRgba8( const ImageIO::HostBitmap& bitmap, std::vector<uint8_t>& rgba,
+						bool& hasAlpha )
+{
+	const uint32_t width = bitmap.GetWidth();
+	const uint32_t height = bitmap.GetHeight();
+	const uint32_t srcPitch = bitmap.GetPitch();
+	const uint8_t* srcBase = reinterpret_cast<const uint8_t*>( bitmap.GetRawData() );
+	rgba.resize( static_cast<size_t>( width ) * height * 4 );
+
+	hasAlpha = false;
+	for( uint32_t y = 0; y < height; ++y )
+	{
+		const uint16_t* src = reinterpret_cast<const uint16_t*>( srcBase + y * srcPitch );
+		uint8_t* dst = rgba.data() + static_cast<size_t>( y ) * width * 4;
+		for( uint32_t x = 0; x < width; ++x )
+		{
+			for( uint32_t channel = 0; channel < 4; ++channel )
+			{
+				dst[channel] = static_cast<uint8_t>(
+					( static_cast<uint32_t>( src[channel] ) * 255 + 32767 ) / 65535 );
+			}
+			// Taken from the narrowed byte, not the 16-bit sample, so hasAlpha means the same
+			// thing here as it does on the 8-bit path and premultiplication stays consistent.
+			hasAlpha = hasAlpha || dst[3] != 255;
+			src += 4;
+			dst += 4;
+		}
+	}
+}
+
 bool CopyToRgba( ImageIO::HostBitmap& bitmap, std::vector<uint8_t>& rgba, bool& hasAlpha,
 				 const char* path, const char* providerName )
 {
@@ -66,6 +107,15 @@ bool CopyToRgba( ImageIO::HostBitmap& bitmap, std::vector<uint8_t>& rgba, bool& 
 	{
 		if( !bitmap.ConvertFormat( PIXEL_FORMAT_R8G8B8A8_UNORM ) )
 		{
+			if( bitmap.GetFormat() == PIXEL_FORMAT_R16G16B16A16_UNORM )
+			{
+				CCP_NOESIS_LOGWARN( "%s is narrowing 16-bit '%s' (%ux%u) to RGBA8 a pixel at a "
+									"time, because Noesis has no 16-bit texture format. Re-save "
+									"it as an 8-bit PNG to skip this.",
+									providerName, path, width, height );
+				CopyRgba16ToRgba8( bitmap, rgba, hasAlpha );
+				return true;
+			}
 			CCP_NOESIS_LOGWARN( "%s cannot convert '%s' (format %d, %ux%u) to RGBA8",
 								providerName, path, static_cast<int>( bitmap.GetFormat() ),
 								width, height );
