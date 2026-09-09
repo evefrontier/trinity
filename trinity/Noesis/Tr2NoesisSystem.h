@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+namespace Noesis { class BaseComponent; }
+
 // --------------------------------------------------------------------------------------
 // Description:
 //   Host services for NoesisGUI: the log, assert, error and memory callbacks that route
@@ -45,6 +47,11 @@ void RaiseTextureChanged( const char* uri );
 // True when /noesisLogVerbose was set at startup. Gates named-channel traces from
 // the vendor and our own routine resource-creation logs.
 bool IsLogVerbose();
+
+// The reflected class name of a loaded object, for errors that have to say what a XAML
+// file actually turned out to be. Never null; unreflected and null objects report a
+// placeholder rather than failing the log call.
+const char* GetTypeName( const Noesis::BaseComponent* component );
 
 // The version string reported from inside Noesis.dll. Requires Initialize first.
 const char* GetVersion();

@@ -11,6 +11,7 @@
 #include "Noesis/Tr2NoesisObject.h"
 #include "Noesis/Tr2NoesisSystem.h"
 
+#include <NsCore/DynamicCast.h>
 #include <NsGui/Cursor.h>
 #include <NsGui/FrameworkElement.h>
 #include <NsGui/InputEnums.h>
@@ -191,6 +192,37 @@ bool TryMouseButton( int button, Noesis::MouseButton& mouseButton )
 	return true;
 }
 
+// Narrows a freshly parsed XAML root to the element a view can hold, or logs why it cannot.
+//
+// The typed GUI::LoadXaml<T> / GUI::ParseXaml<T> overloads only verify the cast under
+// NS_CHECK, which NsCore/Error.h documents as Debug and Profile only. In Release they
+// static_cast whatever parsed, so pointing a view at a ResourceDictionary would reach
+// CreateView as a bogus FrameworkElement and take the process down.
+Noesis::Ptr<Noesis::FrameworkElement> AsViewContent( const Noesis::Ptr<Noesis::BaseComponent>& xaml,
+													 const char* what, const char* source )
+{
+	if( xaml == nullptr )
+	{
+		CCP_NOESIS_LOGERR( "%s found nothing to load in '%s'. Either the resource is missing or "
+						   "the XAML did not parse; the parse error is logged above.",
+						   what, source );
+		return nullptr;
+	}
+
+	Noesis::Ptr<Noesis::FrameworkElement> content =
+		Noesis::DynamicPtrCast<Noesis::FrameworkElement>( xaml );
+	if( content == nullptr )
+	{
+		CCP_NOESIS_LOGERR( "%s got a %s from '%s', which is not a FrameworkElement and cannot be a "
+						   "view's content. A ResourceDictionary has to be merged by a view rather "
+						   "than loaded as one.",
+						   what, Tr2Noesis::GetTypeName( xaml.GetPtr() ), source );
+		return nullptr;
+	}
+
+	return content;
+}
+
 std::unordered_map<Noesis::IView*, Tr2NoesisView*> s_views;
 
 void OnNoesisCursor( void* /*user*/, Noesis::IView* view, Noesis::Cursor* cursor )
@@ -237,12 +269,9 @@ bool Tr2NoesisView::LoadXaml( const char* resPath )
 
 	// Goes through Tr2NoesisXamlProvider, which treats the Uri as a Trinity resource path.
 	Noesis::Ptr<Noesis::FrameworkElement> content =
-		Noesis::GUI::LoadXaml<Noesis::FrameworkElement>( Noesis::Uri( resPath ) );
+		AsViewContent( Noesis::GUI::LoadXaml( Noesis::Uri( resPath ) ), "LoadXaml", resPath );
 	if( content == nullptr )
 	{
-		CCP_NOESIS_LOGERR( "LoadXaml failed for '%s'. Either the resource is missing or the XAML "
-						   "did not parse into a FrameworkElement; the parse error is logged above.",
-						   resPath );
 		return false;
 	}
 
@@ -263,11 +292,10 @@ bool Tr2NoesisView::LoadXamlString( const char* xaml )
 	}
 
 	// No provider involved, so this reaches pixels without the resource system in the picture.
-	Noesis::Ptr<Noesis::FrameworkElement> content = Noesis::GUI::ParseXaml<Noesis::FrameworkElement>( xaml );
+	Noesis::Ptr<Noesis::FrameworkElement> content =
+		AsViewContent( Noesis::GUI::ParseXaml( xaml ), "LoadXamlString", "<string>" );
 	if( content == nullptr )
 	{
-		CCP_NOESIS_LOGERR( "LoadXamlString failed to parse the XAML into a FrameworkElement; "
-						   "the parse error is logged above" );
 		return false;
 	}
 

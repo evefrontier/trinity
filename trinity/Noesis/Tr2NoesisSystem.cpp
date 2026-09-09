@@ -14,11 +14,13 @@
 #include "Noesis/Tr2NoesisXamlProvider.h"
 
 #include <NoesisLicense.h>
+#include <NsCore/DynamicCast.h>
 #include <NsCore/Error.h>
 #include <NsCore/Init.h>
 #include <NsCore/Log.h>
 #include <NsCore/Memory.h>
 #include <NsCore/RegisterComponent.h>
+#include <NsCore/TypeClass.h>
 #include <NsCore/Version.h>
 #include <NsGui/FontProperties.h>
 #include <NsGui/IntegrationAPI.h>
@@ -328,6 +330,12 @@ bool IsLogVerbose()
 	return s_logVerbose;
 }
 
+const char* GetTypeName( const Noesis::BaseComponent* component )
+{
+	const Noesis::TypeClass* type = component != nullptr ? component->GetClassType() : nullptr;
+	return type != nullptr ? type->GetName() : "<unknown type>";
+}
+
 const char* GetVersion()
 {
 	if( !RequireInitialized() )
@@ -356,15 +364,27 @@ bool SetApplicationResources( const char* resPath )
 		return false;
 	}
 
+	// Not GUI::LoadXaml<ResourceDictionary>: the typed overload only verifies the cast under
+	// NS_CHECK, which is Debug and Profile only, so a Release build would static_cast whatever
+	// parsed and use a view's root element as a dictionary.
 	const Noesis::Uri uri( resPath );
-	Noesis::Ptr<Noesis::ResourceDictionary> resources =
-		Noesis::GUI::LoadXaml<Noesis::ResourceDictionary>( uri );
-	if( resources == nullptr )
+	Noesis::Ptr<Noesis::BaseComponent> xaml = Noesis::GUI::LoadXaml( uri );
+	if( xaml == nullptr )
 	{
-		CCP_NOESIS_LOGERR( "SetApplicationResources failed for '%s'. Either the resource is missing "
-						   "or the XAML did not parse into a ResourceDictionary; the parse error is "
+		CCP_NOESIS_LOGERR( "SetApplicationResources found nothing to load at '%s'. Either the "
+						   "resource is missing or the XAML did not parse; the parse error is "
 						   "logged above.",
 						   resPath );
+		return false;
+	}
+
+	Noesis::Ptr<Noesis::ResourceDictionary> resources =
+		Noesis::DynamicPtrCast<Noesis::ResourceDictionary>( xaml );
+	if( resources == nullptr )
+	{
+		CCP_NOESIS_LOGERR( "SetApplicationResources got a %s from '%s'; application resources have "
+						   "to be a ResourceDictionary. The previous resources are unchanged.",
+						   GetTypeName( xaml.GetPtr() ), resPath );
 		return false;
 	}
 
