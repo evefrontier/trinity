@@ -351,17 +351,17 @@ bool IsStudioAvailable()
 	return s_studioAvailable;
 }
 
-bool SetApplicationResources( const char* resPath )
+void SetApplicationResources( const char* resPath )
 {
 	if( !RequireInitialized() )
 	{
-		return false;
+		return;
 	}
 
 	if( resPath == nullptr || resPath[0] == '\0' )
 	{
 		CCP_NOESIS_LOGERR( "SetApplicationResources was given an empty path" );
-		return false;
+		return;
 	}
 
 	// Not GUI::LoadXaml<ResourceDictionary>: the typed overload only verifies the cast under
@@ -375,7 +375,7 @@ bool SetApplicationResources( const char* resPath )
 						   "resource is missing or the XAML did not parse; the parse error is "
 						   "logged above.",
 						   resPath );
-		return false;
+		return;
 	}
 
 	Noesis::Ptr<Noesis::ResourceDictionary> resources =
@@ -385,13 +385,12 @@ bool SetApplicationResources( const char* resPath )
 		CCP_NOESIS_LOGERR( "SetApplicationResources got a %s from '%s'; application resources have "
 						   "to be a ResourceDictionary. The previous resources are unchanged.",
 						   GetTypeName( xaml.GetPtr() ), resPath );
-		return false;
+		return;
 	}
 
 	Noesis::GUI::SetApplicationResources( resources );
 	Noesis::GUI::RefreshDefaultStyles();
 	CCP_NOESIS_LOGNOTICE( "Set application resources from '%s'", resPath );
-	return true;
 }
 
 bool SetFontFallbacks( const std::vector<std::string>& familyNames )

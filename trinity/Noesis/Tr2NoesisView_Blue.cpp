@@ -19,22 +19,27 @@ const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 			"LoadXaml",
 			LoadXaml,
 			"Loads XAML from a Trinity resource path, replacing any content already loaded.\n"
-			"Returns False and logs the path if the resource is missing or does not parse.\n"
+			"A missing resource, unparseable XAML or a root that cannot be a view's content is\n"
+			"reported on the Noesis log channel, and the previously loaded content stays as it\n"
+			"was. XAML that logs errors but still parses is installed; check isLoaded for whether\n"
+			"there is content, and read the log for anything more specific.\n"
 			":param resPath: full resource path, for example 'res:/UI/Noesis/Test.xaml'\n"
-			":rtype: bool" )
+			":rtype: None" )
 
 		MAP_METHOD_AND_WRAP(
 			"LoadXamlString",
 			LoadXamlString,
 			"Parses XAML from a string, replacing any content already loaded. Needs no resource\n"
-			"provider, so it separates a render problem from a resource problem.\n"
+			"provider, so it separates a render problem from a resource problem. Reports failure\n"
+			"the same way LoadXaml does, on the Noesis log channel.\n"
 			":param xaml: XAML markup\n"
-			":rtype: bool" )
+			":rtype: None" )
 
 		MAP_PROPERTY_READONLY(
 			"isLoaded",
 			GetIsLoaded,
-			"True once XAML has been loaded successfully." )
+			"True once XAML has been loaded successfully. A load that fails leaves this as it was,\n"
+			"so it reports whether there is content rather than whether the last load worked." )
 
 		MAP_PROPERTY(
 			"lcd",

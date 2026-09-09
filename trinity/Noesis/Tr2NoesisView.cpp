@@ -254,17 +254,17 @@ Tr2NoesisView::~Tr2NoesisView()
 	ReleaseView();
 }
 
-bool Tr2NoesisView::LoadXaml( const char* resPath )
+void Tr2NoesisView::LoadXaml( const char* resPath )
 {
 	if( resPath == nullptr || resPath[0] == '\0' )
 	{
 		CCP_NOESIS_LOGERR( "LoadXaml was given an empty path" );
-		return false;
+		return;
 	}
 
 	if( !Tr2Noesis::RequireInitialized() )
 	{
-		return false;
+		return;
 	}
 
 	// Goes through Tr2NoesisXamlProvider, which treats the Uri as a Trinity resource path.
@@ -272,23 +272,23 @@ bool Tr2NoesisView::LoadXaml( const char* resPath )
 		AsViewContent( Noesis::GUI::LoadXaml( Noesis::Uri( resPath ) ), "LoadXaml", resPath );
 	if( content == nullptr )
 	{
-		return false;
+		return;
 	}
 
-	return SetContent( content, resPath );
+	SetContent( content, resPath );
 }
 
-bool Tr2NoesisView::LoadXamlString( const char* xaml )
+void Tr2NoesisView::LoadXamlString( const char* xaml )
 {
 	if( xaml == nullptr || xaml[0] == '\0' )
 	{
 		CCP_NOESIS_LOGERR( "LoadXamlString was given an empty string" );
-		return false;
+		return;
 	}
 
 	if( !Tr2Noesis::RequireInitialized() )
 	{
-		return false;
+		return;
 	}
 
 	// No provider involved, so this reaches pixels without the resource system in the picture.
@@ -296,10 +296,10 @@ bool Tr2NoesisView::LoadXamlString( const char* xaml )
 		AsViewContent( Noesis::GUI::ParseXaml( xaml ), "LoadXamlString", "<string>" );
 	if( content == nullptr )
 	{
-		return false;
+		return;
 	}
 
-	return SetContent( content, "<string>" );
+	SetContent( content, "<string>" );
 }
 
 bool Tr2NoesisView::SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, const char* source )

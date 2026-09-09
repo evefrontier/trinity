@@ -105,9 +105,9 @@ MAP_FUNCTION_AND_WRAP( "NoesisStudioIsAvailable",
 					   "Returns True if NoesisInitialize loaded NoesisEditor, so Studio can be used.\n"
 					   ":rtype: bool" );
 
-static bool NoesisSetApplicationResources( const char* resPath )
+static void NoesisSetApplicationResources( const char* resPath )
 {
-	return Tr2Noesis::SetApplicationResources( resPath );
+	Tr2Noesis::SetApplicationResources( resPath );
 }
 
 MAP_FUNCTION_AND_WRAP(
@@ -116,10 +116,11 @@ MAP_FUNCTION_AND_WRAP(
 	"Loads a ResourceDictionary from a Trinity resource path and installs it as the process-wide\n"
 	"ApplicationResources (the Noesis equivalent of Application.Resources). Implicit control\n"
 	"styles come from here. Call before LoadXaml so new trees pick up the theme at construction;\n"
-	"calling after is allowed and restyles live views. Returns False and leaves the previous\n"
-	"dictionary in place if the resource is missing or is not a ResourceDictionary.\n"
+	"calling after is allowed and restyles live views. A missing resource, unparseable XAML or a\n"
+	"root that is not a ResourceDictionary is reported on the Noesis log channel and leaves the\n"
+	"previous dictionary in place.\n"
 	":param resPath: full resource path, for example 'res:/ui/noesis/theme/NoesisTheme.DarkBlue.xaml'\n"
-	":rtype: bool" );
+	":rtype: None" );
 
 #if BLUE_WITH_PYTHON
 

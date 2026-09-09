@@ -41,8 +41,15 @@ public:
 
 	// Replaces any content already loaded: IView takes its content at construction and has
 	// no way to swap it, so a second load rebuilds the view and re-initialises the renderer.
-	bool LoadXaml( const char* resPath );
-	bool LoadXamlString( const char* xaml );
+	//
+	// Failures are reported on the Noesis log channel and nowhere else. There is no useful
+	// bool to return: the parser reports errors in the tree below a root that parsed and
+	// carries on, so "the XAML logged an error" and "there is no content" are different
+	// questions, and content that logs on every load still renders. A failed load leaves
+	// whatever was loaded before untouched, which keeps a bad edit from blanking a working
+	// view mid-iteration. GetIsLoaded answers whether there is content.
+	void LoadXaml( const char* resPath );
+	void LoadXamlString( const char* xaml );
 
 	bool GetIsLoaded() const;
 
