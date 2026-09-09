@@ -387,10 +387,13 @@ void Tr2NoesisView::ApplyDataContext()
 	{
 		return;
 	}
-	if( m_dataContext != nullptr )
-	{
-		root->SetDataContext( m_dataContext->GetNative() );
-	}
+	// Applies the null state too, otherwise clearing the context leaves the previous model
+	// bound to the root and referenced by it. Noesis has no separate clear: DataContext is a
+	// dependency property whose unset state is null, and a view root has no parent to inherit
+	// a context from, so null there means no context.
+	// The early returns above are "nothing to apply to yet" rather than "clear it" - SetContent
+	// calls back here once a root exists.
+	root->SetDataContext( m_dataContext != nullptr ? m_dataContext->GetNative() : nullptr );
 }
 
 void Tr2NoesisView::ReleaseView()

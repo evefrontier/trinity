@@ -51,7 +51,9 @@ const Be::ClassInfo* Tr2NoesisView::ExposeToBlue()
 			"dataContext",
 			GetDataContext,
 			SetDataContext,
-			"Observable model installed as the XAML tree DataContext. Re-applied after LoadXaml." )
+			"Observable model installed as the XAML tree DataContext. Re-applied after LoadXaml.\n"
+			"Setting it to None clears the data context on the XAML root, so bindings that "
+			"resolved against the model resolve against nothing." )
 
 		MAP_PROPERTY(
 			"onCursorChange",
