@@ -324,7 +324,13 @@ bool Tr2NoesisView::SetContent( Noesis::Ptr<Noesis::FrameworkElement> content, c
 	s_views[m_view.GetPtr()] = this;
 
 	CCP_NOESIS_LOGNOTICE( "Loaded XAML from '%s'", source );
-	ApplyDataContext();
+	// Only push a model this view owns. Content can arrive with a data context of its own -
+	// Studio's editor root does - and nulling that out breaks every binding under it. Clearing
+	// on purpose is SetDataContext's job, not load's.
+	if( m_dataContext != nullptr )
+	{
+		ApplyDataContext();
+	}
 	return true;
 }
 
@@ -392,7 +398,7 @@ void Tr2NoesisView::ApplyDataContext()
 	// dependency property whose unset state is null, and a view root has no parent to inherit
 	// a context from, so null there means no context.
 	// The early returns above are "nothing to apply to yet" rather than "clear it" - SetContent
-	// calls back here once a root exists.
+	// calls back here once a root exists, and only when there is a model to apply.
 	root->SetDataContext( m_dataContext != nullptr ? m_dataContext->GetNative() : nullptr );
 }
 
