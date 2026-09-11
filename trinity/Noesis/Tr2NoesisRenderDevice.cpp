@@ -550,56 +550,150 @@ uint32_t Tr2NoesisRenderTarget::GetHeight() const
 // DynamicRing
 // --------------------------------------------------------------------------------------
 
-bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t stride, uint32_t size, Tr2GpuUsage::Type gpuUsage, const char* name, Tr2PrimaryRenderContextAL& primary )
+bool Tr2NoesisRenderDevice::DynamicRing::Create( uint32_t bufferStride, uint32_t bytesPerChunk, Tr2GpuUsage::Type usage, const char* ringName, Tr2PrimaryRenderContextAL& primary )
 {
-	CCP_ASSERT_M( stride != 0 && ( size % stride ) == 0, "Noesis ring size must be a whole number of strides" );
+	CCP_ASSERT_M( bufferStride != 0 && ( bytesPerChunk % bufferStride ) == 0, "Noesis ring chunk size must be a whole number of strides" );
 
-	pageSize = size;
-	pageIndex = 0;
+	chunks.clear();
+	stride = bufferStride;
+	chunkSize = bytesPerChunk;
+	gpuUsage = usage;
+	name = ringName != nullptr ? ringName : "Ring";
+	chunkIndex = INVALID_CHUNK;
 	pos = 0;
 	drawPos = 0;
+	frame = primary.GetRecordingFrameNumber();
 	mapped = false;
+	growthCapped = false;
+	frameBytes = 0;
+	reportedPeak = 0;
 
-	const Tr2CpuUsage::Type cpuUsage = Tr2CpuUsage::WRITE_OFTEN | Tr2CpuUsage::NON_SYNCRONIZED_WRITE;
-	for( uint32_t i = 0; i < PAGE_COUNT; ++i )
+	// One chunk up front, so a device that cannot get GPU memory reports it at construction
+	// rather than on the first heavy frame. AppendChunk leaves it current and stamped with
+	// this frame, which is what the frame's first Map wants anyway.
+	return AppendChunk( primary );
+}
+
+// --------------------------------------------------------------------------------------
+// Description:
+//   Adds a chunk to the ring and makes it current. Fails once the ring is at its cap.
+// Arguments:
+//   primary - main-thread primary render context
+// Return value:
+//   true If a chunk was created
+// --------------------------------------------------------------------------------------
+bool Tr2NoesisRenderDevice::DynamicRing::AppendChunk( Tr2PrimaryRenderContextAL& primary )
+{
+	if( chunks.size() >= MAX_CHUNKS )
 	{
-		const ALResult result = pages[i].Create( stride, size / stride, gpuUsage, cpuUsage, nullptr, primary );
-		if( FAILED( result ) )
+		if( !growthCapped )
 		{
-			CCP_NOESIS_LOGERR( "Failed to create Noesis dynamic buffer '%s' page %u", name, i );
-			CCP_ASSERT_M( false, "Failed to create Noesis dynamic buffer" );
-			return false;
+			const uint32_t cap = MAX_CHUNKS;
+			CCP_NOESIS_LOGERR( "Noesis ring '%s' is at its cap of %u chunks (%u bytes); dropping UI geometry this frame",
+							   name.c_str(), cap, cap * chunkSize );
+			growthCapped = true;
 		}
-		char pageName[64];
-		sprintf_s( pageName, "Noesis_%s_%u", name, i );
-		pages[i].SetName( pageName );
+		return false;
 	}
 
-	SyncFrame( Tr2NoesisRenderDevice::RingPageIndex( primary ) );
+	const uint32_t index = static_cast<uint32_t>( chunks.size() );
+	const Tr2CpuUsage::Type cpuUsage = Tr2CpuUsage::WRITE_OFTEN | Tr2CpuUsage::NON_SYNCRONIZED_WRITE;
+
+	Chunk chunk;
+	const ALResult result = chunk.buffer.Create( stride, chunkSize / stride, gpuUsage, cpuUsage, nullptr, primary );
+	if( FAILED( result ) )
+	{
+		CCP_NOESIS_LOGERR( "Failed to create Noesis dynamic buffer '%s' chunk %u", name.c_str(), index );
+		CCP_ASSERT_M( false, "Failed to create Noesis dynamic buffer" );
+		return false;
+	}
+
+	char chunkName[64];
+	sprintf_s( chunkName, "Noesis_%s_%u", name.c_str(), index );
+	chunk.buffer.SetName( chunkName );
+	chunk.lastUsedFrame = frame;
+
+	chunks.push_back( chunk );
+	chunkIndex = index;
+	pos = 0;
 	return true;
 }
 
-void Tr2NoesisRenderDevice::DynamicRing::SyncFrame( uint32_t frameIndex )
+// --------------------------------------------------------------------------------------
+// Description:
+//   Makes a chunk the GPU has finished with current, growing the ring if they are all
+//   still in flight.
+// Arguments:
+//   primary - main-thread primary render context, for the rendered frame number
+// Return value:
+//   true If there is a chunk to write into
+// --------------------------------------------------------------------------------------
+bool Tr2NoesisRenderDevice::DynamicRing::AcquireChunk( Tr2PrimaryRenderContextAL& primary )
 {
-	CCP_ASSERT_M( frameIndex < PAGE_COUNT, "Noesis ring frame index exceeds PAGE_COUNT" );
-	CCP_ASSERT_M( !mapped, "Noesis ring still mapped at a frame boundary" );
-	if( mapped || frameIndex >= PAGE_COUNT )
+	// Chunks already filled this frame carry the recording frame number, which is always
+	// ahead of the rendered one, so they are never handed out twice within a frame.
+	const uint64_t rendered = primary.GetRenderedFrameNumber();
+	for( uint32_t i = 0; i < static_cast<uint32_t>( chunks.size() ); ++i )
+	{
+		if( chunks[i].lastUsedFrame != frame && chunks[i].lastUsedFrame <= rendered )
+		{
+			chunks[i].lastUsedFrame = frame;
+			chunkIndex = i;
+			pos = 0;
+			return true;
+		}
+	}
+
+	return AppendChunk( primary );
+}
+
+// --------------------------------------------------------------------------------------
+// Description:
+//   Starts a new frame's allocations if the recording frame has moved on.
+// Arguments:
+//   primary - main-thread primary render context, for the recording frame number
+// --------------------------------------------------------------------------------------
+void Tr2NoesisRenderDevice::DynamicRing::SyncFrame( Tr2PrimaryRenderContextAL& primary )
+{
+	// Keyed on the frame number rather than an index into a fixed set of pages: every view
+	// on this device shares the frame's allocations, and a frame Noesis sat out must not
+	// leave the bump offset where it was.
+	const uint64_t recording = primary.GetRecordingFrameNumber();
+	if( recording == frame )
 	{
 		return;
 	}
-	if( pageIndex != frameIndex )
+
+	CCP_ASSERT_M( !mapped, "Noesis ring still mapped at a frame boundary" );
+	if( mapped )
 	{
-		pageIndex = frameIndex;
-		pos = 0;
+		return;
 	}
+
+	if( frameBytes > reportedPeak )
+	{
+		reportedPeak = frameBytes;
+		if( Tr2Noesis::IsLogVerbose() )
+		{
+			CCP_NOESIS_LOG( "Noesis ring '%s' peak %u bytes in one frame, %u chunk(s) of %u allocated",
+							name.c_str(), frameBytes, static_cast<uint32_t>( chunks.size() ), chunkSize );
+		}
+	}
+
+	frame = recording;
+	chunkIndex = INVALID_CHUNK;
+	pos = 0;
+	frameBytes = 0;
+	growthCapped = false;
 }
 
-void* Tr2NoesisRenderDevice::DynamicRing::Map( uint32_t bytes, Tr2RenderContextAL& context )
+void* Tr2NoesisRenderDevice::DynamicRing::Map( uint32_t bytes, Tr2RenderContextAL& context, Tr2PrimaryRenderContextAL& primary )
 {
-	if( bytes > pageSize )
+	if( bytes > chunkSize )
 	{
-		CCP_NOESIS_LOGERR( "Noesis Map request %u exceeds ring page size %u", bytes, pageSize );
-		CCP_ASSERT_M( false, "Noesis Map request exceeds ring page size" );
+		// Only reachable if a ring is created with chunks below the SDK's per-Map cap.
+		CCP_NOESIS_LOGERR( "Noesis Map request %u exceeds ring '%s' chunk size %u", bytes, name.c_str(), chunkSize );
+		CCP_ASSERT_M( false, "Noesis Map request exceeds ring chunk size" );
 		return nullptr;
 	}
 
@@ -609,15 +703,13 @@ void* Tr2NoesisRenderDevice::DynamicRing::Map( uint32_t bytes, Tr2RenderContextA
 		Unmap( context );
 	}
 
-	if( pos + bytes > pageSize )
+	if( ( chunkIndex == INVALID_CHUNK || pos + bytes > chunkSize ) && !AcquireChunk( primary ) )
 	{
-		CCP_NOESIS_LOGERR( "Noesis Map of %u bytes at pos %u exceeds frame page size %u", bytes, pos, pageSize );
-		CCP_ASSERT_M( false, "Noesis dynamic ring exceeded the per-frame page budget" );
 		return nullptr;
 	}
 
 	void* data = nullptr;
-	const ALResult result = pages[pageIndex].MapForWriting( data, context );
+	const ALResult result = chunks[chunkIndex].buffer.MapForWriting( data, context );
 	if( FAILED( result ) || data == nullptr )
 	{
 		CCP_ASSERT_M( false, "Failed to map Noesis dynamic buffer" );
@@ -627,6 +719,7 @@ void* Tr2NoesisRenderDevice::DynamicRing::Map( uint32_t bytes, Tr2RenderContextA
 	mapped = true;
 	drawPos = pos;
 	pos += bytes;
+	frameBytes += bytes;
 	return static_cast<uint8_t*>( data ) + drawPos;
 }
 
@@ -636,13 +729,22 @@ void Tr2NoesisRenderDevice::DynamicRing::Unmap( Tr2RenderContextAL& context )
 	{
 		return;
 	}
-	pages[pageIndex].UnmapForWriting( context );
+	CCP_ASSERT_M( chunkIndex < chunks.size(), "Noesis ring is mapped without a current chunk" );
+	if( chunkIndex < chunks.size() )
+	{
+		chunks[chunkIndex].buffer.UnmapForWriting( context );
+	}
 	mapped = false;
 }
 
-Tr2BufferAL& Tr2NoesisRenderDevice::DynamicRing::CurrentPage()
+Tr2BufferAL& Tr2NoesisRenderDevice::DynamicRing::CurrentChunk()
 {
-	return pages[pageIndex];
+	if( chunkIndex >= chunks.size() )
+	{
+		CCP_ASSERT_M( false, "Noesis ring has no current chunk" );
+		return fallback;
+	}
+	return chunks[chunkIndex].buffer;
 }
 
 // --------------------------------------------------------------------------------------
@@ -1114,8 +1216,8 @@ void* Tr2NoesisRenderDevice::MapVertices( uint32_t bytes )
 {
 	CCP_ASSERT_M( m_context != nullptr, "MapVertices without a render context" );
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	m_vertices.SyncFrame( RingPageIndex( *m_primary ) );
-	return m_vertices.Map( bytes, *m_context );
+	m_vertices.SyncFrame( *m_primary );
+	return m_vertices.Map( bytes, *m_context, *m_primary );
 }
 
 void Tr2NoesisRenderDevice::UnmapVertices()
@@ -1128,8 +1230,8 @@ void* Tr2NoesisRenderDevice::MapIndices( uint32_t bytes )
 {
 	CCP_ASSERT_M( m_context != nullptr, "MapIndices without a render context" );
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	m_indices.SyncFrame( RingPageIndex( *m_primary ) );
-	return m_indices.Map( bytes, *m_context );
+	m_indices.SyncFrame( *m_primary );
+	return m_indices.Map( bytes, *m_context, *m_primary );
 }
 
 void Tr2NoesisRenderDevice::UnmapIndices()
@@ -1210,9 +1312,9 @@ void Tr2NoesisRenderDevice::DrawBatch( const Batch& batch )
 	m_context->SetTopology( TOP_TRIANGLES );
 
 	// vertexOffset is a byte offset from the current Map, matching the SDK's own D3D12 device.
-	// Indices are bound at the page base and addressed through startIndex instead.
-	m_context->SetStreamSource( 0, m_vertices.CurrentPage(), m_vertices.drawPos + batch.vertexOffset, SizeForFormat[format] );
-	m_context->SetIndices( m_indices.CurrentPage(), 2 );
+	// Indices are bound at the chunk base and addressed through startIndex instead.
+	m_context->SetStreamSource( 0, m_vertices.CurrentChunk(), m_vertices.drawPos + batch.vertexOffset, SizeForFormat[format] );
+	m_context->SetIndices( m_indices.CurrentChunk(), 2 );
 
 	BindUniforms( batch, flags );
 	BindResources( batch, flags, *program, programId );
@@ -1585,6 +1687,8 @@ void Tr2NoesisRenderDevice::CreateSamplers()
 
 void Tr2NoesisRenderDevice::CreateRings()
 {
+	// Chunks are sized at the SDK's per-Map cap, the smallest size that guarantees any
+	// single legal Map fits in a fresh chunk. A frame's total comes from the chunk count.
 	if( !m_vertices.Create( 1, DYNAMIC_VB_SIZE, Tr2GpuUsage::VERTEX_BUFFER, "Vertices", *m_primary ) )
 	{
 		m_valid = false;
@@ -1599,14 +1703,8 @@ void Tr2NoesisRenderDevice::CreateRings()
 void Tr2NoesisRenderDevice::SyncRingsToCurrentFrame()
 {
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	const uint32_t frameIndex = RingPageIndex( *m_primary );
-	m_vertices.SyncFrame( frameIndex );
-	m_indices.SyncFrame( frameIndex );
-}
-
-uint32_t Tr2NoesisRenderDevice::RingPageIndex( const Tr2PrimaryRenderContextAL& primary )
-{
-	return static_cast<uint32_t>( primary.GetRecordingFrameNumber() % DynamicRing::PAGE_COUNT );
+	m_vertices.SyncFrame( *m_primary );
+	m_indices.SyncFrame( *m_primary );
 }
 
 bool Tr2NoesisRenderDevice::EnsureOnscreenStencil( uint32_t width, uint32_t height )
