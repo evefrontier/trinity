@@ -12,9 +12,14 @@
 #include <NsCore/Delegate.h>
 #include <NsCore/Ptr.h>
 #include <NsCore/ReflectionDeclare.h>
+#include <NsCore/Symbol.h>
 #include <NsGui/INotifyPropertyChanged.h>
 
 #include <unordered_map>
+
+// Runtime TypeClass for one schema name, plus the property types declared on it.
+// Shared by every object created with that name; defined in Tr2NoesisObject.cpp.
+struct Tr2NoesisSchema;
 
 #if BLUE_WITH_PYTHON
 #ifndef PyObject_HEAD
@@ -38,12 +43,22 @@ public:
 
 	const char* GetSchemaName() const;
 
+	// Symbol overloads for callers writing the same property every frame: the
+	// name is interned once at the call site instead of once per lookup.
 	bool Define( const char* name, Tr2NoesisPropertyType type );
+	bool Define( Noesis::Symbol name, Tr2NoesisPropertyType type );
 	bool Has( const char* name ) const;
+	bool Has( Noesis::Symbol name ) const;
 	Tr2NoesisPropertyType GetPropertyType( const char* name ) const;
+	Tr2NoesisPropertyType GetPropertyType( Noesis::Symbol name ) const;
 
+	// notifyScript false leaves the onPropertyChanged callback alone, for a
+	// writer that already knows what it wrote - script setting its own
+	// property. The view is told either way.
 	bool SetValue( const char* name, Noesis::BaseComponent* value );
+	bool SetValue( Noesis::Symbol name, Noesis::BaseComponent* value, bool notifyScript = true );
 	Noesis::BaseComponent* GetValue( const char* name ) const;
+	Noesis::BaseComponent* GetValue( Noesis::Symbol name ) const;
 
 	void SetCommand( const char* name, const BlueScriptCallback& execute );
 	void SetCanExecute( const char* name, const BlueScriptCallback& canExecute );
@@ -77,9 +92,9 @@ private:
 	struct Rebind_;
 	static void StaticFillClassType( Noesis::TypeClassCreator& helper );
 
-	void Notify( const char* name );
+	void Notify( Noesis::Symbol name, bool notifyScript );
 
-	Noesis::TypeClass* m_schema;
+	Tr2NoesisSchema* m_schema;
 	std::string m_schemaName;
 	std::unordered_map<uint32_t, Slot> m_values;
 	Noesis::PropertyChangedEventHandler m_propertyChanged;

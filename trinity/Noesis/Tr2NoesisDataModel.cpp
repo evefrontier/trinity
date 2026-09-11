@@ -58,6 +58,12 @@ bool Tr2NoesisDataModel::Define( const char* name, const char* type )
 	return m_object->Define( name, parsed );
 }
 
+bool Tr2NoesisDataModel::DefineProperty( Noesis::Symbol name, Tr2NoesisPropertyType type )
+{
+	EnsureObject( nullptr );
+	return m_object != nullptr && m_object->Define( name, type );
+}
+
 bool Tr2NoesisDataModel::Has( const char* name ) const
 {
 	return m_object != nullptr && m_object->Has( name );
@@ -95,10 +101,11 @@ void Tr2NoesisDataModel::SetOnPropertyChanged( const BlueScriptCallback& callbac
 	m_object->SetOnPropertyChanged( callback );
 }
 
-bool Tr2NoesisDataModel::SetValue( const char* name, Noesis::BaseComponent* value, IRoot* wrapper )
+bool Tr2NoesisDataModel::SetValue( Noesis::Symbol name, Noesis::BaseComponent* value, IRoot* wrapper,
+								   bool notifyScript )
 {
 	EnsureObject( nullptr );
-	if( name == nullptr )
+	if( name.IsNull() )
 	{
 		return false;
 	}
@@ -106,24 +113,22 @@ bool Tr2NoesisDataModel::SetValue( const char* name, Noesis::BaseComponent* valu
 	{
 		m_wrappers[name] = wrapper;
 	}
-	else
+	else if( !m_wrappers.empty() )
 	{
+		// Skipped outright for a model that only holds scalars, which is the
+		// common one and writes the most often.
 		m_wrappers.erase( name );
 	}
-	return m_object->SetValue( name, value );
+	return m_object->SetValue( name, value, notifyScript );
 }
 
-Noesis::BaseComponent* Tr2NoesisDataModel::GetValue( const char* name ) const
+Noesis::BaseComponent* Tr2NoesisDataModel::GetValue( Noesis::Symbol name ) const
 {
 	return m_object != nullptr ? m_object->GetValue( name ) : nullptr;
 }
 
-IRoot* Tr2NoesisDataModel::GetWrapper( const char* name ) const
+IRoot* Tr2NoesisDataModel::GetWrapper( Noesis::Symbol name ) const
 {
-	if( name == nullptr )
-	{
-		return nullptr;
-	}
 	auto found = m_wrappers.find( name );
 	if( found == m_wrappers.end() )
 	{

@@ -17,6 +17,7 @@
 #include <NsCore/DynamicCast.h>
 #include <NsCore/ReflectionImplement.h>
 #include <NsCore/String.h>
+#include <NsCore/StringUtils.h>
 #include <NsCore/Symbol.h>
 #include <NsCore/TypeClassBuilder.h>
 #include <NsCore/TypeOf.h>
@@ -25,8 +26,53 @@
 
 #include <unordered_map>
 
+struct Tr2NoesisSchema
+{
+	Noesis::TypeClassBuilder* builder = nullptr;
+	// Property types by symbol. On the schema rather than on the object
+	// because the schema is shared by every instance created with the same
+	// name: one Define is enough for all of them to know what a property is.
+	std::unordered_map<uint32_t, Tr2NoesisPropertyType> types;
+};
+
 namespace
 {
+
+bool ValuesEqual( Noesis::BaseComponent* left, Noesis::BaseComponent* right )
+{
+	if( left == right )
+	{
+		return true;
+	}
+	if( left == nullptr || right == nullptr )
+	{
+		return false;
+	}
+	if( Noesis::Boxing::CanUnbox<float>( left ) )
+	{
+		return Noesis::Boxing::CanUnbox<float>( right )
+			&& Noesis::Boxing::Unbox<float>( left ) == Noesis::Boxing::Unbox<float>( right );
+	}
+	if( Noesis::Boxing::CanUnbox<int>( left ) )
+	{
+		return Noesis::Boxing::CanUnbox<int>( right )
+			&& Noesis::Boxing::Unbox<int>( left ) == Noesis::Boxing::Unbox<int>( right );
+	}
+	if( Noesis::Boxing::CanUnbox<bool>( left ) )
+	{
+		return Noesis::Boxing::CanUnbox<bool>( right )
+			&& Noesis::Boxing::Unbox<bool>( left ) == Noesis::Boxing::Unbox<bool>( right );
+	}
+	if( Noesis::Boxing::CanUnbox<Noesis::String>( left ) )
+	{
+		return Noesis::Boxing::CanUnbox<Noesis::String>( right )
+			&& Noesis::StrEquals( Noesis::Boxing::Unbox<Noesis::String>( left ).Str(),
+								  Noesis::Boxing::Unbox<Noesis::String>( right ).Str() );
+	}
+	// Objects and collections are the same value only when they are the same
+	// instance, which the pointer comparison above already settled.
+	return false;
+}
 
 const Noesis::Type* ContentTypeFor( Tr2NoesisPropertyType type )
 {
@@ -67,7 +113,7 @@ public:
 	Noesis::Ptr<Noesis::BaseComponent> GetComponent( const void* ptr ) const override
 	{
 		const Tr2NoesisObject* object = static_cast<const Tr2NoesisObject*>( ptr );
-		return Noesis::Ptr<Noesis::BaseComponent>( object->GetValue( GetName().Str() ) );
+		return Noesis::Ptr<Noesis::BaseComponent>( object->GetValue( GetName() ) );
 	}
 
 	void SetComponent( void* ptr, Noesis::BaseComponent* value ) const override
@@ -77,13 +123,13 @@ public:
 			return;
 		}
 		Tr2NoesisObject* object = static_cast<Tr2NoesisObject*>( ptr );
-		object->SetValue( GetName().Str(), value );
+		object->SetValue( GetName(), value );
 	}
 
 	const void* Get( const void* ptr ) const override
 	{
 		const Tr2NoesisObject* object = static_cast<const Tr2NoesisObject*>( ptr );
-		Noesis::BaseComponent* value = object->GetValue( GetName().Str() );
+		Noesis::BaseComponent* value = object->GetValue( GetName() );
 		if( value == nullptr )
 		{
 			return nullptr;
@@ -97,7 +143,7 @@ public:
 
 	void Get( const void* ptr, void* dest ) const override
 	{
-		Noesis::BaseComponent* value = static_cast<const Tr2NoesisObject*>( ptr )->GetValue( GetName().Str() );
+		Noesis::BaseComponent* value = static_cast<const Tr2NoesisObject*>( ptr )->GetValue( GetName() );
 		if( value == nullptr || dest == nullptr )
 		{
 			return;
@@ -143,16 +189,16 @@ public:
 		switch( m_type )
 		{
 		case Tr2NoesisPropertyType::Bool:
-			object->SetValue( GetName().Str(), Noesis::Boxing::Box( *static_cast<const bool*>( value ) ) );
+			object->SetValue( GetName(), Noesis::Boxing::Box( *static_cast<const bool*>( value ) ) );
 			break;
 		case Tr2NoesisPropertyType::Integer:
-			object->SetValue( GetName().Str(), Noesis::Boxing::Box( *static_cast<const int*>( value ) ) );
+			object->SetValue( GetName(), Noesis::Boxing::Box( *static_cast<const int*>( value ) ) );
 			break;
 		case Tr2NoesisPropertyType::Float:
-			object->SetValue( GetName().Str(), Noesis::Boxing::Box( *static_cast<const float*>( value ) ) );
+			object->SetValue( GetName(), Noesis::Boxing::Box( *static_cast<const float*>( value ) ) );
 			break;
 		case Tr2NoesisPropertyType::String:
-			object->SetValue( GetName().Str(), Noesis::Boxing::Box( *static_cast<const Noesis::String*>( value ) ) );
+			object->SetValue( GetName(), Noesis::Boxing::Box( *static_cast<const Noesis::String*>( value ) ) );
 			break;
 		default:
 			break;
@@ -171,9 +217,9 @@ uint32_t NotifyOffset()
 	return static_cast<uint32_t>( ifacePtr - classPtr );
 }
 
-Noesis::TypeClassBuilder* GetOrCreateSchema( const char* name )
+Tr2NoesisSchema* GetOrCreateSchema( const char* name )
 {
-	static std::unordered_map<std::string, Noesis::TypeClassBuilder*> s_schemas;
+	static std::unordered_map<std::string, Tr2NoesisSchema*> s_schemas;
 
 	Tr2NoesisObject::StaticGetClassType( (Noesis::TypeTag<Tr2NoesisObject>*)nullptr );
 
@@ -189,8 +235,10 @@ Noesis::TypeClassBuilder* GetOrCreateSchema( const char* name )
 		Noesis::INotifyPropertyChanged::StaticGetClassType( (Noesis::TypeTag<Noesis::INotifyPropertyChanged>*)nullptr ),
 		NotifyOffset() );
 	Noesis::Reflection::RegisterType( builder );
-	s_schemas[name] = builder;
-	return builder;
+	Tr2NoesisSchema* schema = new Tr2NoesisSchema();
+	schema->builder = builder;
+	s_schemas[name] = schema;
+	return schema;
 }
 
 std::string MakeAnonymousSchemaName()
@@ -243,44 +291,55 @@ const char* Tr2NoesisObject::GetSchemaName() const
 
 bool Tr2NoesisObject::Define( const char* name, Tr2NoesisPropertyType type )
 {
-	if( name == nullptr || name[0] == '\0' || type == Tr2NoesisPropertyType::Unknown || m_schema == nullptr )
+	if( name == nullptr || name[0] == '\0' )
+	{
+		return false;
+	}
+	return Define( Noesis::Symbol( name ), type );
+}
+
+bool Tr2NoesisObject::Define( Noesis::Symbol name, Tr2NoesisPropertyType type )
+{
+	if( name.IsNull() || type == Tr2NoesisPropertyType::Unknown || m_schema == nullptr )
 	{
 		return false;
 	}
 
-	const Noesis::Symbol symbol( name );
-	Noesis::TypeClassBuilder* builder = static_cast<Noesis::TypeClassBuilder*>( m_schema );
-	const Noesis::TypeProperty* existing = builder->FindProperty( symbol );
-	if( existing != nullptr )
+	auto declared = m_schema->types.find( name );
+	if( declared != m_schema->types.end() )
 	{
-		Slot& slot = m_values[symbol];
-		if( slot.type == Tr2NoesisPropertyType::Unknown )
-		{
-			slot.type = type;
-		}
-		else if( slot.type != type )
+		if( declared->second != type )
 		{
 			CCP_NOESIS_LOGERR( "Define '%s' type %s does not match existing %s on %s",
-							   name, Tr2NoesisPropertyTypeName( type ), Tr2NoesisPropertyTypeName( slot.type ),
-							   m_schemaName.c_str() );
+							   name.Str(), Tr2NoesisPropertyTypeName( type ),
+							   Tr2NoesisPropertyTypeName( declared->second ), m_schemaName.c_str() );
 			return false;
 		}
+		m_values[name].type = type;
 		return true;
 	}
 
-	builder->AddProperty( new Tr2NoesisTypeProperty( symbol, type ) );
-	Slot& slot = m_values[symbol];
-	slot.type = type;
+	if( m_schema->builder->FindProperty( name ) == nullptr )
+	{
+		m_schema->builder->AddProperty( new Tr2NoesisTypeProperty( name, type ) );
+	}
+	m_schema->types[name] = type;
+	m_values[name].type = type;
 	return true;
 }
 
 bool Tr2NoesisObject::Has( const char* name ) const
 {
-	if( name == nullptr || m_schema == nullptr )
+	if( name == nullptr )
 	{
 		return false;
 	}
-	return m_schema->FindProperty( Noesis::Symbol( name ) ) != nullptr;
+	return Has( Noesis::Symbol( name ) );
+}
+
+bool Tr2NoesisObject::Has( Noesis::Symbol name ) const
+{
+	return m_schema != nullptr && m_schema->builder->FindProperty( name ) != nullptr;
 }
 
 Tr2NoesisPropertyType Tr2NoesisObject::GetPropertyType( const char* name ) const
@@ -289,12 +348,27 @@ Tr2NoesisPropertyType Tr2NoesisObject::GetPropertyType( const char* name ) const
 	{
 		return Tr2NoesisPropertyType::Unknown;
 	}
-	auto found = m_values.find( Noesis::Symbol( name ) );
-	if( found == m_values.end() )
+	return GetPropertyType( Noesis::Symbol( name ) );
+}
+
+Tr2NoesisPropertyType Tr2NoesisObject::GetPropertyType( Noesis::Symbol name ) const
+{
+	auto found = m_values.find( name );
+	if( found != m_values.end() && found->second.type != Tr2NoesisPropertyType::Unknown )
 	{
-		return Tr2NoesisPropertyType::Unknown;
+		return found->second.type;
 	}
-	return found->second.type;
+	// Not defined on this instance, but the schema is shared, so whatever
+	// another instance declared holds here too.
+	if( m_schema != nullptr )
+	{
+		auto declared = m_schema->types.find( name );
+		if( declared != m_schema->types.end() )
+		{
+			return declared->second;
+		}
+	}
+	return Tr2NoesisPropertyType::Unknown;
 }
 
 bool Tr2NoesisObject::SetValue( const char* name, Noesis::BaseComponent* value )
@@ -303,24 +377,44 @@ bool Tr2NoesisObject::SetValue( const char* name, Noesis::BaseComponent* value )
 	{
 		return false;
 	}
+	return SetValue( Noesis::Symbol( name ), value );
+}
 
-	const Noesis::Symbol symbol( name );
-	auto found = m_values.find( symbol );
+bool Tr2NoesisObject::SetValue( Noesis::Symbol name, Noesis::BaseComponent* value, bool notifyScript )
+{
+	if( name.IsNull() )
+	{
+		return false;
+	}
+
+	auto found = m_values.find( name );
 	if( found == m_values.end() )
 	{
-		if( m_schema == nullptr || m_schema->FindProperty( symbol ) == nullptr )
+		if( m_schema == nullptr || m_schema->builder->FindProperty( name ) == nullptr )
 		{
-			CCP_NOESIS_LOGERR( "Set '%s' on %s: property is not defined", name, m_schemaName.c_str() );
+			CCP_NOESIS_LOGERR( "Set '%s' on %s: property is not defined", name.Str(), m_schemaName.c_str() );
 			return false;
 		}
-		Slot& slot = m_values[symbol];
+		Slot& slot = m_values[name];
+		auto declared = m_schema->types.find( name );
+		if( declared != m_schema->types.end() )
+		{
+			slot.type = declared->second;
+		}
 		slot.value.Reset( value );
-		Notify( name );
+		Notify( name, notifyScript );
+		return true;
+	}
+
+	if( ValuesEqual( found->second.value, value ) )
+	{
+		// Nothing changed, so nothing downstream has anything to do: no
+		// binding invalidation, no layout, no callback.
 		return true;
 	}
 
 	found->second.value.Reset( value );
-	Notify( name );
+	Notify( name, notifyScript );
 	return true;
 }
 
@@ -330,7 +424,12 @@ Noesis::BaseComponent* Tr2NoesisObject::GetValue( const char* name ) const
 	{
 		return nullptr;
 	}
-	auto found = m_values.find( Noesis::Symbol( name ) );
+	return GetValue( Noesis::Symbol( name ) );
+}
+
+Noesis::BaseComponent* Tr2NoesisObject::GetValue( Noesis::Symbol name ) const
+{
+	auto found = m_values.find( name );
 	if( found == m_values.end() )
 	{
 		return nullptr;
@@ -352,7 +451,7 @@ void Tr2NoesisObject::SetCommand( const char* name, const BlueScriptCallback& ex
 		m_values[Noesis::Symbol( name )].value = command;
 	}
 	command->SetExecute( execute );
-	Notify( name );
+	Notify( Noesis::Symbol( name ), true );
 }
 
 void Tr2NoesisObject::SetCanExecute( const char* name, const BlueScriptCallback& canExecute )
@@ -407,7 +506,8 @@ PyObject* Tr2NoesisObject::GetPythonWrapper() const
 
 const Noesis::TypeClass* Tr2NoesisObject::GetClassType() const
 {
-	return m_schema != nullptr ? m_schema : StaticGetClassType( (Noesis::TypeTag<Tr2NoesisObject>*)nullptr );
+	return m_schema != nullptr ? m_schema->builder
+							   : StaticGetClassType( (Noesis::TypeTag<Tr2NoesisObject>*)nullptr );
 }
 
 Noesis::PropertyChangedEventHandler& Tr2NoesisObject::PropertyChanged()
@@ -415,14 +515,15 @@ Noesis::PropertyChangedEventHandler& Tr2NoesisObject::PropertyChanged()
 	return m_propertyChanged;
 }
 
-void Tr2NoesisObject::Notify( const char* name )
+void Tr2NoesisObject::Notify( Noesis::Symbol name, bool notifyScript )
 {
-	m_propertyChanged( this, Noesis::PropertyChangedEventArgs( Noesis::Symbol( name ) ) );
-	if( m_onPropertyChanged )
+	m_propertyChanged( this, Noesis::PropertyChangedEventArgs( name ) );
+	if( notifyScript && m_onPropertyChanged )
 	{
-		if( !m_onPropertyChanged.CallVoid( name ) )
+		if( !m_onPropertyChanged.CallVoid( name.Str() ) )
 		{
-			CCP_NOESIS_LOGERR( "onPropertyChanged callback failed for '%s' on %s", name, m_schemaName.c_str() );
+			CCP_NOESIS_LOGERR( "onPropertyChanged callback failed for '%s' on %s", name.Str(),
+							   m_schemaName.c_str() );
 #if BLUE_WITH_PYTHON
 			PyOS->PyFlushError( "Tr2NoesisObject: onPropertyChanged callback failed" );
 #endif

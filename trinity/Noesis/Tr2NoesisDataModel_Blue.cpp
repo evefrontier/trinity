@@ -20,7 +20,8 @@ static PyObject* PyGet( PyObject* self, PyObject* args )
 	{
 		return nullptr;
 	}
-	return Tr2NoesisComponentToPython( model->GetValue( name ), model->GetWrapper( name ) );
+	const Noesis::Symbol symbol( name );
+	return Tr2NoesisComponentToPython( model->GetValue( symbol ), model->GetWrapper( symbol ) );
 }
 
 static PyObject* PySet( PyObject* self, PyObject* args )
@@ -33,10 +34,13 @@ static PyObject* PySet( PyObject* self, PyObject* args )
 		return nullptr;
 	}
 
+	// Interned once here and then handed down: the type lookup, the define
+	// and the write all take the symbol rather than hashing the name again.
+	const Noesis::Symbol symbol( name );
 	Tr2NoesisPropertyType expected = Tr2NoesisPropertyType::Unknown;
 	if( model->GetNative() != nullptr )
 	{
-		expected = model->GetNative()->GetPropertyType( name );
+		expected = model->GetNative()->GetPropertyType( symbol );
 	}
 
 	Noesis::Ptr<Noesis::BaseComponent> boxed;
@@ -47,21 +51,26 @@ static PyObject* PySet( PyObject* self, PyObject* args )
 		return nullptr;
 	}
 
-	if( !model->Has( name ) )
+	// A known type means the property is declared, so there is nothing to ask
+	// the schema and nothing to define.
+	if( expected == Tr2NoesisPropertyType::Unknown )
 	{
 		if( inferred == Tr2NoesisPropertyType::Unknown )
 		{
 			PyErr_SetString( PyExc_TypeError, "cannot infer a type from None; call Define first" );
 			return nullptr;
 		}
-		if( !model->Define( name, Tr2NoesisPropertyTypeName( inferred ) ) )
+		if( !model->DefineProperty( symbol, inferred ) )
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Define failed" );
 			return nullptr;
 		}
 	}
 
-	if( !model->SetValue( name, boxed, wrapper ) )
+	// Script wrote this, so script is not told about it: whoever called Set
+	// already knows, and the change signal costs a round trip back into
+	// Python. The view is notified either way.
+	if( !model->SetValue( symbol, boxed, wrapper, false ) )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Set failed" );
 		return nullptr;
@@ -140,6 +149,8 @@ const Be::ClassInfo* Tr2NoesisDataModel::ExposeToBlue()
 			"Set",
 			PySet,
 			"Sets a property and notifies the view. Infers the type if Define was not called.\n"
+			"Writing the value the property already holds does nothing at all, and a write from\n"
+			"script never raises onPropertyChanged.\n"
 			":param name: property name\n"
 			":param value: bool, int, float, str, Tr2NoesisDataModel, or Tr2NoesisCollection" )
 
@@ -167,7 +178,8 @@ const Be::ClassInfo* Tr2NoesisDataModel::ExposeToBlue()
 			"onPropertyChanged",
 			GetOnPropertyChanged,
 			SetOnPropertyChanged,
-			"Callable(name) invoked after a property changes, including two-way writes from the UI." )
+			"Callable(name) invoked when a two-way binding writes a property from the UI.\n"
+			"Not called for a write made from script, which already knows what it wrote." )
 
 		MAP_METHOD(
 			"GetPythonWrapper",

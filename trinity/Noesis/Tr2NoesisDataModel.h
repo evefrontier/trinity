@@ -31,6 +31,7 @@ public:
 	Tr2NoesisObject* GetNative();
 
 	bool Define( const char* name, const char* type );
+	bool DefineProperty( Noesis::Symbol name, Tr2NoesisPropertyType type );
 	bool Has( const char* name ) const;
 
 	void SetCommand( const char* name, const BlueScriptCallback& callback );
@@ -40,15 +41,18 @@ public:
 	const BlueScriptCallback& GetOnPropertyChanged() const;
 	void SetOnPropertyChanged( const BlueScriptCallback& callback );
 
-	bool SetValue( const char* name, Noesis::BaseComponent* value, IRoot* wrapper );
-	Noesis::BaseComponent* GetValue( const char* name ) const;
-	IRoot* GetWrapper( const char* name ) const;
+	bool SetValue( Noesis::Symbol name, Noesis::BaseComponent* value, IRoot* wrapper,
+				   bool notifyScript = true );
+	Noesis::BaseComponent* GetValue( Noesis::Symbol name ) const;
+	IRoot* GetWrapper( Noesis::Symbol name ) const;
 
 private:
 	void EnsureObject( const char* schemaName );
 
 	Noesis::Ptr<Tr2NoesisObject> m_object;
-	std::unordered_map<std::string, IRootPtr> m_wrappers;
+	// Keyed by property symbol like the values are, so writing a property
+	// costs no string hashing on the way through.
+	std::unordered_map<uint32_t, IRootPtr> m_wrappers;
 };
 
 TYPEDEF_BLUECLASS( Tr2NoesisDataModel );
