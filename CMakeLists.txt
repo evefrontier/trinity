@@ -56,7 +56,6 @@ endif()
 option(WITH_NOESIS "Build the host side of the Noesis integration" OFF)
 
 project(carbon-trinity VERSION 1.0.0)
-endif()
 
 if (BUILD_FOR_PYTHON_2)
     if(NOT DEFINED ENV{CCP_EVE_PERFORCE_BRANCH_PATH})

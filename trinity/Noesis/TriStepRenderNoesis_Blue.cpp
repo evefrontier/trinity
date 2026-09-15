@@ -27,6 +27,12 @@ const Be::ClassInfo* TriStepRenderNoesis::ExposeToBlue()
 			"Create a step that renders a NoesisGUI view into the target the job has bound.\n"
 			":param view: Tr2NoesisView" )
 
+		MAP_ATTRIBUTE(
+			"host",
+			m_host,
+			"The Tr2NoesisHost to render through",
+			Be::READWRITE )
+
 	EXPOSURE_CHAINTO( TriRenderStep )
 }
 

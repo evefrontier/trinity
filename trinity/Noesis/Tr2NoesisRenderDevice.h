@@ -42,11 +42,11 @@ class Tr2NoesisTexture
 public:
 	Tr2NoesisTexture( Tr2TextureAL texture, uint32_t width, uint32_t height, uint32_t levels, bool hasAlpha );
 
-	uint32_t GetWidth() const override;
-	uint32_t GetHeight() const override;
-	bool HasMipMaps() const override;
-	bool IsInverted() const override;
-	bool HasAlpha() const override;
+	uint32_t GetWidth() const;
+	uint32_t GetHeight() const;
+	bool HasMipMaps() const;
+	bool IsInverted() const;
+	bool HasAlpha() const;
 
 	Tr2TextureAL& GetAL();
 	const Tr2TextureAL& GetAL() const;
@@ -211,6 +211,7 @@ private:
 		Tr2ResourceSetAL set;
 	};
 
+	bool ReadShaderSource( const nsi_shader_source& shaders );
 	void CreateShaders();
 	void CreateVertexLayouts();
 	void CreateSamplers();
@@ -236,6 +237,30 @@ private:
 	bool m_pushedOnscreenStencil;
 	bool m_hasHostScissor;
 	Tr2ScissorRect m_hostScissor;
+
+	// Everything the library told us about a shader, cached at build time. The host keeps
+	// no SDK-shaped tables of its own: a blob is enough on its own to build a pipeline,
+	// and this is just that answer kept rather than asked for again per batch.
+	struct ShaderInfo
+	{
+		uint8_t vertexShader = 0;
+		uint8_t vertexFormat = 0;
+		uint32_t resourceFlags = 0;
+		// Library-owned and valid for the process lifetime, so holding the pointer is
+		// enough. Null for a slot the library did not supply, such as custom effects.
+		const void* bytecode = nullptr;
+		uint32_t bytecodeSize = 0;
+		const char* name = nullptr;
+	};
+	std::vector<ShaderInfo> m_shaderInfo;   // indexed by pixel shader id
+	std::vector<ShaderInfo> m_vertexInfo;   // indexed by vertex shader id
+
+	// The attributes of each vertex format, in declaration order, as the library
+	// described them.
+	std::vector<std::vector<nsi_vertex_attribute>> m_vertexFormats;
+	// Byte stride of each format, summed from its attributes.
+	std::vector<uint32_t> m_vertexStrides;
+
 
 	// Sized from the shader source rather than an SDK constant: how many permutations
 	// and vertex formats exist is the library's business now, and a build of it with

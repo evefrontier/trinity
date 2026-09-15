@@ -7,7 +7,7 @@
 #if WITH_NOESIS
 
 #include "Sprite2d/Tr2SpriteObject.h"
-#include "Noesis/TriNoesisLibrary.h"
+#include "Noesis/Tr2NoesisHost.h"
 
 // --------------------------------------------------------------------------------------
 // Description:
@@ -38,6 +38,9 @@ public:
 	void SetView( IRoot* view );
 	IRoot* GetView() const;
 
+	void SetHost( IRoot* host );
+	IRoot* GetHost() const;
+
 	//////////////////////////////////////////////////////////////////////////
 	// ITr2SpriteObject
 	unsigned int GetVertexCount();
@@ -49,6 +52,7 @@ private:
 	bool SyncOverrideViewport( Tr2Sprite2dScene* renderer );
 
 	IRootPtr m_view;
+	IRootPtr m_host;
 	TriStepRenderNoesisPtr m_step;
 	TriRenderJobPtr m_job;
 };

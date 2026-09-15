@@ -8,8 +8,11 @@
 
 #include <nsi_blue.h>
 
+#include <memory>
+
 BLUE_DECLARE( Tr2RenderContext );
-BLUE_DECLARE( Tr2NoesisRenderDevice );
+BLUE_DECLARE( Tr2NoesisHost );
+class Tr2NoesisRenderDevice;
 struct Tr2ScissorRect;
 
 // --------------------------------------------------------------------------------------
@@ -40,11 +43,21 @@ public:
 	Tr2NoesisHost( IRoot* lockobj = NULL );
 	~Tr2NoesisHost();
 
-	// Builds the device on the primary context, taking the shader permutations from the
-	// library's shader source. False if the object is not one, or if the device could not
-	// be built -- in both cases the reason is on the Noesis log channel and every render
-	// step becomes a no-op rather than failing.
-	bool Build( IRoot* shaderSource );
+	// Takes the library's shader source. Cheap and thread-agnostic: it only resolves the
+	// interface, so Python can call it at startup.
+	bool SetShaderSource( IRoot* shaderSource );
+	IRoot* GetShaderSource() const;
+
+	// Builds the device on first call and returns whether it is usable.
+	//
+	// Deferred rather than done when the shader source is set, because building it needs
+	// the main-thread render context: there is no device at Python-init time, and asking
+	// for one there blocks. The render step calls this on its first Execute, which is on
+	// the render thread with a live context by construction.
+	//
+	// One attempt only. A device that failed to build its shaders will not build them on
+	// the next frame either, and retrying would repeat the failure every frame.
+	bool EnsureDevice();
 
 	bool IsReady() const;
 
@@ -71,7 +84,12 @@ public:
 private:
 	void FillVtables();
 
-	Tr2NoesisRenderDevicePtr m_device;
+	// A plain class, not a Blue object: it is an implementation detail of this host and
+	// never crosses the boundary on its own.
+	std::unique_ptr<Tr2NoesisRenderDevice> m_device;
+	IRootPtr m_shaderSourceObject;
+	const nsi_shader_source* m_shaderSource;
+	bool m_deviceAttempted;
 	nsi_device_host m_deviceApi;
 	nsi_frame_host m_frameApi;
 };

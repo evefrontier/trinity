@@ -6,16 +6,19 @@
 #if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisLog.h"
-#include "Noesis/Tr2NoesisShaders.h"
-#include "Noesis/Tr2NoesisSystem.h"
 #include "Tr2RenderContext.h"
 
-#include <NsCore/Ptr.h>
 
 #include <cmath>
 #include <utility>
 
 using namespace Tr2RenderContextEnum;
+
+// The largest single Map the SDK will ask for, from its own NOESIS_DYNAMIC_VB_SIZE and
+// NOESIS_DYNAMIC_IB_SIZE defaults. They size a chunk of each ring; the rings grow past them by
+// appending chunks, so these are a starting point rather than a cap.
+const uint32_t NOESIS_DYNAMIC_VB_SIZE = 512 * 1024;
+const uint32_t NOESIS_DYNAMIC_IB_SIZE = 128 * 1024;
 
 namespace
 {
@@ -31,157 +34,88 @@ const uint32_t PS_T2 = 1 << 6;
 const uint32_t PS_T3 = 1 << 7;
 const uint32_t PS_T4 = 1 << 8;
 
-// Indexed by Shader::Enum. Custom_Effect stays zero: the effect supplies that shader.
-const uint32_t PROGRAM_FLAGS[m_pixelShaders.size()] = {
-	VS_CB0 | PS_CB0, // RGBA
-	VS_CB0, // Mask
-	VS_CB0, // Clear
-	VS_CB0, // Path_Solid
-	VS_CB0 | PS_CB0 | PS_T1, // Path_Linear
-	VS_CB0 | PS_CB0 | PS_T1, // Path_Radial
-	VS_CB0 | PS_CB0 | PS_T0, // Path_Pattern
-	VS_CB0 | PS_CB0 | PS_T0, // Path_Pattern_Clamp
-	VS_CB0 | PS_CB0 | PS_T0, // Path_Pattern_Repeat
-	VS_CB0 | PS_CB0 | PS_T0, // Path_Pattern_MirrorU
-	VS_CB0 | PS_CB0 | PS_T0, // Path_Pattern_MirrorV
-	VS_CB0 | PS_CB0 | PS_T0, // Path_Pattern_Mirror
-	VS_CB0, // Path_AA_Solid
-	VS_CB0 | PS_CB0 | PS_T1, // Path_AA_Linear
-	VS_CB0 | PS_CB0 | PS_T1, // Path_AA_Radial
-	VS_CB0 | PS_CB0 | PS_T0, // Path_AA_Pattern
-	VS_CB0 | PS_CB0 | PS_T0, // Path_AA_Pattern_Clamp
-	VS_CB0 | PS_CB0 | PS_T0, // Path_AA_Pattern_Repeat
-	VS_CB0 | PS_CB0 | PS_T0, // Path_AA_Pattern_MirrorU
-	VS_CB0 | PS_CB0 | PS_T0, // Path_AA_Pattern_MirrorV
-	VS_CB0 | PS_CB0 | PS_T0, // Path_AA_Pattern_Mirror
-	VS_CB0 | VS_CB1 | PS_T3, // SDF_Solid
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T1 | PS_T3, // SDF_Linear
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T1 | PS_T3, // SDF_Radial
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_Clamp
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_Repeat
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_MirrorU
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_MirrorV
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_Pattern_Mirror
-	VS_CB0 | VS_CB1 | PS_T3, // SDF_LCD_Solid
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T1 | PS_T3, // SDF_LCD_Linear
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T1 | PS_T3, // SDF_LCD_Radial
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_Clamp
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_Repeat
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_MirrorU
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_MirrorV
-	VS_CB0 | VS_CB1 | PS_CB0 | PS_T0 | PS_T3, // SDF_LCD_Pattern_Mirror
-	VS_CB0 | PS_T2, // Opacity_Solid
-	VS_CB0 | PS_CB0 | PS_T1 | PS_T2, // Opacity_Linear
-	VS_CB0 | PS_CB0 | PS_T1 | PS_T2, // Opacity_Radial
-	VS_CB0 | PS_CB0 | PS_T0 | PS_T2, // Opacity_Pattern
-	VS_CB0 | PS_CB0 | PS_T0 | PS_T2, // Opacity_Pattern_Clamp
-	VS_CB0 | PS_CB0 | PS_T0 | PS_T2, // Opacity_Pattern_Repeat
-	VS_CB0 | PS_CB0 | PS_T0 | PS_T2, // Opacity_Pattern_MirrorU
-	VS_CB0 | PS_CB0 | PS_T0 | PS_T2, // Opacity_Pattern_MirrorV
-	VS_CB0 | PS_CB0 | PS_T0 | PS_T2, // Opacity_Pattern_Mirror
-	VS_CB0 | PS_T0 | PS_T2, // Upsample
-	VS_CB0 | PS_T0, // Downsample
-	VS_CB0 | PS_CB1 | PS_T2 | PS_T4, // Shadow
-	VS_CB0 | PS_CB1 | PS_T2 | PS_T4, // Blur
-	0, // Custom_Effect
-};
 
-const char* const SHADER_NAMES[m_pixelShaders.size()] = {
-	"RGBA",
-	"Mask",
-	"Clear",
-	"Path_Solid",
-	"Path_Linear",
-	"Path_Radial",
-	"Path_Pattern",
-	"Path_Pattern_Clamp",
-	"Path_Pattern_Repeat",
-	"Path_Pattern_MirrorU",
-	"Path_Pattern_MirrorV",
-	"Path_Pattern_Mirror",
-	"Path_AA_Solid",
-	"Path_AA_Linear",
-	"Path_AA_Radial",
-	"Path_AA_Pattern",
-	"Path_AA_Pattern_Clamp",
-	"Path_AA_Pattern_Repeat",
-	"Path_AA_Pattern_MirrorU",
-	"Path_AA_Pattern_MirrorV",
-	"Path_AA_Pattern_Mirror",
-	"SDF_Solid",
-	"SDF_Linear",
-	"SDF_Radial",
-	"SDF_Pattern",
-	"SDF_Pattern_Clamp",
-	"SDF_Pattern_Repeat",
-	"SDF_Pattern_MirrorU",
-	"SDF_Pattern_MirrorV",
-	"SDF_Pattern_Mirror",
-	"SDF_LCD_Solid",
-	"SDF_LCD_Linear",
-	"SDF_LCD_Radial",
-	"SDF_LCD_Pattern",
-	"SDF_LCD_Pattern_Clamp",
-	"SDF_LCD_Pattern_Repeat",
-	"SDF_LCD_Pattern_MirrorU",
-	"SDF_LCD_Pattern_MirrorV",
-	"SDF_LCD_Pattern_Mirror",
-	"Opacity_Solid",
-	"Opacity_Linear",
-	"Opacity_Radial",
-	"Opacity_Pattern",
-	"Opacity_Pattern_Clamp",
-	"Opacity_Pattern_Repeat",
-	"Opacity_Pattern_MirrorU",
-	"Opacity_Pattern_MirrorV",
-	"Opacity_Pattern_Mirror",
-	"Upsample",
-	"Downsample",
-	"Shadow",
-	"Blur",
-	"Custom_Effect",
-};
+// PROGRAM_FLAGS and SHADER_NAMES used to live here, transcribed from the SDK. Both now
+// arrive on the shader blob, so the host no longer keeps a copy to fall out of step.
 
-struct VertexAttrDesc
+// Maps one attribute the library described onto the AL's vertex vocabulary. The semantic
+// and index come across the ABI exactly as the shader bytecode was compiled with them, so
+// there is nothing to keep in step here -- unlike the table this replaces, which restated
+// the fxc semantic renames and had to be revisited whenever they changed.
+bool ToVertexUsage( const nsi_vertex_attribute& attr, Tr2VertexDefinition::UsageCode& usage )
 {
-	Tr2VertexDefinition::UsageCode usage;
-	unsigned usageIndex;
-	Tr2VertexDefinition::DataType dataType;
-	Tr2ShaderPipelineInputAL::Type inputType;
-	uint32_t dimension;
-};
-
-// Coverage/Rect/Tile/ImagePos land on TEXCOORD2..5 to match the fxc /D semantic renames.
-const VertexAttrDesc VERTEX_ATTRS[Shader::Vertex::Format::Attr::Count] = {
-	{ Tr2VertexDefinition::POSITION, 0, Tr2VertexDefinition::FLOAT32_2, Tr2ShaderPipelineInputAL::FLOAT, 2 },
-	{ Tr2VertexDefinition::COLOR, 0, Tr2VertexDefinition::UBYTE_4_NORM, Tr2ShaderPipelineInputAL::FLOAT, 4 },
-	{ Tr2VertexDefinition::TEXCOORD, 0, Tr2VertexDefinition::FLOAT32_2, Tr2ShaderPipelineInputAL::FLOAT, 2 },
-	{ Tr2VertexDefinition::TEXCOORD, 1, Tr2VertexDefinition::FLOAT32_2, Tr2ShaderPipelineInputAL::FLOAT, 2 },
-	{ Tr2VertexDefinition::TEXCOORD, 2, Tr2VertexDefinition::FLOAT32_1, Tr2ShaderPipelineInputAL::FLOAT, 1 },
-	{ Tr2VertexDefinition::TEXCOORD, 3, Tr2VertexDefinition::USHORT_4_NORM, Tr2ShaderPipelineInputAL::FLOAT, 4 },
-	{ Tr2VertexDefinition::TEXCOORD, 4, Tr2VertexDefinition::FLOAT32_4, Tr2ShaderPipelineInputAL::FLOAT, 4 },
-	{ Tr2VertexDefinition::TEXCOORD, 5, Tr2VertexDefinition::FLOAT32_4, Tr2ShaderPipelineInputAL::FLOAT, 4 },
-};
-
-static_assert( Tr2Noesis::VERTEX_SHADER_COUNT == m_vertexShaders.size(), "vertex shader table must match Shader::Vertex::Enum" );
-static_assert( Tr2Noesis::PIXEL_SHADER_COUNT == m_pixelShaders.size(),
-			   "pixel shader table covers every permutation except Custom_Effect" );
-static_assert( m_pixelShaders.size() == 53, "Noesis shader enum changed; revisit the tables below" );
-static_assert( sizeof( SamplerState ) == 1, "SamplerState is a packed uint8_t" );
-static_assert( WrapMode::Count <= ( 1u << 3 ), "SamplerState.wrapMode is 3 bits" );
-static_assert( MinMagFilter::Count <= ( 1u << 1 ), "SamplerState.minmagFilter is 1 bit" );
-static_assert( MipFilter::Count <= ( 1u << 2 ), "SamplerState.mipFilter is 2 bits" );
-
-int PixelBytecodeIndex( uint8_t shader )
-{
-	if( shader < m_pixelShaders.size() )
+	if( attr.semantic == nullptr )
 	{
-		return shader;
+		return false;
 	}
-	return -1;
+	if( strcmp( attr.semantic, "POSITION" ) == 0 )
+	{
+		usage = Tr2VertexDefinition::POSITION;
+		return true;
+	}
+	if( strcmp( attr.semantic, "COLOR" ) == 0 )
+	{
+		usage = Tr2VertexDefinition::COLOR;
+		return true;
+	}
+	if( strcmp( attr.semantic, "TEXCOORD" ) == 0 )
+	{
+		usage = Tr2VertexDefinition::TEXCOORD;
+		return true;
+	}
+	return false;
 }
+
+uint32_t VertexAttrSize( nsi_vertex_attr_type type )
+{
+	switch( type )
+	{
+	case NSI_VERTEX_ATTR_FLOAT:
+		return 4;
+	case NSI_VERTEX_ATTR_FLOAT2:
+		return 8;
+	case NSI_VERTEX_ATTR_FLOAT4:
+		return 16;
+	case NSI_VERTEX_ATTR_UBYTE4_NORM:
+		return 4;
+	case NSI_VERTEX_ATTR_USHORT4_NORM:
+		return 8;
+	}
+	return 0;
+}
+
+bool ToVertexDataType( nsi_vertex_attr_type type, Tr2VertexDefinition::DataType& dataType,
+					   uint32_t& dimension )
+{
+	switch( type )
+	{
+	case NSI_VERTEX_ATTR_FLOAT:
+		dataType = Tr2VertexDefinition::FLOAT32_1;
+		dimension = 1;
+		return true;
+	case NSI_VERTEX_ATTR_FLOAT2:
+		dataType = Tr2VertexDefinition::FLOAT32_2;
+		dimension = 2;
+		return true;
+	case NSI_VERTEX_ATTR_FLOAT4:
+		dataType = Tr2VertexDefinition::FLOAT32_4;
+		dimension = 4;
+		return true;
+	case NSI_VERTEX_ATTR_UBYTE4_NORM:
+		dataType = Tr2VertexDefinition::UBYTE_4_NORM;
+		dimension = 4;
+		return true;
+	case NSI_VERTEX_ATTR_USHORT4_NORM:
+		dataType = Tr2VertexDefinition::USHORT_4_NORM;
+		dimension = 4;
+		return true;
+	}
+	return false;
+}
+
+// The sampler bit layout is nsi.h's guarantee now, and the library asserts its own
+// agreement with the SDK at its end. Here it is enough that a byte addresses 64 slots.
+static_assert( sizeof( nsi_sampler_state ) == 1, "nsi_sampler_state is a packed byte" );
 
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 {
@@ -276,10 +210,10 @@ PixelFormat ToPixelFormat( nsi_texture_format format )
 {
 	switch( format )
 	{
-	case TextureFormat::RGBA8:
-	case TextureFormat::RGBX8:
+	case NSI_TEXTURE_FORMAT_RGBA8:
+	case NSI_TEXTURE_FORMAT_RGBX8:
 		return PIXEL_FORMAT_R8G8B8A8_UNORM;
-	case TextureFormat::R8:
+	case NSI_TEXTURE_FORMAT_R8:
 		return PIXEL_FORMAT_R8_UNORM;
 	default:
 		CCP_ASSERT_M( false, "Unsupported Noesis texture format" );
@@ -291,10 +225,10 @@ uint32_t BytesPerPixel( nsi_texture_format format )
 {
 	switch( format )
 	{
-	case TextureFormat::RGBA8:
-	case TextureFormat::RGBX8:
+	case NSI_TEXTURE_FORMAT_RGBA8:
+	case NSI_TEXTURE_FORMAT_RGBX8:
 		return 4;
-	case TextureFormat::R8:
+	case NSI_TEXTURE_FORMAT_R8:
 		return 1;
 	default:
 		CCP_ASSERT_M( false, "Unsupported Noesis texture format" );
@@ -302,51 +236,61 @@ uint32_t BytesPerPixel( nsi_texture_format format )
 	}
 }
 
-void AddVertexAttributes( Tr2VertexDefinition& definition, Tr2ShaderSignatureAL* vsSignature, uint8_t attributes )
+bool AddVertexAttributes( Tr2VertexDefinition& definition, Tr2ShaderSignatureAL* vsSignature,
+						  const std::vector<nsi_vertex_attribute>& attributes )
 {
 	uint32_t registerIndex = 0;
-	for( uint32_t attr = 0; attr < Shader::Vertex::Format::Attr::Count; ++attr )
+	for( const nsi_vertex_attribute& attr : attributes )
 	{
-		if( ( attributes & ( 1u << attr ) ) == 0 )
+		Tr2VertexDefinition::UsageCode usage = Tr2VertexDefinition::POSITION;
+		Tr2VertexDefinition::DataType dataType = Tr2VertexDefinition::FLOAT32_4;
+		uint32_t dimension = 4;
+
+		if( !ToVertexUsage( attr, usage ) || !ToVertexDataType( attr.type, dataType, dimension ) )
 		{
-			continue;
+			CCP_NOESIS_LOGERR( "The Noesis library described a vertex attribute this "
+							   "Trinity cannot express (semantic '%s', type %d)",
+							   attr.semantic != nullptr ? attr.semantic : "?",
+							   static_cast<int>( attr.type ) );
+			return false;
 		}
 
-		const VertexAttrDesc& desc = VERTEX_ATTRS[attr];
-		definition.Add( desc.dataType, desc.usage, desc.usageIndex );
+		definition.Add( dataType, usage, attr.semantic_index );
 		if( vsSignature )
 		{
-			vsSignature->Add( desc.usage, desc.usageIndex, registerIndex, desc.inputType, desc.dimension );
+			vsSignature->Add( usage, attr.semantic_index, registerIndex,
+							  Tr2ShaderPipelineInputAL::FLOAT, dimension );
 		}
 		++registerIndex;
 	}
+	return true;
 }
 
-void ToAddressMode( WrapMode::Enum wrap, Tr2SamplerDescription& desc )
+void ToAddressMode( nsi_wrap_mode wrap, Tr2SamplerDescription& desc )
 {
 	switch( wrap )
 	{
-	case WrapMode::ClampToEdge:
+	case NSI_WRAP_CLAMP_TO_EDGE:
 		desc.m_addressU = TA_CLAMP;
 		desc.m_addressV = TA_CLAMP;
 		break;
-	case WrapMode::ClampToZero:
+	case NSI_WRAP_CLAMP_TO_ZERO:
 		desc.m_addressU = TA_BORDER;
 		desc.m_addressV = TA_BORDER;
 		break;
-	case WrapMode::Repeat:
+	case NSI_WRAP_REPEAT:
 		desc.m_addressU = TA_WRAP;
 		desc.m_addressV = TA_WRAP;
 		break;
-	case WrapMode::MirrorU:
+	case NSI_WRAP_MIRROR_U:
 		desc.m_addressU = TA_MIRROR;
 		desc.m_addressV = TA_WRAP;
 		break;
-	case WrapMode::MirrorV:
+	case NSI_WRAP_MIRROR_V:
 		desc.m_addressU = TA_WRAP;
 		desc.m_addressV = TA_MIRROR;
 		break;
-	case WrapMode::Mirror:
+	case NSI_WRAP_MIRROR:
 		desc.m_addressU = TA_MIRROR;
 		desc.m_addressV = TA_MIRROR;
 		break;
@@ -358,20 +302,20 @@ void ToAddressMode( WrapMode::Enum wrap, Tr2SamplerDescription& desc )
 	}
 }
 
-Tr2RenderContextEnum::TextureFilter ToMinMagFilter( MinMagFilter::Enum filter )
+Tr2RenderContextEnum::TextureFilter ToMinMagFilter( nsi_minmag_filter filter )
 {
-	return filter == MinMagFilter::Linear ? TF_LINEAR : TF_POINT;
+	return filter == NSI_MINMAG_LINEAR ? TF_LINEAR : TF_POINT;
 }
 
-Tr2RenderContextEnum::TextureFilter ToMipFilter( MipFilter::Enum filter )
+Tr2RenderContextEnum::TextureFilter ToMipFilter( nsi_mip_filter filter )
 {
 	switch( filter )
 	{
-	case MipFilter::Linear:
+	case NSI_MIP_LINEAR:
 		return TF_LINEAR;
-	case MipFilter::Nearest:
+	case NSI_MIP_NEAREST:
 		return TF_POINT;
-	case MipFilter::Disabled:
+	case NSI_MIP_DISABLED:
 		return TF_NONE;
 	default:
 		CCP_ASSERT_M( false, "Unknown Noesis mip filter" );
@@ -515,7 +459,7 @@ Tr2NoesisRenderTarget::Tr2NoesisRenderTarget( Tr2NoesisTexture* color, Tr2Textur
 {
 }
 
-Texture* Tr2NoesisRenderTarget::GetTexture()
+Tr2NoesisTexture* Tr2NoesisRenderTarget::GetTexture()
 {
 	return m_color;
 }
@@ -750,34 +694,29 @@ Tr2BufferAL& Tr2NoesisRenderDevice::DynamicRing::CurrentChunk()
 // Tr2NoesisRenderDevice
 // --------------------------------------------------------------------------------------
 
-Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primaryContext ) :
+Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primaryContext,
+											  const nsi_shader_source& shaders ) :
 	m_primary( &primaryContext ),
 	m_context( &primaryContext ),
 	m_valid( true ),
 	m_pushedOnscreenStencil( false ),
 	m_hasHostScissor( false ),
-	m_batchCounts{},
-	m_reportedCounts{},
 	m_unwiredReported( 0 ),
 	m_logBatchDetail( true )
 {
-	if( !Tr2Noesis::IsLogVerbose /*was RequireInitialized*/() )
+	if( !ReadShaderSource( shaders ) )
 	{
 		m_valid = false;
 		return;
 	}
 
-	m_caps.linearRendering = false;
-	m_caps.subpixelRendering = true;
-	m_caps.depthRangeZeroToOne = true;
-	m_caps.clipSpaceYInverted = false;
+	m_caps.linear_rendering = NSI_FALSE;
+	m_caps.subpixel_rendering = NSI_TRUE;
+	m_caps.depth_range_zero_to_one = NSI_TRUE;
+	m_caps.clip_space_y_inverted = NSI_FALSE;
 
-	SetOffscreenSampleCount( 1 );
-
-	// Default is 1024x1024. 2048x2048 is what the SDK rendering tutorial uses and keeps
-	// discardedGlyphTiles at zero once CJK, emoji and several sizes share the atlas.
-	SetGlyphCacheWidth( 2048 );
-	SetGlyphCacheHeight( 2048 );
+	// The offscreen sample count and glyph cache size are SDK settings, so they moved to
+	// frontier-noesis with the rest of the SDK. Nothing to do here.
 
 	CreateVertexLayouts();
 	CreateShaders();
@@ -825,9 +764,9 @@ void Tr2NoesisRenderDevice::ClearHostScissor()
 	m_hasHostScissor = false;
 }
 
-const nsi_device_caps& Tr2NoesisRenderDevice::GetCaps() const
+void Tr2NoesisRenderDevice::GetCaps( nsi_device_caps& out ) const
 {
-	return m_caps;
+	out = m_caps;
 }
 
 Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CreateRenderTarget( const char* label, uint32_t width, uint32_t height,
@@ -869,7 +808,7 @@ Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CreateRenderTarget( const char* la
 		stencilAL.SetName( FormatDebugName( stencilName, label, "RT", "_Stencil" ) );
 	}
 
-	Tr2NoesisTexture* color = MakeTr2NoesisTexture*( colorAL, width, height, 1, true );
+	Tr2NoesisTexture* color = new Tr2NoesisTexture( colorAL, width, height, 1, true );
 	CCP_NOESIS_LOG( "RenderTarget '%s' %u x %u", SafeLabel( label, "" ), width, height );
 	return new Tr2NoesisRenderTarget( color, stencilAL, width, height );
 }
@@ -877,9 +816,8 @@ Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CreateRenderTarget( const char* la
 Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CloneRenderTarget( const char* label, Tr2NoesisRenderTarget* surface )
 {
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
-	CCP_ASSERT_M( surface_ != nullptr, "CloneRenderTarget with null surface" );
+	CCP_ASSERT_M( surface != nullptr, "CloneRenderTarget with null surface" );
 
-	Tr2NoesisRenderTarget* surface = static_cast<Tr2NoesisRenderTarget*>( surface_ );
 
 	Tr2TextureAL colorAL;
 	const Tr2BitmapDimensions colorDesc( surface->GetWidth(), surface->GetHeight(), 1, PIXEL_FORMAT_R8G8B8A8_UNORM );
@@ -894,7 +832,7 @@ Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CloneRenderTarget( const char* lab
 	char colorName[128];
 	colorAL.SetName( FormatDebugName( colorName, label, "RT" ) );
 
-	Tr2NoesisTexture* color = MakeTr2NoesisTexture*( colorAL, surface->GetWidth(), surface->GetHeight(), 1, true );
+	Tr2NoesisTexture* color = new Tr2NoesisTexture( colorAL, surface->GetWidth(), surface->GetHeight(), 1, true );
 	return new Tr2NoesisRenderTarget( color, surface->GetStencil(), surface->GetWidth(), surface->GetHeight() );
 }
 
@@ -949,7 +887,7 @@ Tr2NoesisTexture* Tr2NoesisRenderDevice::CreateTexture( const char* label, uint3
 	{
 		CCP_NOESIS_LOG( "Texture '%s' %u x %u x %u", SafeLabel( label, "" ), width, height, numLevels );
 	}
-	return MakeTr2NoesisTexture*( textureAL, width, height, numLevels, format == TextureFormat::RGBA8 );
+	return new Tr2NoesisTexture( textureAL, width, height, numLevels, format == NSI_TEXTURE_FORMAT_RGBA8 );
 }
 
 Tr2NoesisTexture* Tr2NoesisRenderDevice::WrapTexture( const Tr2TextureAL& texture, bool hasAlpha )
@@ -960,7 +898,7 @@ Tr2NoesisTexture* Tr2NoesisRenderDevice::WrapTexture( const Tr2TextureAL& textur
 		return nullptr;
 	}
 
-	return MakeTr2NoesisTexture*( texture, texture.GetWidth(), texture.GetHeight(),
+	return new Tr2NoesisTexture( texture, texture.GetWidth(), texture.GetHeight(),
 									  texture.GetMipCount(), hasAlpha );
 }
 
@@ -984,7 +922,7 @@ void* Tr2NoesisRenderDevice::CreatePixelShader( const char* label, uint8_t shade
 	const uint8_t* dxbc = static_cast<const uint8_t*>( hlsl ) + sizeof( flags );
 	const uint32_t dxbcSize = size - sizeof( flags );
 
-	const uint8_t vsIndex = VertexForShader[shader];
+	const uint8_t vsIndex = m_shaderInfo[shader].vertexShader;
 	CCP_ASSERT_M( vsIndex < m_vertexShaders.size(), "CreatePixelShader vertex shader index is out of range" );
 	if( vsIndex >= m_vertexShaders.size() || !m_vertexShaders[vsIndex].IsValid() )
 	{
@@ -999,7 +937,7 @@ void* Tr2NoesisRenderDevice::CreatePixelShader( const char* label, uint8_t shade
 
 	CustomProgram custom;
 	custom.flags = flags;
-	custom.vertexFormat = FormatForVertex[vsIndex];
+	custom.vertexFormat = m_shaderInfo[shader].vertexFormat;
 
 	const char* name = SafeLabel( label, "Custom" );
 	const ALResult result = custom.pixelShader.Create(
@@ -1047,10 +985,9 @@ void Tr2NoesisRenderDevice::UpdateTexture( Tr2NoesisTexture* texture, uint32_t l
 										   uint32_t width, uint32_t height, const void* data )
 {
 	CCP_ASSERT_M( m_context != nullptr, "UpdateTexture without a render context" );
-	CCP_ASSERT_M( texture_ != nullptr, "UpdateTexture with null texture" );
+	CCP_ASSERT_M( texture != nullptr, "UpdateTexture with null texture" );
 	CCP_ASSERT_M( data != nullptr, "UpdateTexture with null data" );
 
-	Tr2NoesisTexture* texture = static_cast<Tr2NoesisTexture*>( texture_ );
 	const uint32_t bpp = GetBytesPerPixel( texture->GetAL().GetFormat() );
 
 	Tr2TextureSubresource region( level );
@@ -1164,9 +1101,8 @@ void Tr2NoesisRenderDevice::EndOnscreenRender()
 void Tr2NoesisRenderDevice::SetRenderTarget( Tr2NoesisRenderTarget* surface )
 {
 	CCP_ASSERT_M( m_context != nullptr, "SetRenderTarget without a render context" );
-	CCP_ASSERT_M( surface_ != nullptr, "SetRenderTarget with null surface" );
+	CCP_ASSERT_M( surface != nullptr, "SetRenderTarget with null surface" );
 
-	Tr2NoesisRenderTarget* surface = static_cast<Tr2NoesisRenderTarget*>( surface_ );
 	m_context->SetRenderTarget( surface->GetColor()->GetAL() );
 	if( surface->HasStencil() )
 	{
@@ -1182,9 +1118,8 @@ void Tr2NoesisRenderDevice::SetRenderTarget( Tr2NoesisRenderTarget* surface )
 void Tr2NoesisRenderDevice::BeginTile( Tr2NoesisRenderTarget* surface, const nsi_tile& tile )
 {
 	CCP_ASSERT_M( m_context != nullptr, "BeginTile without a render context" );
-	CCP_ASSERT_M( surface_ != nullptr, "BeginTile with null surface" );
+	CCP_ASSERT_M( surface != nullptr, "BeginTile with null surface" );
 
-	Tr2NoesisRenderTarget* surface = static_cast<Tr2NoesisRenderTarget*>( surface_ );
 	Tr2ScissorRect rect;
 	rect.m_left = int32_t( tile.x );
 	rect.m_top = int32_t( surface->GetHeight() - ( tile.y + tile.height ) );
@@ -1193,14 +1128,14 @@ void Tr2NoesisRenderDevice::BeginTile( Tr2NoesisRenderTarget* surface, const nsi
 	m_context->SetScissorRect( rect );
 }
 
-void Tr2NoesisRenderDevice::EndTile( RenderTarget* /*surface*/ )
+void Tr2NoesisRenderDevice::EndTile( Tr2NoesisRenderTarget* /*surface*/ )
 {
 	// Empty, matching D3D12RenderDevice. The next SetRenderTarget - or the
 	// step's PopRenderTarget after the offscreen phase - resets scissor to
 	// the full target.
 }
 
-void Tr2NoesisRenderDevice::ResolveRenderTarget( RenderTarget* /*surface*/, const nsi_tile* /*tiles*/, uint32_t /*numTiles*/ )
+void Tr2NoesisRenderDevice::ResolveRenderTarget( Tr2NoesisRenderTarget* /*surface*/, const nsi_tile* /*tiles*/, uint32_t /*numTiles*/ )
 {
 	// Sample count is 1, so there is no MSAA resolve. Color targets are created
 	// RENDER_TARGET | SHADER_RESOURCE, so defaultState is PIXEL_SHADER_RESOURCE |
@@ -1288,7 +1223,7 @@ void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
 	}
 	else
 	{
-		flags = PROGRAM_FLAGS[shader];
+		flags = m_shaderInfo[shader].resourceFlags;
 		if( flags == 0 || !m_programs[shader].IsValid() )
 		{
 			ReportUnwiredShader( shader );
@@ -1296,13 +1231,12 @@ void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
 		}
 
 		program = &m_programs[shader];
-		format = FormatForVertex[VertexForShader[shader]];
+		format = m_shaderInfo[shader].vertexFormat;
 	}
 
-	// Noesis filters the 256 render-state combinations itself, so a rejection here means our
-	// understanding of the batch is wrong rather than that the state needs skipping.
-	CCP_ASSERT_M( RenderDevice::IsValidState( batch.shader, batch.renderState ),
-				  "Noesis sent a render state that its own validator rejects" );
+	// The SDK's own IsValidState lived on the other side of the boundary. The library
+	// filters the render-state combinations it sends, so there is nothing left to assert
+	// here that would not simply be repeating its work with less information.
 
 	ApplyRenderState( batch );
 
@@ -1312,7 +1246,8 @@ void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
 
 	// vertexOffset is a byte offset from the current Map, matching the SDK's own D3D12 device.
 	// Indices are bound at the chunk base and addressed through startIndex instead.
-	m_context->SetStreamSource( 0, m_vertices.CurrentChunk(), m_vertices.drawPos + batch.vertex_offset, SizeForFormat[format] );
+	m_context->SetStreamSource( 0, m_vertices.CurrentChunk(),
+								m_vertices.drawPos + batch.vertex_offset, m_vertexStrides[format] );
 	m_context->SetIndices( m_indices.CurrentChunk(), 2 );
 
 	BindUniforms( batch, flags );
@@ -1324,7 +1259,7 @@ void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
 	const ALResult result = m_context->DrawIndexedPrimitive( batch.num_vertices, startIndex, batch.num_indices / 3, 0 );
 	if( FAILED( result ) )
 	{
-		CCP_NOESIS_LOGERR( "DrawIndexedPrimitive failed for shader '%s'", SHADER_NAMES[shader] );
+		CCP_NOESIS_LOGERR( "DrawIndexedPrimitive failed for shader '%s'", m_shaderInfo[shader].name );
 		CCP_ASSERT_M( false, "Noesis DrawIndexedPrimitive failed" );
 		return;
 	}
@@ -1332,14 +1267,15 @@ void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
 	if( m_logBatchDetail && Tr2Noesis::IsLogVerbose() )
 	{
 		CCP_NOESIS_LOG( "Batch '%s' state=0x%02x stencilRef=%u vertices=%u indices=%u vertexOffset=%u startIndex=%u",
-						SHADER_NAMES[shader], batch.render_state, batch.stencil_ref,
+						m_shaderInfo[shader].name, batch.render_state, batch.stencil_ref,
 						batch.num_vertices, batch.num_indices, batch.vertex_offset, startIndex );
 	}
 }
 
 void Tr2NoesisRenderDevice::ReportUnwiredShader( uint8_t shader )
 {
-	static_assert( m_pixelShaders.size() <= 64, "the unwired-shader latch is a uint64_t bitset" );
+	CCP_ASSERT_M( m_pixelShaders.size() <= 64,
+				  "the unwired-shader latch is a uint64_t bitset" );
 
 	const uint64_t bit = 1ull << shader;
 	if( ( m_unwiredReported & bit ) != 0 )
@@ -1352,13 +1288,13 @@ void Tr2NoesisRenderDevice::ReportUnwiredShader( uint8_t shader )
 	// that an unwired shader is still being asked for.
 	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) has no program. Custom_Effect and BrushShader "
 					   "permutations need CreatePixelShader plus SetPixelShader on the effect.",
-					   SHADER_NAMES[shader], shader );
+					   m_shaderInfo[shader].name, shader );
 	CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation was never compiled" );
 }
 
 void Tr2NoesisRenderDevice::ReportFrameBatches()
 {
-	if( Tr2Noesis::IsLogVerbose() && memcmp( m_batchCounts, m_reportedCounts, sizeof( m_batchCounts ) ) != 0 )
+	if( Tr2Noesis::IsLogVerbose() && m_batchCounts != m_reportedCounts )
 	{
 		uint32_t total = 0;
 		for( uint32_t shader = 0; shader < m_pixelShaders.size(); ++shader )
@@ -1376,7 +1312,7 @@ void Tr2NoesisRenderDevice::ReportFrameBatches()
 				continue;
 			}
 			const int written = _snprintf_s( histogram + offset, sizeof( histogram ) - offset, _TRUNCATE,
-											 "%s%s=%u", offset == 0 ? "" : ", ", SHADER_NAMES[shader], m_batchCounts[shader] );
+											 "%s%s=%u", offset == 0 ? "" : ", ", m_shaderInfo[shader].name, m_batchCounts[shader] );
 			if( written < 0 )
 			{
 				break;
@@ -1385,10 +1321,10 @@ void Tr2NoesisRenderDevice::ReportFrameBatches()
 		}
 
 		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, total == 0 ? "none" : histogram );
-		memcpy( m_reportedCounts, m_batchCounts, sizeof( m_reportedCounts ) );
+		m_reportedCounts = m_batchCounts;
 	}
 
-	memset( m_batchCounts, 0, sizeof( m_batchCounts ) );
+	std::fill( m_batchCounts.begin(), m_batchCounts.end(), 0u );
 	m_logBatchDetail = false;
 }
 
@@ -1397,7 +1333,7 @@ void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nsi_
 {
 	if( uniforms.values == nullptr || uniforms.num_dwords == 0 )
 	{
-		// PROGRAM_FLAGS says the shader declares this register, so an empty block means our
+		// The shader's resource flags say it declares this register, so an empty block means our
 		// transcription of the SDK's root-signature flags is wrong.
 		CCP_ASSERT_M( false, "Noesis batch omitted a constant buffer that its shader declares" );
 		return;
@@ -1485,8 +1421,8 @@ void Tr2NoesisRenderDevice::BindResources( const nsi_batch& batch, uint32_t flag
 	{
 		uint32_t flag;
 		uint32_t registerIndex;
-		Texture* texture;
-		SamplerState sampler;
+		nsi_texture texture;
+		nsi_sampler_state sampler = 0;
 	} bindings[] = {
 		{ PS_T0, 0, batch.pattern, batch.pattern_sampler },
 		{ PS_T1, 1, batch.ramps, batch.ramps_sampler },
@@ -1508,12 +1444,12 @@ void Tr2NoesisRenderDevice::BindResources( const nsi_batch& batch, uint32_t flag
 			continue;
 		}
 
-		Tr2NoesisTexture* texture = static_cast<Tr2NoesisTexture*>( binding.texture );
+		Tr2NoesisTexture* texture = reinterpret_cast<Tr2NoesisTexture*>( binding.texture );
 		// linearRendering is false, so textures are sampled raw rather than sRGB-converted.
 		// A rejection means the register is absent from the program's map, which would mean
-		// PROGRAM_FLAGS and the signature we built from it disagree.
+		// the resource flags and the signature we built from them disagree.
 		const bool srvSet = description.SetSrv( PIXEL_SHADER, binding.registerIndex, texture->GetAL() );
-		CCP_ASSERT_M( srvSet, "Noesis shader program has no SRV at the register PROGRAM_FLAGS claims" );
+		CCP_ASSERT_M( srvSet, "Noesis shader program has no SRV at the register the resource flags claim" );
 
 		CCP_ASSERT_M( binding.sampler < std::size( m_samplers ), "Noesis sampler index out of range" );
 		const bool samplerSet = description.SetSampler( PIXEL_SHADER, binding.registerIndex, m_samplers[binding.sampler] );
@@ -1528,11 +1464,11 @@ void Tr2NoesisRenderDevice::BindResources( const nsi_batch& batch, uint32_t flag
 		const ALResult result = set.Create( description, program, *m_primary );
 		if( FAILED( result ) )
 		{
-			CCP_NOESIS_LOGERR( "Failed to create a Noesis resource set for shader '%s'", SHADER_NAMES[batch.shader] );
+			CCP_NOESIS_LOGERR( "Failed to create a Noesis resource set for shader '%s'", m_shaderInfo[batch.shader].name );
 			CCP_ASSERT_M( false, "Failed to create a Noesis resource set" );
 			return;
 		}
-		set.SetName( SHADER_NAMES[batch.shader] );
+		set.SetName( m_shaderInfo[batch.shader].name );
 		entry.description = description;
 		entry.set = set;
 	}
@@ -1549,7 +1485,11 @@ void Tr2NoesisRenderDevice::CreateVertexLayouts()
 	for( uint32_t format = 0; format < m_vertexLayouts.size(); ++format )
 	{
 		Tr2VertexDefinition definition;
-		AddVertexAttributes( definition, nullptr, AttributesForFormat[format] );
+		if( !AddVertexAttributes( definition, nullptr, m_vertexFormats[format] ) )
+		{
+			m_valid = false;
+			continue;
+		}
 		const ALResult result = m_vertexLayouts[format].Create( definition, *m_primary );
 		if( FAILED( result ) )
 		{
@@ -1560,106 +1500,215 @@ void Tr2NoesisRenderDevice::CreateVertexLayouts()
 	}
 }
 
+bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
+{
+	// Everything the host needs to build pipelines comes from here. Read once and cached,
+	// because a blob is stable for the life of the process and asking per batch would put
+	// a C call on the hot path for an answer that never changes.
+	const uint32_t formatCount = shaders.get_vertex_format_count( shaders.header.self );
+	if( formatCount == 0 )
+	{
+		CCP_NOESIS_LOGERR( "The Noesis library reported no vertex formats" );
+		return false;
+	}
+
+	m_vertexFormats.resize( formatCount );
+	for( uint32_t format = 0; format < formatCount; ++format )
+	{
+		const uint32_t needed = shaders.get_vertex_format( shaders.header.self, format, nullptr, 0 );
+		if( needed == 0 )
+		{
+			CCP_NOESIS_LOGERR( "Vertex format %u has no attributes", format );
+			return false;
+		}
+
+		m_vertexFormats[format].resize( needed );
+		if( shaders.get_vertex_format( shaders.header.self, format,
+									   m_vertexFormats[format].data(), needed ) != needed )
+		{
+			CCP_NOESIS_LOGERR( "Vertex format %u would not describe itself", format );
+			return false;
+		}
+	}
+
+	const uint32_t blobCount = shaders.get_count( shaders.header.self );
+	for( uint32_t i = 0; i < blobCount; ++i )
+	{
+		nsi_shader_blob blob = {};
+		if( shaders.get_blob( shaders.header.self, i, &blob ) != NSI_OK )
+		{
+			CCP_NOESIS_LOGERR( "Shader blob %u could not be read", i );
+			return false;
+		}
+
+		ShaderInfo info;
+		info.vertexShader = blob.vertex_shader;
+		info.vertexFormat = blob.vertex_format;
+		info.resourceFlags = blob.resource_flags;
+		info.bytecode = blob.bytecode;
+		info.bytecodeSize = blob.size;
+		info.name = blob.name;
+
+		std::vector<ShaderInfo>& table =
+			blob.stage == NSI_SHADER_STAGE_VERTEX ? m_vertexInfo : m_shaderInfo;
+		if( table.size() <= blob.id )
+		{
+			table.resize( blob.id + 1 );
+		}
+		table[blob.id] = info;
+
+		std::vector<Tr2ShaderAL>& shaderTable =
+			blob.stage == NSI_SHADER_STAGE_VERTEX ? m_vertexShaders : m_pixelShaders;
+		if( shaderTable.size() <= blob.id )
+		{
+			shaderTable.resize( blob.id + 1 );
+		}
+
+	}
+
+	if( m_vertexShaders.empty() || m_pixelShaders.empty() )
+	{
+		CCP_NOESIS_LOGERR( "The Noesis library reported %u vertex and %u pixel shaders",
+						   static_cast<uint32_t>( m_vertexShaders.size() ),
+						   static_cast<uint32_t>( m_pixelShaders.size() ) );
+		return false;
+	}
+
+	// The stride of a format is the sum of its attributes, so it is derived rather than
+	// asked for: another entry point would be one more thing that could disagree.
+	m_vertexStrides.assign( formatCount, 0 );
+	for( uint32_t format = 0; format < formatCount; ++format )
+	{
+		uint32_t stride = 0;
+		for( const nsi_vertex_attribute& attr : m_vertexFormats[format] )
+		{
+			stride += VertexAttrSize( attr.type );
+		}
+		m_vertexStrides[format] = stride;
+	}
+
+	m_programs.resize( m_pixelShaders.size() );
+	m_vertexLayouts.resize( formatCount );
+	m_batchCounts.assign( m_pixelShaders.size(), 0 );
+	m_reportedCounts.assign( m_pixelShaders.size(), 0 );
+
+	CCP_NOESIS_LOGNOTICE( "Noesis shaders: %u vertex, %u pixel, %u vertex formats",
+						  static_cast<uint32_t>( m_vertexShaders.size() ),
+						  static_cast<uint32_t>( m_pixelShaders.size() ), formatCount );
+	return true;
+}
+
 void Tr2NoesisRenderDevice::CreateShaders()
 {
 	for( uint32_t vs = 0; vs < m_vertexShaders.size(); ++vs )
 	{
 		Tr2ShaderSignatureAL signature;
 		Tr2VertexDefinition unused;
-		AddVertexAttributes( unused, &signature, AttributesForFormat[FormatForVertex[vs]] );
-		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
-		if( vs >= Shader::Vertex::PosColorTex1_SDF && vs <= Shader::Vertex::PosTex0Tex1RectTile_SDF )
+		if( !AddVertexAttributes( unused, &signature, m_vertexFormats[m_vertexInfo[vs].vertexFormat] ) )
+		{
+			m_valid = false;
+			continue;
+		}
+		if( ( m_vertexInfo[vs].resourceFlags & NSI_SHADER_USES_VS_CB0 ) != 0 )
+		{
+			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
+		}
+		// Which constant buffers a vertex shader binds comes from the library with the
+		// blob, so the SDF range is no longer a fact this side has to know.
+		if( ( m_vertexInfo[vs].resourceFlags & NSI_SHADER_USES_VS_CB1 ) != 0 )
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
 		}
 
-		const Tr2Noesis::ShaderBytecode& bytecode = Tr2Noesis::VERTEX_SHADERS[vs];
+		const ShaderInfo& info = m_vertexInfo[vs];
 		const ALResult result = m_vertexShaders[vs].Create(
 			VERTEX_SHADER,
-			Tr2ShaderBytecodeAL( bytecode.code, bytecode.size ),
+			Tr2ShaderBytecodeAL( info.bytecode, info.bytecodeSize ),
 			signature,
-			bytecode.name,
+			info.name,
 			*m_primary );
 		if( FAILED( result ) )
 		{
-			CCP_NOESIS_LOGERR( "Failed to create Noesis vertex shader '%s'", bytecode.name );
+			CCP_NOESIS_LOGERR( "Failed to create Noesis vertex shader '%s'", info.name );
 			CCP_ASSERT_M( false, "Failed to create Noesis vertex shader" );
 			m_valid = false;
 		}
 		else
 		{
-			m_vertexShaders[vs].SetName( bytecode.name );
+			m_vertexShaders[vs].SetName( info.name );
 		}
 	}
 
 	for( uint32_t shader = 0; shader < m_pixelShaders.size(); ++shader )
 	{
-		const int bytecodeIndex = PixelBytecodeIndex( static_cast<uint8_t>( shader ) );
-		if( bytecodeIndex < 0 )
+		const ShaderInfo& info = m_shaderInfo[shader];
+		if( info.bytecode == nullptr )
 		{
+			// A slot the library did not supply: the custom-effect shader comes from the
+			// effect at draw time, not from here.
 			continue;
 		}
 
-		const uint32_t flags = PROGRAM_FLAGS[shader];
+		// The flags come from the library with the blob, so this signature matches the
+		// bytecode by construction rather than by a table kept in step by hand.
 		Tr2ShaderSignatureAL signature;
-		FillPixelSignature( signature, flags );
+		FillPixelSignature( signature, info.resourceFlags );
 
-		const Tr2Noesis::ShaderBytecode& bytecode = Tr2Noesis::PIXEL_SHADERS[bytecodeIndex];
 		const ALResult result = m_pixelShaders[shader].Create(
 			PIXEL_SHADER,
-			Tr2ShaderBytecodeAL( bytecode.code, bytecode.size ),
+			Tr2ShaderBytecodeAL( info.bytecode, info.bytecodeSize ),
 			signature,
-			bytecode.name,
+			info.name,
 			*m_primary );
 		if( FAILED( result ) )
 		{
-			CCP_NOESIS_LOGERR( "Failed to create Noesis pixel shader '%s'", bytecode.name );
+			CCP_NOESIS_LOGERR( "Failed to create Noesis pixel shader '%s'", info.name );
 			CCP_ASSERT_M( false, "Failed to create Noesis pixel shader" );
 			m_valid = false;
 			continue;
 		}
-		m_pixelShaders[shader].SetName( bytecode.name );
+		m_pixelShaders[shader].SetName( info.name );
 
-		const uint8_t vsIndex = VertexForShader[shader];
+		const uint8_t vsIndex = m_shaderInfo[shader].vertexShader;
 		Tr2ShaderAL stages[] = { m_vertexShaders[vsIndex], m_pixelShaders[shader] };
 		const ALResult programResult = m_programs[shader].Create( stages, 2, *m_primary );
 		if( FAILED( programResult ) )
 		{
-			CCP_NOESIS_LOGERR( "Failed to create Noesis shader program '%s'", bytecode.name );
+			CCP_NOESIS_LOGERR( "Failed to create Noesis shader program '%s'", info.name );
 			CCP_ASSERT_M( false, "Failed to create Noesis shader program" );
 			m_valid = false;
 		}
 		else
 		{
-			m_programs[shader].SetName( bytecode.name );
+			m_programs[shader].SetName( info.name );
 		}
 	}
 }
 
 void Tr2NoesisRenderDevice::CreateSamplers()
 {
-	// SamplerState::v packs wrapMode:3, minmagFilter:1, mipFilter:2; unused:2 must stay 0
+	// nsi_sampler_state packs wrapMode:3, minmagFilter:1, mipFilter:2; unused:2 stays 0
 	// or the index lands past the 64 slots those six bits address.
 	static_assert( sizeof( m_samplers ) / sizeof( m_samplers[0] ) == ( 1u << 6 ),
-				   "m_samplers must cover every 6-bit SamplerState value" );
+				   "m_samplers must cover every 6-bit sampler value" );
 
-	for( uint8_t wrap = 0; wrap < WrapMode::Count; ++wrap )
+	for( uint8_t wrap = 0; wrap <= NSI_WRAP_MIRROR; ++wrap )
 	{
-		for( uint8_t minmag = 0; minmag < MinMagFilter::Count; ++minmag )
+		for( uint8_t minmag = 0; minmag <= NSI_MINMAG_LINEAR; ++minmag )
 		{
-			for( uint8_t mip = 0; mip < MipFilter::Count; ++mip )
+			for( uint8_t mip = 0; mip <= NSI_MIP_LINEAR; ++mip )
 			{
-				SamplerState state = { { wrap, minmag, mip } };
-
-				const WrapMode::Enum wrapMode = static_cast<WrapMode::Enum>( wrap );
-				const MinMagFilter::Enum minMagFilter = static_cast<MinMagFilter::Enum>( minmag );
-				const MipFilter::Enum mipFilter = static_cast<MipFilter::Enum>( mip );
+				// Packed the way nsi.h documents, then unpacked with its own helpers, so
+				// the index a batch arrives with and the slot built here cannot disagree
+				// about where the bits are.
+				const nsi_sampler_state state = static_cast<nsi_sampler_state>(
+					( wrap & 0x7 ) | ( ( minmag & 0x1 ) << 3 ) | ( ( mip & 0x3 ) << 4 ) );
 
 				Tr2SamplerDescription desc;
-				desc.m_minFilter = ToMinMagFilter( minMagFilter );
-				desc.m_magFilter = ToMinMagFilter( minMagFilter );
-				desc.m_mipFilter = ToMipFilter( mipFilter );
-				ToAddressMode( wrapMode, desc );
+				desc.m_minFilter = ToMinMagFilter( nsi_sampler_minmag_filter( state ) );
+				desc.m_magFilter = ToMinMagFilter( nsi_sampler_minmag_filter( state ) );
+				desc.m_mipFilter = ToMipFilter( nsi_sampler_mip_filter( state ) );
+				ToAddressMode( nsi_sampler_wrap_mode( state ), desc );
 				desc.m_addressW = TA_CLAMP;
 				desc.m_mipLODBias = -0.75f;
 				desc.m_maxAnisotropy = 1;
@@ -1671,11 +1720,11 @@ void Tr2NoesisRenderDevice::CreateSamplers()
 				desc.m_borderColor[2] = 0.0f;
 				desc.m_borderColor[3] = 0.0f;
 
-				CCP_ASSERT_M( state.v < std::size( m_samplers ), "Noesis sampler index out of range" );
-				const ALResult result = m_samplers[state.v].Create( desc, *m_primary );
+				CCP_ASSERT_M( state < std::size( m_samplers ), "Noesis sampler index out of range" );
+				const ALResult result = m_samplers[state].Create( desc, *m_primary );
 				if( FAILED( result ) )
 				{
-					CCP_NOESIS_LOGERR( "Failed to create Noesis sampler %u", state.v );
+					CCP_NOESIS_LOGERR( "Failed to create Noesis sampler %u", state );
 					CCP_ASSERT_M( false, "Failed to create Noesis sampler" );
 					m_valid = false;
 				}
@@ -1688,12 +1737,12 @@ void Tr2NoesisRenderDevice::CreateRings()
 {
 	// Chunks are sized at the SDK's per-Map cap, the smallest size that guarantees any
 	// single legal Map fits in a fresh chunk. A frame's total comes from the chunk count.
-	if( !m_vertices.Create( 1, DYNAMIC_VB_SIZE, Tr2GpuUsage::VERTEX_BUFFER, "Vertices", *m_primary ) )
+	if( !m_vertices.Create( 1, NOESIS_DYNAMIC_VB_SIZE, Tr2GpuUsage::VERTEX_BUFFER, "Vertices", *m_primary ) )
 	{
 		m_valid = false;
 	}
 	// Noesis writes 16-bit indices, and the AL reads the index format off the buffer's stride.
-	if( !m_indices.Create( 2, DYNAMIC_IB_SIZE, Tr2GpuUsage::INDEX_BUFFER, "Indices", *m_primary ) )
+	if( !m_indices.Create( 2, NOESIS_DYNAMIC_IB_SIZE, Tr2GpuUsage::INDEX_BUFFER, "Indices", *m_primary ) )
 	{
 		m_valid = false;
 	}
@@ -1737,7 +1786,12 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 	// survive from whichever render step ran before us.
 	CCP_ASSERT_M( m_context != nullptr, "ApplyRenderState without a render context" );
 
-	const Noesis::RenderState state = batch.renderState;
+	// Unpacked with nsi.h's own helpers rather than by re-deriving the shifts from the
+	// comment on nsi_render_state.
+	const nsi_render_state state = batch.render_state;
+	const nsi_blend_mode blendMode = nsi_render_state_blend_mode( state );
+	const bool colorEnable = nsi_render_state_color_enable( state ) != NSI_FALSE;
+	const bool wireframe = nsi_render_state_wireframe( state ) != NSI_FALSE;
 	// Two entries per state, and the count below is the ceiling for any one batch.
 	uint32_t pairs[2 * 32];
 	const uint32_t capacity = static_cast<uint32_t>( std::size( pairs ) );
@@ -1754,16 +1808,16 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 	};
 
 	add( RS_CULLMODE, CULLMODE_NONE );
-	add( RS_FILLMODE, state.f.wireframe ? FM_WIREFRAME : FM_SOLID );
+	add( RS_FILLMODE, wireframe ? FM_WIREFRAME : FM_SOLID );
 	add( RS_DEPTHBIAS, 0 );
 	add( RS_SLOPESCALEDEPTHBIAS, 0 );
 	add( RS_DEPTH_CLIP_ENABLE, 1 );
 	add( RS_ZWRITEENABLE, 0 );
-	add( RS_COLORWRITEENABLE, state.f.colorEnable ? ( COLORWRITEENABLE_RED | COLORWRITEENABLE_GREEN | COLORWRITEENABLE_BLUE | COLORWRITEENABLE_ALPHA ) : 0 );
+	add( RS_COLORWRITEENABLE, colorEnable ? ( COLORWRITEENABLE_RED | COLORWRITEENABLE_GREEN | COLORWRITEENABLE_BLUE | COLORWRITEENABLE_ALPHA ) : 0 );
 	add( RS_SRGBWRITEENABLE, 0 );
 	add( RS_ALPHATESTENABLE, 0 );
 
-	if( state.f.colorEnable && state.f.blendMode != Noesis::BlendMode::Src )
+	if( colorEnable && blendMode != NSI_BLEND_SRC )
 	{
 		add( RS_ALPHABLENDENABLE, 1 );
 		add( RS_SEPARATEALPHABLENDENABLE, 1 );
@@ -1772,25 +1826,25 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 		add( RS_SRCBLENDALPHA, BM_ONE );
 		add( RS_DESTBLENDALPHA, BM_INVSRCALPHA );
 
-		switch( state.f.blendMode )
+		switch( blendMode )
 		{
-		case Noesis::BlendMode::SrcOver:
+		case NSI_BLEND_SRC_OVER:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRCALPHA );
 			break;
-		case Noesis::BlendMode::SrcOver_Multiply:
+		case NSI_BLEND_SRC_OVER_MULTIPLY:
 			add( RS_SRCBLEND, BM_DESTCOLOR );
 			add( RS_DESTBLEND, BM_INVSRCALPHA );
 			break;
-		case Noesis::BlendMode::SrcOver_Screen:
+		case NSI_BLEND_SRC_OVER_SCREEN:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRCCOLOR );
 			break;
-		case Noesis::BlendMode::SrcOver_Additive:
+		case NSI_BLEND_SRC_OVER_ADDITIVE:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_ONE );
 			break;
-		case Noesis::BlendMode::SrcOver_Dual:
+		case NSI_BLEND_SRC_OVER_DUAL:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRC1COLOR );
 			add( RS_DESTBLENDALPHA, BM_INVSRC1ALPHA );
@@ -1808,31 +1862,33 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 		add( RS_SEPARATEALPHABLENDENABLE, 0 );
 	}
 
-	const bool zTest = state.f.stencilMode == StencilMode::Disabled_ZTest || state.f.stencilMode == StencilMode::Equal_Keep_ZTest;
+	const nsi_stencil_mode stencilMode = nsi_render_state_stencil_mode( state );
+	const bool zTest = stencilMode == NSI_STENCIL_DISABLED_ZTEST ||
+					   stencilMode == NSI_STENCIL_EQUAL_KEEP_ZTEST;
 	add( RS_ZENABLE, zTest ? 1 : 0 );
 	add( RS_ZFUNC, CMP_GREATEREQUAL );
 
 	bool stencilEnable = false;
 	uint32_t stencilFunc = CMP_EQUAL;
 	uint32_t stencilPass = STENCILOP_KEEP;
-	switch( state.f.stencilMode )
+	switch( stencilMode )
 	{
-	case StencilMode::Disabled:
-	case StencilMode::Disabled_ZTest:
+	case NSI_STENCIL_DISABLED:
+	case NSI_STENCIL_DISABLED_ZTEST:
 		break;
-	case StencilMode::Equal_Keep:
-	case StencilMode::Equal_Keep_ZTest:
+	case NSI_STENCIL_EQUAL_KEEP:
+	case NSI_STENCIL_EQUAL_KEEP_ZTEST:
 		stencilEnable = true;
 		break;
-	case StencilMode::Equal_Incr:
+	case NSI_STENCIL_EQUAL_INCR:
 		stencilEnable = true;
 		stencilPass = STENCILOP_INCR;
 		break;
-	case StencilMode::Equal_Decr:
+	case NSI_STENCIL_EQUAL_DECR:
 		stencilEnable = true;
 		stencilPass = STENCILOP_DECR;
 		break;
-	case StencilMode::Clear:
+	case NSI_STENCIL_CLEAR:
 		stencilEnable = true;
 		stencilFunc = CMP_ALWAYS;
 		stencilPass = STENCILOP_ZERO;
@@ -1862,47 +1918,8 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 	}
 }
 
-// --------------------------------------------------------------------------------------
-// The process-wide device
-// --------------------------------------------------------------------------------------
-
-namespace Tr2Noesis
-{
-
-Tr2NoesisRenderDevice* GetRenderDevice()
-{
-	// Intentionally leaked; see the declaration.
-	static Tr2NoesisRenderDevice* s_device = nullptr;
-	static bool s_attempted = false;
-
-	if( s_attempted )
-	{
-		return s_device;
-	}
-	s_attempted = true;
-
-	USE_MAIN_THREAD_RENDER_CONTEXT();
-
-	// Plain new: BaseObject overrides operator new to reach Noesis's memory manager, which our
-	// callbacks point back at Carbon, so this is still tagged and counted in the noesisMem stat.
-	Tr2NoesisRenderDevice* device = new Tr2NoesisRenderDevice( renderContext.GetPrimaryRenderContext() );
-	if( !device->IsValid() )
-	{
-		// One attempt only. A device that failed to build its shaders will not build them on
-		// the next frame either, and retrying would repeat the whole assert storm every frame.
-		CCP_NOESIS_LOGERR( "Noesis render device is unusable; no Noesis rendering will happen this session" );
-		delete device;
-		return nullptr;
-	}
-
-	CCP_NOESIS_LOGNOTICE( "Noesis render device ready: %u vertex shaders, %u pixel shaders",
-						  static_cast<uint32_t>( m_vertexShaders.size() ),
-						  static_cast<uint32_t>( Tr2Noesis::PIXEL_SHADER_COUNT ) );
-
-	s_device = device;
-	return s_device;
-}
-
-}
+// The process-wide device factory used to live here. Tr2NoesisHost owns the device now:
+// Python creates the host and hands it to the library, so there is no global to find and
+// nothing to attempt lazily on the first frame.
 
 #endif

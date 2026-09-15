@@ -20,6 +20,12 @@ const Be::ClassInfo* Tr2Sprite2dNoesis::ExposeToBlue()
 			"The Tr2NoesisView to render",
 			Be::READWRITE )
 
+		MAP_ATTRIBUTE(
+			"host",
+			m_host,
+			"The Tr2NoesisHost to render through",
+			Be::READWRITE )
+
 	EXPOSURE_CHAINTO( Tr2SpriteObjectBase )
 }
 

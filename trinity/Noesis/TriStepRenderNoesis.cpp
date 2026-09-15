@@ -8,7 +8,7 @@
 
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisHost.h"
-#include "Noesis/TriNoesisLibrary.h"
+
 #include "Tr2RenderContext.h"
 
 TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
@@ -18,7 +18,7 @@ TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
 	m_overrideY( 0 ),
 	m_overrideWidth( 0 ),
 	m_overrideHeight( 0 ),
-	m_viewHandle( nullptr ),
+	m_viewApi( nullptr ),
 	m_hasOverrideClip( false ),
 	m_overrideClipLeft( 0 ),
 	m_overrideClipTop( 0 ),
@@ -31,15 +31,23 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 {
 	CCP_STATS_ZONE( __FUNCTION__ );
 
-	// Nothing to do without the module, which is the normal state for a client that never
-	// loads any Noesis UI.
-	if( !TriNoesis::IsAvailable() )
+	// Nothing wired, or nothing loaded: the normal state for a client with no Noesis UI.
+	Tr2NoesisHost* host = GetHostObject();
+	if( host == nullptr || m_viewApi == nullptr ||
+		!m_viewApi->is_loaded( m_viewApi->header.self ) )
 	{
 		return RS_OK;
 	}
 
-	const TriNoesis::Api& noesis = TriNoesis::GetApi();
-	if( m_viewHandle == nullptr || !noesis.ViewIsLoaded( m_viewHandle ) )
+	// First frame builds the device. Here rather than when Python wired the host, because
+	// this runs on the render thread with a live context and that does not.
+	if( !host->EnsureDevice() )
+	{
+		return RS_OK;
+	}
+
+	const nsi_frame_host* frame = host->GetNsiFrameHost();
+	if( frame == nullptr )
 	{
 		return RS_OK;
 	}
@@ -53,8 +61,11 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// The device is Trinity-owned and reaches the library through the nsi_render_host
 	// vtable. Bringing up the renderer creates GPU resources, so it belongs inside the
 	// bracket rather than at load time.
-	if( !noesis.ViewEnsureRenderer( m_viewHandle ) )
+	host->BeginFrame( renderContext );
+
+	if( !m_viewApi->ensure_renderer( m_viewApi->header.self, frame ) )
 	{
+		host->EndFrame();
 		renderContext.m_esm.EndManagedRendering();
 		return RS_OK;
 	}
@@ -73,18 +84,16 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	noesis.ViewSyncSize( m_viewHandle, static_cast<uint32_t>( vp.width ),
-						 static_cast<uint32_t>( vp.height ) );
-
-	Tr2Noesis::SetRenderContext( renderContext );
+	m_viewApi->sync_size( m_viewApi->header.self, static_cast<uint32_t>( vp.width ),
+						  static_cast<uint32_t>( vp.height ) );
 
 	// Absolute seconds since an arbitrary origin, not a delta. Be::Time counts 100ns ticks.
-	noesis.ViewUpdate( m_viewHandle, static_cast<double>( realTime ) / 10000000.0 );
+	m_viewApi->update( m_viewApi->header.self, static_cast<double>( realTime ) / 10000000.0 );
 
 	// Everything below is ordered as the SDK requires: the render tree is only safe to read
 	// after UpdateRenderTree, and the offscreen phase must finish before the onscreen draw
 	// because the onscreen pass samples what it produced.
-	noesis.ViewUpdateRenderTree( m_viewHandle );
+	m_viewApi->update_render_tree( m_viewApi->header.self, frame );
 
 	// Bracketed unconditionally. RenderOffscreen's return value says whether it drew anything,
 	// but the target has to be saved before the call either way, so it is only good for logging.
@@ -92,7 +101,8 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	renderContext.m_esm.PushRenderTarget();
 	const bool pushedDepthStencil = renderContext.m_esm.PushDepthStencilBuffer();
 
-	const bool renderedOffscreen = noesis.ViewRenderOffscreen( m_viewHandle ) != NSI_FALSE;
+	const bool renderedOffscreen =
+		m_viewApi->render_offscreen( m_viewApi->header.self, frame ) != NSI_FALSE;
 
 	if( pushedDepthStencil )
 	{
@@ -131,14 +141,14 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		clip.m_bottom = m_overrideClipBottom;
 		// Host-side state: begin_onscreen_render applies it when the library calls in, so
 		// the clip never crosses the ABI.
-		Tr2Noesis::SetHostScissor( clip );
+		host->SetHostScissor( clip );
 	}
 
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
-	noesis.ViewRender( m_viewHandle, NSI_FALSE, NSI_FALSE );
+	m_viewApi->render( m_viewApi->header.self, frame, NSI_FALSE, NSI_FALSE );
 
-	Tr2Noesis::ClearHostScissor();
+	host->ClearHostScissor();
 
 	renderContext.SetViewport( renderContext.m_esm.GetDeviceViewport() );
 
@@ -147,6 +157,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	renderContext.SetStreamSource( 0, Tr2BufferAL(), 0, 0 );
 	renderContext.SetShaderProgram( Tr2ShaderProgramAL() );
 
+	host->EndFrame();
 	renderContext.m_esm.EndManagedRendering();
 
 	if( renderedOffscreen && Tr2Noesis::IsLogVerbose() )
@@ -165,21 +176,40 @@ void TriStepRenderNoesis::py__init__( IRoot* view )
 void TriStepRenderNoesis::SetView( IRoot* view )
 {
 	m_view = view;
-	m_viewHandle = nullptr;
 
-	if( view == nullptr || !TriNoesis::IsAvailable() )
-	{
-		return;
-	}
-
-	// Asks the library whether this object is one of its views, rather than assuming.
-	// A wrong object leaves the handle null and the step simply draws nothing.
-	m_viewHandle = TriNoesis::GetApi().ViewFromIRoot( view );
-	if( m_viewHandle == nullptr )
+	// Asks the object whether it is a view rather than assuming. A wrong object leaves
+	// the api null and the step simply draws nothing.
+	m_viewApi = Nsi::QueryViewApi( view );
+	if( view != nullptr && m_viewApi == nullptr )
 	{
 		CCP_NOESIS_LOGERR( "TriStepRenderNoesis was given an object that is not a Noesis "
-						   "view; it will render nothing" );
+						   "view, or one speaking an incompatible nsi ABI; it will render "
+						   "nothing" );
 	}
+}
+
+void TriStepRenderNoesis::SetHost( IRoot* host )
+{
+	m_host = host;
+}
+
+IRoot* TriStepRenderNoesis::GetHost() const
+{
+	return m_host;
+}
+
+Tr2NoesisHost* TriStepRenderNoesis::GetHostObject() const
+{
+	if( m_host == nullptr )
+	{
+		return nullptr;
+	}
+
+	// Readiness is not checked here: the device is built on the first Execute, so a host
+	// that is merely not-yet-built must still be returned.
+	Tr2NoesisHostPtr host;
+	host = BlueCastPtr( static_cast<IRoot*>( m_host ) );
+	return host;
 }
 
 IRoot* TriStepRenderNoesis::GetView() const

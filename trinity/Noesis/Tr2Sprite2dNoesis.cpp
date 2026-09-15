@@ -8,7 +8,7 @@
 
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisHost.h"
-#include "Noesis/TriNoesisLibrary.h"
+
 #include "Noesis/TriStepRenderNoesis.h"
 #include "RenderJob/TriRenderJob.h"
 #include "Sprite2d/Tr2Sprite2dPickingMask.h"
@@ -31,12 +31,27 @@ void Tr2Sprite2dNoesis::SetView( IRoot* view )
 	if( m_step )
 	{
 		m_step->SetView( m_view );
+		m_step->SetHost( m_host );
 	}
 }
 
 IRoot* Tr2Sprite2dNoesis::GetView() const
 {
 	return m_view;
+}
+
+void Tr2Sprite2dNoesis::SetHost( IRoot* host )
+{
+	m_host = host;
+	if( m_step )
+	{
+		m_step->SetHost( m_host );
+	}
+}
+
+IRoot* Tr2Sprite2dNoesis::GetHost() const
+{
+	return m_host;
 }
 
 void Tr2Sprite2dNoesis::EnsureJob()
@@ -143,12 +158,12 @@ void Tr2Sprite2dNoesis::GatherSprites( Tr2Sprite2dScene* renderer )
 		return;
 	}
 
-	if( !m_view || !TriNoesis::IsAvailable() ||
-		!TriNoesis::GetApi().ViewIsLoaded( TriNoesis::GetApi().ViewFromIRoot( m_view ) ) )
+	const nsi_view_api* viewApi = Nsi::QueryViewApi( m_view );
+	if( viewApi == nullptr || !viewApi->is_loaded( viewApi->header.self ) )
 	{
 		if( Tr2Noesis::IsLogVerbose() )
 		{
-			CCP_NOESIS_LOG( "Tr2Sprite2dNoesis skip: %s", !m_view ? "no view" : "view not loaded" );
+			CCP_NOESIS_LOG( "Tr2Sprite2dNoesis skip: %s", m_view == nullptr ? "no view" : "view not loaded" );
 		}
 		return;
 	}

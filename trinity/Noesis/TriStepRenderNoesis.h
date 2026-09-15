@@ -6,7 +6,7 @@
 
 #if WITH_NOESIS
 
-#include "Noesis/TriNoesisLibrary.h"
+#include "Noesis/Tr2NoesisHost.h"
 #include "RenderJob/TriRenderStep.h"
 
 // --------------------------------------------------------------------------------------
@@ -40,6 +40,10 @@ public:
 	void SetView( IRoot* view );
 	IRoot* GetView() const;
 
+	// The Tr2NoesisHost this step renders through. Without one the step draws nothing.
+	void SetHost( IRoot* host );
+	IRoot* GetHost() const;
+
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
 	// so the step follows the viewport the job already bound. The rect is the layout
@@ -52,8 +56,15 @@ public:
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:
+	// Null unless a ready host is set. Resolved per frame rather than cached, because
+	// Python may rewire or rebuild the host between frames.
+	Tr2NoesisHost* GetHostObject() const;
+
+	// The view and the host both belong to other modules; held as the Blue objects they
+	// are, with the vtables resolved once when they are set.
 	IRootPtr m_view;
-	nsi_view m_viewHandle;
+	const nsi_view_api* m_viewApi;
+	IRootPtr m_host;
 	bool m_hasOverrideViewport;
 	int m_overrideX;
 	int m_overrideY;
