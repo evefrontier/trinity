@@ -48,31 +48,14 @@ else()
 
 endif()
 
-option(WITH_NOESIS "Compile with NoesisGUI support" OFF)
-
-if(WITH_NOESIS)
-    list(APPEND VCPKG_MANIFEST_FEATURES "with-noesis")
-endif()
+#[[
+    The Noesis integration lives in frontier-noesis. Trinity builds only the host side of
+    the nsi.h boundary, which needs the ABI header and nothing else -- no SDK, no shader
+    permutations, no licence. See trinity/Noesis and FRONTIER_NOESIS_DIR.
+]]
+option(WITH_NOESIS "Build the host side of the Noesis integration" OFF)
 
 project(carbon-trinity VERSION 1.0.0)
-
-if(WITH_NOESIS)
-    if(BUILD_FOR_PYTHON_2)
-        message(FATAL_ERROR "WITH_NOESIS requires vcpkg (not BUILD_FOR_PYTHON_2)")
-    endif()
-
-    find_package(noesis CONFIG REQUIRED)
-    message(STATUS "Compiling with NoesisGUI shaders from ${Noesis_SHADER_SOURCE_DIR}")
-
-    #[[
-        NoesisLicense.h defaults both of these to the empty string and tells you not to edit it,
-        since an SDK upgrade overwrites the file. Setting them here makes acquiring a licence a
-        build configuration change rather than a code change, and keeps the key out of the tree.
-        Leaving them empty is supported: Noesis runs in evaluation mode, which stops working ten
-        minutes in, and Tr2Noesis::EnsureInitialized warns loudly about it.
-    ]]
-    set(NOESIS_LICENSE_NAME "" CACHE STRING "NoesisGUI licence name")
-    set(NOESIS_LICENSE_KEY "" CACHE STRING "NoesisGUI licence key")
 endif()
 
 if (BUILD_FOR_PYTHON_2)

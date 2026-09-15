@@ -20,6 +20,23 @@ inline CcpLogChannel_t& GetNoesisChannel()
 #define CCP_NOESIS_LOGNOTICE( ... ) CCP_LOGNOTICE_CH( CCP::GetNoesisChannel(), __VA_ARGS__ )
 #define CCP_NOESIS_LOGWARN( ... ) CCP_LOGWARN_CH( CCP::GetNoesisChannel(), __VA_ARGS__ )
 
+namespace Tr2Noesis
+{
+
+// True when /noesisLogVerbose was set at startup. The library has its own copy of this
+// for its own logging; a static cannot be shared across the two modules, and neither
+// side should have to ask the other just to decide whether to log.
+inline bool IsLogVerbose()
+{
+	static const bool s_verbose = []() {
+		const auto arg = BeOS->GetStartupArgValue( L"noesisLogVerbose" );
+		return !arg.empty() && arg != L"0";
+	}();
+	return s_verbose;
+}
+
+}
+
 #endif
 
 #endif

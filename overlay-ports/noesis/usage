@@ -1,5 +1,0 @@
-noesis is compatible with built-in CMake targets:
-
-    find_package(noesis CONFIG REQUIRED)
-    target_link_libraries(main PRIVATE Noesis::Noesis Noesis::NoesisEditor)
-    # ShaderVS.hlsl / ShaderPS.hlsl live in ${Noesis_SHADER_SOURCE_DIR}

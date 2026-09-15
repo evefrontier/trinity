@@ -6,7 +6,7 @@
 
 #if WITH_NOESIS
 
-#include "Noesis/Tr2NoesisView.h"
+#include "Noesis/TriNoesisLibrary.h"
 #include "RenderJob/TriRenderStep.h"
 
 // --------------------------------------------------------------------------------------
@@ -32,10 +32,13 @@ public:
 	// IRenderStep
 	TriStepResult Execute( Be::Time realTime, Be::Time simTime, Tr2RenderContext& renderContext );
 
-	void py__init__( Tr2NoesisView* view );
+	// The view lives in the Noesis module, whose C++ types Trinity cannot name. It is
+	// held as the Blue object it is, with the library's handle beside it; nsi.h says the
+	// handle borrows, so the IRootPtr is what keeps it alive.
+	void py__init__( IRoot* view );
 
-	void SetView( Tr2NoesisView* view );
-	Tr2NoesisView* GetView() const;
+	void SetView( IRoot* view );
+	IRoot* GetView() const;
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
@@ -49,7 +52,8 @@ public:
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:
-	Tr2NoesisViewPtr m_view;
+	IRootPtr m_view;
+	nsi_view m_viewHandle;
 	bool m_hasOverrideViewport;
 	int m_overrideX;
 	int m_overrideY;

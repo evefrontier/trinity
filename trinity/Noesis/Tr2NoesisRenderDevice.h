@@ -6,9 +6,7 @@
 
 #if WITH_NOESIS
 
-#include <NsRender/RenderDevice.h>
-#include <NsRender/RenderTarget.h>
-#include <NsRender/Texture.h>
+#include <nsi.h>
 
 #include <../trinityal/include/TrinityAL.h>
 
@@ -18,8 +16,13 @@
 
 // --------------------------------------------------------------------------------------
 // Description:
-//   NoesisGUI Texture and RenderTarget over Tr2TextureAL, plus the RenderDevice that
-//   owns shaders, layouts, samplers and the dynamic vertex/index rings.
+//   GPU resources over Tr2TextureAL, plus the device that owns shaders, layouts,
+//   samplers and the dynamic vertex/index rings.
+//
+//   No NoesisGUI types appear here. The library owns the SDK; this side is reached only
+//   through the nsi.h vtables, and the handles it hands out are pointers to the two
+//   structs below. Releasing a handle destroys the wrapper, which for a wrapped host
+//   texture leaves the underlying AL resource alone -- see release_texture in nsi.h.
 //
 //   DrawBatch draws every compiled permutation. Custom_Effect and BrushShader
 //   permutations come from CreatePixelShader; the batch carries that handle in
@@ -34,7 +37,7 @@
 //   state before it returns (see UpdateTexture).
 // --------------------------------------------------------------------------------------
 
-class Tr2NoesisTexture : public Noesis::Texture
+class Tr2NoesisTexture
 {
 public:
 	Tr2NoesisTexture( Tr2TextureAL texture, uint32_t width, uint32_t height, uint32_t levels, bool hasAlpha );
@@ -56,12 +59,12 @@ private:
 	bool m_hasAlpha;
 };
 
-class Tr2NoesisRenderTarget : public Noesis::RenderTarget
+class Tr2NoesisRenderTarget
 {
 public:
-	Tr2NoesisRenderTarget( Noesis::Ptr<Tr2NoesisTexture> color, Tr2TextureAL stencil, uint32_t width, uint32_t height );
+	Tr2NoesisRenderTarget( Tr2NoesisTexture* color, Tr2TextureAL stencil, uint32_t width, uint32_t height );
 
-	Noesis::Texture* GetTexture() override;
+	Tr2NoesisTexture* GetTexture();
 
 	Tr2NoesisTexture* GetColor();
 	Tr2TextureAL& GetStencil();
@@ -70,16 +73,19 @@ public:
 	uint32_t GetHeight() const;
 
 private:
-	Noesis::Ptr<Tr2NoesisTexture> m_color;
+	Tr2NoesisTexture* m_color;
 	Tr2TextureAL m_stencil;
 	uint32_t m_width;
 	uint32_t m_height;
 };
 
-class Tr2NoesisRenderDevice : public Noesis::RenderDevice
+class Tr2NoesisRenderDevice
 {
 public:
-	explicit Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primaryContext );
+	// Takes the shader permutations and vertex formats from the library; there is no SDK
+	// on this side to get them from.
+	Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primaryContext,
+						   const nsi_shader_source& shaders );
 	~Tr2NoesisRenderDevice();
 
 	// False if any shader, layout, sampler or ring failed during construction. The constructor
@@ -97,36 +103,36 @@ public:
 	void SetHostScissor( const Tr2ScissorRect& rect );
 	void ClearHostScissor();
 
-	const Noesis::DeviceCaps& GetCaps() const override;
-	Noesis::Ptr<Noesis::RenderTarget> CreateRenderTarget( const char* label, uint32_t width, uint32_t height,
-														  uint32_t sampleCount, bool needsStencil ) override;
-	Noesis::Ptr<Noesis::RenderTarget> CloneRenderTarget( const char* label, Noesis::RenderTarget* surface ) override;
-	Noesis::Ptr<Noesis::Texture> CreateTexture( const char* label, uint32_t width, uint32_t height,
-												uint32_t numLevels, Noesis::TextureFormat::Enum format, const void** data ) override;
+	void GetCaps( nsi_device_caps& out ) const;
+	Tr2NoesisRenderTarget* CreateRenderTarget( const char* label, uint32_t width, uint32_t height,
+											   uint32_t sampleCount, bool needsStencil );
+	Tr2NoesisRenderTarget* CloneRenderTarget( const char* label, Tr2NoesisRenderTarget* surface );
+	Tr2NoesisTexture* CreateTexture( const char* label, uint32_t width, uint32_t height,
+									 uint32_t numLevels, nsi_texture_format format, const void** data );
 	// Wraps an existing Trinity texture so Noesis can sample it. The AL handle is copied
 	// (shared ownership of the GPU resource). hasAlpha is what Noesis reports to brushes.
-	Noesis::Ptr<Noesis::Texture> WrapTexture( const Tr2TextureAL& texture, bool hasAlpha );
+	Tr2NoesisTexture* WrapTexture( const Tr2TextureAL& texture, bool hasAlpha );
 	// Compiles a custom pixel shader from a ShaderCompiler blob (4-byte root-signature
 	// flags, then DXBC) and pairs it with the stock vertex shader for `shader`.
 	// The returned handle is what ShaderEffect::SetPixelShader / BrushShader::SetPixelShader
 	// store; DrawBatch looks it up from Batch::pixelShader. Null on failure.
 	void* CreatePixelShader( const char* label, uint8_t shader, const void* hlsl, uint32_t size );
 	void ClearPixelShaders();
-	void UpdateTexture( Noesis::Texture* texture, uint32_t level, uint32_t x, uint32_t y,
-						uint32_t width, uint32_t height, const void* data ) override;
-	void BeginOffscreenRender() override;
-	void EndOffscreenRender() override;
-	void BeginOnscreenRender() override;
-	void EndOnscreenRender() override;
-	void SetRenderTarget( Noesis::RenderTarget* surface ) override;
-	void BeginTile( Noesis::RenderTarget* surface, const Noesis::Tile& tile ) override;
-	void EndTile( Noesis::RenderTarget* surface ) override;
-	void ResolveRenderTarget( Noesis::RenderTarget* surface, const Noesis::Tile* tiles, uint32_t numTiles ) override;
-	void* MapVertices( uint32_t bytes ) override;
-	void UnmapVertices() override;
-	void* MapIndices( uint32_t bytes ) override;
-	void UnmapIndices() override;
-	void DrawBatch( const Noesis::Batch& batch ) override;
+	void UpdateTexture( Tr2NoesisTexture* texture, uint32_t level, uint32_t x, uint32_t y,
+						uint32_t width, uint32_t height, const void* data );
+	void BeginOffscreenRender();
+	void EndOffscreenRender();
+	void BeginOnscreenRender();
+	void EndOnscreenRender();
+	void SetRenderTarget( Tr2NoesisRenderTarget* surface );
+	void BeginTile( Tr2NoesisRenderTarget* surface, const nsi_tile& tile );
+	void EndTile( Tr2NoesisRenderTarget* surface );
+	void ResolveRenderTarget( Tr2NoesisRenderTarget* surface, const nsi_tile* tiles, uint32_t numTiles );
+	void* MapVertices( uint32_t bytes );
+	void UnmapVertices();
+	void* MapIndices( uint32_t bytes );
+	void UnmapIndices();
+	void DrawBatch( const nsi_batch& batch );
 
 private:
 	struct DynamicRing
@@ -210,18 +216,18 @@ private:
 	void CreateSamplers();
 	void CreateRings();
 	void SyncRingsToCurrentFrame();
-	void ApplyRenderState( const Noesis::Batch& batch );
-	void BindUniform( Tr2ConstantBufferAL& buffer, const Noesis::UniformData& uniforms,
+	void ApplyRenderState( const nsi_batch& batch );
+	void BindUniform( Tr2ConstantBufferAL& buffer, const nsi_uniform_data& uniforms,
 					  Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name );
-	void BindUniforms( const Noesis::Batch& batch, uint32_t flags );
-	void BindResources( const Noesis::Batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId );
+	void BindUniforms( const nsi_batch& batch, uint32_t flags );
+	void BindResources( const nsi_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId );
 	void ReportUnwiredShader( uint8_t shader );
 	void ReportFrameBatches();
 	bool EnsureOnscreenStencil( uint32_t width, uint32_t height );
 
 	Tr2PrimaryRenderContextAL* m_primary;
 	Tr2RenderContextAL* m_context;
-	Noesis::DeviceCaps m_caps;
+	nsi_device_caps m_caps;
 	bool m_valid;
 	// Onscreen ClipToBounds is stencil; Transform3D is a reverse-Z depth test
 	// with writes off. The sprite/UI path has no S8 plane (null DS, or the 3D
@@ -231,13 +237,16 @@ private:
 	bool m_hasHostScissor;
 	Tr2ScissorRect m_hostScissor;
 
-	Tr2ShaderAL m_vertexShaders[Noesis::Shader::Vertex::Count];
-	Tr2ShaderAL m_pixelShaders[Noesis::Shader::Count];
-	Tr2ShaderProgramAL m_programs[Noesis::Shader::Count];
-	Tr2VertexLayoutAL m_vertexLayouts[Noesis::Shader::Vertex::Format::Count];
+	// Sized from the shader source rather than an SDK constant: how many permutations
+	// and vertex formats exist is the library's business now, and a build of it with
+	// more or fewer must not need a matching change here.
+	std::vector<Tr2ShaderAL> m_vertexShaders;
+	std::vector<Tr2ShaderAL> m_pixelShaders;
+	std::vector<Tr2ShaderProgramAL> m_programs;
+	std::vector<Tr2VertexLayoutAL> m_vertexLayouts;
 
 	// Handles returned by CreatePixelShader are 1-based indices into this vector.
-	// ShaderEffect / BrushShader store them in Batch::pixelShader.
+	// ShaderEffect / BrushShader store them in nsi_batch::pixel_shader.
 	struct CustomProgram
 	{
 		Tr2ShaderAL pixelShader;
@@ -246,7 +255,7 @@ private:
 		uint8_t vertexFormat = 0;
 	};
 	std::vector<CustomProgram> m_customShaders;
-	// Indexed by Noesis::SamplerState::v. Six meaningful bits (wrapMode:3, minmagFilter:1,
+	// Indexed by nsi_sampler_state. Six meaningful bits (wrapMode:3, minmagFilter:1,
 	// mipFilter:2) address 64 slots; unused:2 must stay zero or the index is out of range.
 	Tr2SamplerStateAL m_samplers[64];
 
@@ -261,8 +270,8 @@ private:
 	std::unordered_map<uint64_t, ResourceSetEntry> m_resourceSets;
 
 	// Per-frame batch histogram, reported from EndOnscreenRender when it changes.
-	uint32_t m_batchCounts[Noesis::Shader::Count];
-	uint32_t m_reportedCounts[Noesis::Shader::Count];
+	std::vector<uint32_t> m_batchCounts;
+	std::vector<uint32_t> m_reportedCounts;
 	// One assert per unwired shader; the histogram carries the recurrence.
 	uint64_t m_unwiredReported;
 	bool m_logBatchDetail;

@@ -1836,306 +1836,47 @@ if(WITH_GRANNY)
     list(APPEND _SOURCES ${GRANNY_RELATED_SOURCES})
 endif()
 
+#[[
+    Noesis lives in frontier-noesis now. Trinity keeps only the host side: the render
+    device behind the nsi.h vtables, and the two Blue adapters that drive a view from a
+    render job or a sprite tree. The SDK, the shader permutations and everything
+    Python-facing moved out, so nothing here includes or links NoesisGUI.
+]]
 set(NOESIS_RELATED_SOURCES
-    Noesis/Tr2NoesisFontProvider.cpp
-    Noesis/Tr2NoesisFontProvider.h
-    Noesis/Tr2NoesisTextureDecode.cpp
-    Noesis/Tr2NoesisTextureDecode.h
-    Noesis/Tr2NoesisTextureProvider.cpp
-    Noesis/Tr2NoesisTextureProvider.h
+    Noesis/Tr2NoesisHost.cpp
+    Noesis/Tr2NoesisHost.h
     Noesis/Tr2NoesisLog.h
-    Noesis/Tr2NoesisResFile.cpp
-    Noesis/Tr2NoesisResFile.h
     Noesis/Tr2NoesisRenderDevice.cpp
     Noesis/Tr2NoesisRenderDevice.h
-    Noesis/Tr2NoesisShaders.cpp
-    Noesis/Tr2NoesisShaders.h
-    Noesis/Tr2NoesisSystem.cpp
-    Noesis/Tr2NoesisSystem.h
-    Noesis/Tr2NoesisSystem_Blue.cpp
-    Noesis/Tr2NoesisVideo.cpp
-    Noesis/Tr2NoesisVideo.h
-    Noesis/Tr2NoesisVideo_Blue.cpp
-    Noesis/Tr2NoesisView.cpp
-    Noesis/Tr2NoesisView.h
-    Noesis/Tr2NoesisView_Blue.cpp
-    Noesis/Tr2NoesisXamlProvider.cpp
-    Noesis/Tr2NoesisXamlProvider.h
-    Noesis/TriStepRenderNoesis.cpp
-    Noesis/TriStepRenderNoesis.h
-    Noesis/TriStepRenderNoesis_Blue.cpp
     Noesis/Tr2Sprite2dNoesis.cpp
     Noesis/Tr2Sprite2dNoesis.h
     Noesis/Tr2Sprite2dNoesis_Blue.cpp
-    Noesis/Tr2NoesisFilePath.h
-    Noesis/Tr2NoesisFileFontProvider.cpp
-    Noesis/Tr2NoesisFileFontProvider.h
-    Noesis/Tr2NoesisFileTextureProvider.cpp
-    Noesis/Tr2NoesisFileTextureProvider.h
-    Noesis/Tr2NoesisFileXamlProvider.cpp
-    Noesis/Tr2NoesisFileXamlProvider.h
-    Noesis/Tr2NoesisStudio.cpp
-    Noesis/Tr2NoesisTypes.cpp
-    Noesis/Tr2NoesisTypes.h
-    Noesis/Tr2NoesisCommand.cpp
-    Noesis/Tr2NoesisCommand.h
-    Noesis/Tr2NoesisObject.cpp
-    Noesis/Tr2NoesisObject.h
-    Noesis/Tr2NoesisDataModel.cpp
-    Noesis/Tr2NoesisDataModel.h
-    Noesis/Tr2NoesisDataModel_Blue.cpp
-    Noesis/Tr2NoesisCollection.cpp
-    Noesis/Tr2NoesisCollection.h
-    Noesis/Tr2NoesisCollection_Blue.cpp
-    Noesis/Tr2NoesisObservableCollection.cpp
-    Noesis/Tr2NoesisObservableCollection.h
-    Noesis/Tr2NoesisPython.h
-    Noesis/Tr2NoesisPythonWeak.h
+    Noesis/TriStepRenderNoesis.cpp
+    Noesis/TriStepRenderNoesis.h
+    Noesis/TriStepRenderNoesis_Blue.cpp
 )
 
 if(WITH_NOESIS)
     list(APPEND _SOURCES ${NOESIS_RELATED_SOURCES})
 
-    find_program(NOESIS_PYTHON NAMES python3 python REQUIRED)
-    set(NOESIS_GENERATED_SOURCES_DIR "${CMAKE_CURRENT_BINARY_DIR}/GeneratedSources")
-    set(NOESIS_GENERATED_SHADER_DIR "${NOESIS_GENERATED_SOURCES_DIR}/NoesisShaders")
-
     #[[
-        Noesis's HLSL declares COVERAGE, RECT, TILE and IMAGE_POSITION as semantic names, and a D3D12
-        input layout must match the compiled signature exactly. Tr2VertexDefinition::UsageCode is a
-        closed set of eight usages with no room for them. Those semantic names are plain
-        macro-expandable tokens in the HLSL, so renaming them here leaves the vendor source
-        byte-for-byte pristine and keeps the change out of TrinityAL.
+        The ABI header both repositories build against. Interim: this should become a
+        published package that frontier-noesis and carbon-trinity each depend on, rather
+        than a path into somebody's working tree. Neither repository depends on the other
+        -- only on the contract.
     ]]
-    set(NOESIS_SEMANTIC_RENAMES
-        /DCOVERAGE=TEXCOORD2
-        /DRECT=TEXCOORD3
-        /DTILE=TEXCOORD4
-        /DIMAGE_POSITION=TEXCOORD5
-    )
-
-    #[[
-        Transcribed from the SDK's own build_shaders.bat, dropping two groups:
-          - the _Stereo_ pass, since we have no VR
-          - the _SRGB variants, since we report linearRendering = false
-        That takes 56 vertex and 52 pixel permutations down to 21 and 52 (Custom_Effect is
-        supplied by the effect, not compiled here). The first token of each entry is the
-        permutation name, the rest are its preprocessor defines. Tr2NoesisShaders.cpp consumes
-        these in this order, which matches Shader::Enum.
-    ]]
-    set(NOESIS_VERTEX_SHADERS
-        "Pos"
-        "PosColor HAS_COLOR"
-        "PosTex0 HAS_UV0"
-        "PosTex0Rect HAS_UV0 HAS_RECT"
-        "PosTex0RectTile HAS_UV0 HAS_RECT HAS_TILE"
-        "PosColorCoverage HAS_COLOR HAS_COVERAGE"
-        "PosTex0Coverage HAS_UV0 HAS_COVERAGE"
-        "PosTex0CoverageRect HAS_UV0 HAS_COVERAGE HAS_RECT"
-        "PosTex0CoverageRectTile HAS_UV0 HAS_COVERAGE HAS_RECT HAS_TILE"
-        "PosColorTex1_SDF HAS_COLOR HAS_UV1 SDF"
-        "PosTex0Tex1_SDF HAS_UV0 HAS_UV1 SDF"
-        "PosTex0Tex1Rect_SDF HAS_UV0 HAS_UV1 HAS_RECT SDF"
-        "PosTex0Tex1RectTile_SDF HAS_UV0 HAS_UV1 HAS_RECT HAS_TILE SDF"
-        "PosColorTex1 HAS_COLOR HAS_UV1"
-        "PosTex0Tex1 HAS_UV0 HAS_UV1"
-        "PosTex0Tex1Rect HAS_UV0 HAS_UV1 HAS_RECT"
-        "PosTex0Tex1RectTile HAS_UV0 HAS_UV1 HAS_RECT HAS_TILE"
-        "PosColorTex0Tex1 HAS_COLOR HAS_UV0 HAS_UV1"
-        "PosTex0Tex1_Downsample HAS_UV0 HAS_UV1 DOWNSAMPLE"
-        "PosColorTex1Rect HAS_COLOR HAS_UV1 HAS_RECT"
-        "PosColorTex0RectImagePos HAS_COLOR HAS_UV0 HAS_RECT HAS_IMAGE_POSITION"
-    )
-
-    set(NOESIS_PIXEL_SHADERS
-        "RGBA EFFECT_RGBA"
-        "Mask EFFECT_MASK"
-        "Clear EFFECT_CLEAR"
-        "Path_Solid EFFECT_PATH PAINT_SOLID"
-        "Path_Linear EFFECT_PATH PAINT_LINEAR"
-        "Path_Radial EFFECT_PATH PAINT_RADIAL"
-        "Path_Pattern EFFECT_PATH PAINT_PATTERN"
-        "Path_Pattern_Clamp EFFECT_PATH PAINT_PATTERN CLAMP_PATTERN"
-        "Path_Pattern_Repeat EFFECT_PATH PAINT_PATTERN REPEAT_PATTERN"
-        "Path_Pattern_MirrorU EFFECT_PATH PAINT_PATTERN MIRRORU_PATTERN"
-        "Path_Pattern_MirrorV EFFECT_PATH PAINT_PATTERN MIRRORV_PATTERN"
-        "Path_Pattern_Mirror EFFECT_PATH PAINT_PATTERN MIRROR_PATTERN"
-        "Path_AA_Solid EFFECT_PATH_AA PAINT_SOLID"
-        "Path_AA_Linear EFFECT_PATH_AA PAINT_LINEAR"
-        "Path_AA_Radial EFFECT_PATH_AA PAINT_RADIAL"
-        "Path_AA_Pattern EFFECT_PATH_AA PAINT_PATTERN"
-        "Path_AA_Pattern_Clamp EFFECT_PATH_AA PAINT_PATTERN CLAMP_PATTERN"
-        "Path_AA_Pattern_Repeat EFFECT_PATH_AA PAINT_PATTERN REPEAT_PATTERN"
-        "Path_AA_Pattern_MirrorU EFFECT_PATH_AA PAINT_PATTERN MIRRORU_PATTERN"
-        "Path_AA_Pattern_MirrorV EFFECT_PATH_AA PAINT_PATTERN MIRRORV_PATTERN"
-        "Path_AA_Pattern_Mirror EFFECT_PATH_AA PAINT_PATTERN MIRROR_PATTERN"
-        "SDF_Solid EFFECT_SDF PAINT_SOLID"
-        "SDF_Linear EFFECT_SDF PAINT_LINEAR"
-        "SDF_Radial EFFECT_SDF PAINT_RADIAL"
-        "SDF_Pattern EFFECT_SDF PAINT_PATTERN"
-        "SDF_Pattern_Clamp EFFECT_SDF PAINT_PATTERN CLAMP_PATTERN"
-        "SDF_Pattern_Repeat EFFECT_SDF PAINT_PATTERN REPEAT_PATTERN"
-        "SDF_Pattern_MirrorU EFFECT_SDF PAINT_PATTERN MIRRORU_PATTERN"
-        "SDF_Pattern_MirrorV EFFECT_SDF PAINT_PATTERN MIRRORV_PATTERN"
-        "SDF_Pattern_Mirror EFFECT_SDF PAINT_PATTERN MIRROR_PATTERN"
-        "SDF_LCD_Solid EFFECT_SDF_LCD PAINT_SOLID"
-        "SDF_LCD_Linear EFFECT_SDF_LCD PAINT_LINEAR"
-        "SDF_LCD_Radial EFFECT_SDF_LCD PAINT_RADIAL"
-        "SDF_LCD_Pattern EFFECT_SDF_LCD PAINT_PATTERN"
-        "SDF_LCD_Pattern_Clamp EFFECT_SDF_LCD PAINT_PATTERN CLAMP_PATTERN"
-        "SDF_LCD_Pattern_Repeat EFFECT_SDF_LCD PAINT_PATTERN REPEAT_PATTERN"
-        "SDF_LCD_Pattern_MirrorU EFFECT_SDF_LCD PAINT_PATTERN MIRRORU_PATTERN"
-        "SDF_LCD_Pattern_MirrorV EFFECT_SDF_LCD PAINT_PATTERN MIRRORV_PATTERN"
-        "SDF_LCD_Pattern_Mirror EFFECT_SDF_LCD PAINT_PATTERN MIRROR_PATTERN"
-        "Opacity_Solid EFFECT_OPACITY PAINT_SOLID"
-        "Opacity_Linear EFFECT_OPACITY PAINT_LINEAR"
-        "Opacity_Radial EFFECT_OPACITY PAINT_RADIAL"
-        "Opacity_Pattern EFFECT_OPACITY PAINT_PATTERN"
-        "Opacity_Pattern_Clamp EFFECT_OPACITY PAINT_PATTERN CLAMP_PATTERN"
-        "Opacity_Pattern_Repeat EFFECT_OPACITY PAINT_PATTERN REPEAT_PATTERN"
-        "Opacity_Pattern_MirrorU EFFECT_OPACITY PAINT_PATTERN MIRRORU_PATTERN"
-        "Opacity_Pattern_MirrorV EFFECT_OPACITY PAINT_PATTERN MIRRORV_PATTERN"
-        "Opacity_Pattern_Mirror EFFECT_OPACITY PAINT_PATTERN MIRROR_PATTERN"
-        "Upsample EFFECT_UPSAMPLE"
-        "Downsample EFFECT_DOWNSAMPLE"
-        "Shadow EFFECT_SHADOW PAINT_SOLID"
-        "Blur EFFECT_BLUR PAINT_SOLID"
-    )
-
-    set(NOESIS_GENERATED_SHADER_HEADERS)
-
-    if(APPLE)
-        #[[
-            Metal consumes AIR/metallib, not DXBC. Translate the SDK HLSL once per stage
-            (preprocessor switches stay in the MSL), then compile each permutation with
-            xcrun metal. CBUFFER(i) is buffer(4+i), matching TrinityAL Metal.
-        ]]
-        execute_process(
-            COMMAND xcrun --find metal
-            OUTPUT_VARIABLE METAL_COMPILER
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            RESULT_VARIABLE METAL_COMPILER_RESULT
-        )
-        if(METAL_COMPILER_RESULT OR NOT METAL_COMPILER)
-            message(FATAL_ERROR "WITH_NOESIS: xcrun --find metal failed; Xcode command-line tools are required")
-        endif()
-
-        set(NOESIS_MSL_VS "${NOESIS_GENERATED_SHADER_DIR}/ShaderVS.metal")
-        set(NOESIS_MSL_PS "${NOESIS_GENERATED_SHADER_DIR}/ShaderPS.metal")
-        add_custom_command(
-            OUTPUT "${NOESIS_MSL_VS}"
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
-            COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
-                    --stage vs
-                    --input "${Noesis_SHADER_SOURCE_DIR}/ShaderVS.hlsl"
-                    --output "${NOESIS_MSL_VS}"
-            DEPENDS "${Noesis_SHADER_SOURCE_DIR}/ShaderVS.hlsl"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
-            COMMENT "Translating Noesis ShaderVS.hlsl to MSL"
-            VERBATIM
-        )
-        add_custom_command(
-            OUTPUT "${NOESIS_MSL_PS}"
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
-            COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
-                    --stage ps
-                    --input "${Noesis_SHADER_SOURCE_DIR}/ShaderPS.hlsl"
-                    --output "${NOESIS_MSL_PS}"
-            DEPENDS "${Noesis_SHADER_SOURCE_DIR}/ShaderPS.hlsl"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/hlsl_to_msl.py"
-            COMMENT "Translating Noesis ShaderPS.hlsl to MSL"
-            VERBATIM
-        )
-
-        set(NOESIS_METAL_ARCH_FLAGS)
-        foreach(_noesis_metal_arch IN LISTS CMAKE_OSX_ARCHITECTURES)
-            list(APPEND NOESIS_METAL_ARCH_FLAGS -arch ${_noesis_metal_arch})
-        endforeach()
-
-        function(noesis_add_shader_permutations stage hlsl_msl)
-            set(headers)
-            foreach(permutation IN LISTS ARGN)
-                separate_arguments(tokens UNIX_COMMAND "${permutation}")
-                list(POP_FRONT tokens name)
-
-                set(defines)
-                foreach(define IN LISTS tokens)
-                    list(APPEND defines "-D${define}")
-                endforeach()
-
-                set(bytecode "${NOESIS_GENERATED_SHADER_DIR}/${name}_${stage}.bin")
-                set(header "${NOESIS_GENERATED_SHADER_DIR}/${name}_${stage}.h")
-
-                add_custom_command(
-                    OUTPUT "${header}"
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
-                    COMMAND ${METAL_COMPILER} -x metal -std=macos-metal2.1 -mmacos-version-min=10.14
-                            -Wno-unused-variable -Wno-missing-braces
-                            ${NOESIS_METAL_ARCH_FLAGS} ${defines}
-                            "${hlsl_msl}" -o "${bytecode}"
-                    COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd"
-                            "${bytecode}" "${header}"
-                    DEPENDS "${hlsl_msl}" "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd"
-                    COMMENT "Compiling Noesis Metal shader ${name}_${stage}"
-                    VERBATIM
-                )
-
-                list(APPEND headers "${header}")
-            endforeach()
-            set(NOESIS_GENERATED_SHADER_HEADERS ${NOESIS_GENERATED_SHADER_HEADERS} ${headers} PARENT_SCOPE)
-        endfunction()
-
-        noesis_add_shader_permutations(VS "${NOESIS_MSL_VS}" ${NOESIS_VERTEX_SHADERS})
-        noesis_add_shader_permutations(PS "${NOESIS_MSL_PS}" ${NOESIS_PIXEL_SHADERS})
-    else()
-        if(BUILD_FOR_PYTHON_2)
-            find_package(fxc CONFIG REQUIRED)
-        else()
-            find_program(FXC_TOOL fxc REQUIRED)
-        endif()
-
-        # stage is "VS" or "PS", profile the matching fxc /T argument, hlsl the SDK source file.
-        function(noesis_add_shader_permutations stage profile hlsl)
-            set(headers)
-            foreach(permutation IN LISTS ARGN)
-                separate_arguments(tokens UNIX_COMMAND "${permutation}")
-                list(POP_FRONT tokens name)
-
-                set(defines)
-                foreach(define IN LISTS tokens)
-                    list(APPEND defines "/D${define}")
-                endforeach()
-
-                set(bytecode "${NOESIS_GENERATED_SHADER_DIR}/${name}_${stage}.bin")
-                set(header "${NOESIS_GENERATED_SHADER_DIR}/${name}_${stage}.h")
-
-                add_custom_command(
-                    OUTPUT "${header}"
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${NOESIS_GENERATED_SHADER_DIR}"
-                    COMMAND ${FXC_TOOL} /nologo /T${profile} /O3 /Qstrip_reflect
-                            ${NOESIS_SEMANTIC_RENAMES} ${defines}
-                            /Fo "${bytecode}" "${Noesis_SHADER_SOURCE_DIR}/${hlsl}"
-                    COMMAND ${NOESIS_PYTHON} "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd" "${bytecode}" "${header}"
-                    DEPENDS "${Noesis_SHADER_SOURCE_DIR}/${hlsl}" "${CMAKE_CURRENT_SOURCE_DIR}/Noesis/bin2h.cmd"
-                    COMMENT "Compiling Noesis shader ${name}_${stage}"
-                    VERBATIM
-                )
-
-                list(APPEND headers "${header}")
-            endforeach()
-            set(NOESIS_GENERATED_SHADER_HEADERS ${NOESIS_GENERATED_SHADER_HEADERS} ${headers} PARENT_SCOPE)
-        endfunction()
-
-        noesis_add_shader_permutations(VS vs_5_0 ShaderVS.hlsl ${NOESIS_VERTEX_SHADERS})
-        noesis_add_shader_permutations(PS ps_5_0 ShaderPS.hlsl ${NOESIS_PIXEL_SHADERS})
+    set(FRONTIER_NOESIS_DIR "" CACHE PATH "Path to a frontier-noesis checkout or install providing nsi.h")
+    if(NOT FRONTIER_NOESIS_DIR)
+        message(FATAL_ERROR "WITH_NOESIS requires FRONTIER_NOESIS_DIR pointing at a frontier-noesis checkout or install tree")
     endif()
 
-    #[[
-        All trinity backends share one source list, so shader compilation hangs off a
-        single custom target that each of them depends on.
-    ]]
-    add_custom_target(trinity_noesis_shaders DEPENDS ${NOESIS_GENERATED_SHADER_HEADERS})
-    set_target_properties(trinity_noesis_shaders PROPERTIES FOLDER Trinity)
+    find_path(NSI_INCLUDE_DIR nsi.h
+        HINTS "${FRONTIER_NOESIS_DIR}/include" "${FRONTIER_NOESIS_DIR}"
+        NO_DEFAULT_PATH)
+    if(NOT NSI_INCLUDE_DIR)
+        message(FATAL_ERROR "nsi.h not found under ${FRONTIER_NOESIS_DIR}")
+    endif()
+    message(STATUS "Using the nsi ABI from ${NSI_INCLUDE_DIR}")
 endif()
 
 
@@ -2203,46 +1944,14 @@ function(set_shared_trinity_properties target)
     endif()
 
     if(WITH_NOESIS)
-        target_compile_definitions(${target} PRIVATE WITH_NOESIS NS_HAVE_STUDIO)
-        target_include_directories(${target} PRIVATE ${NOESIS_GENERATED_SOURCES_DIR})
-        add_dependencies(${target} trinity_noesis_shaders)
-        target_link_libraries(${target} PRIVATE Noesis::Noesis)
-
-        # Overriding the empty defaults in the SDK's NoesisLicense.h; see the root CMakeLists.
-        if(NOESIS_LICENSE_NAME AND NOESIS_LICENSE_KEY)
-            target_compile_definitions(${target} PRIVATE
-                NS_LICENSE_NAME="${NOESIS_LICENSE_NAME}"
-                NS_LICENSE_KEY="${NOESIS_LICENSE_KEY}")
-        endif()
-
         #[[
-            The module cannot load without the Noesis shared library, so keep it next to
-            the freshly built binary. Build-tree only; deployment goes through the branch's
-            vendor/noesis drop and updateBinaries.py.
+            Only the ABI header. Trinity does not link frontier-noesis and does not link
+            the NoesisGUI SDK: every call between the two goes through a vtable carried
+            by a Blue object that Python hands over, so there is nothing to link against
+            and nothing to find at load time.
         ]]
-        add_custom_command(
-            TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Noesis::Noesis>" "$<TARGET_FILE_DIR:${target}>"
-        )
-
-        #[[
-            Studio::Create lives in NoesisEditor. Built clients omit that file, so delay-
-            load (Windows) or weak-link (macOS) it and let Initialize probe for it.
-        ]]
-        if(MSVC)
-            target_link_libraries(${target} PRIVATE Noesis::NoesisEditor delayimp)
-            target_link_options(${target} PRIVATE "/DELAYLOAD:NoesisEditor.dll")
-        elseif(APPLE)
-            target_link_options(${target} PRIVATE "LINKER:-weak_library,$<TARGET_FILE:Noesis::NoesisEditor>")
-            set_property(TARGET ${target} APPEND PROPERTY BUILD_RPATH "@loader_path")
-            set_property(TARGET ${target} APPEND PROPERTY INSTALL_RPATH "@loader_path")
-        else()
-            target_link_libraries(${target} PRIVATE Noesis::NoesisEditor)
-        endif()
-        add_custom_command(
-            TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:Noesis::NoesisEditor>" "$<TARGET_FILE_DIR:${target}>"
-        )
+        target_compile_definitions(${target} PRIVATE WITH_NOESIS)
+        target_include_directories(${target} PRIVATE ${NSI_INCLUDE_DIR})
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)

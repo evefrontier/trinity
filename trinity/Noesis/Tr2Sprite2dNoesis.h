@@ -7,7 +7,7 @@
 #if WITH_NOESIS
 
 #include "Sprite2d/Tr2SpriteObject.h"
-#include "Noesis/Tr2NoesisView.h"
+#include "Noesis/TriNoesisLibrary.h"
 
 // --------------------------------------------------------------------------------------
 // Description:
@@ -34,8 +34,9 @@ public:
 	Tr2Sprite2dNoesis( IRoot* lockobj = NULL );
 	~Tr2Sprite2dNoesis();
 
-	void SetView( Tr2NoesisView* view );
-	Tr2NoesisView* GetView() const;
+	// Opaque: the view belongs to the Noesis module. See TriStepRenderNoesis.
+	void SetView( IRoot* view );
+	IRoot* GetView() const;
 
 	//////////////////////////////////////////////////////////////////////////
 	// ITr2SpriteObject
@@ -47,7 +48,7 @@ private:
 	void EnsureJob();
 	bool SyncOverrideViewport( Tr2Sprite2dScene* renderer );
 
-	Tr2NoesisViewPtr m_view;
+	IRootPtr m_view;
 	TriStepRenderNoesisPtr m_step;
 	TriRenderJobPtr m_job;
 };

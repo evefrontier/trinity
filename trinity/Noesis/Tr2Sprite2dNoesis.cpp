@@ -7,7 +7,8 @@
 #if WITH_NOESIS
 
 #include "Noesis/Tr2NoesisLog.h"
-#include "Noesis/Tr2NoesisSystem.h"
+#include "Noesis/Tr2NoesisHost.h"
+#include "Noesis/TriNoesisLibrary.h"
 #include "Noesis/TriStepRenderNoesis.h"
 #include "RenderJob/TriRenderJob.h"
 #include "Sprite2d/Tr2Sprite2dPickingMask.h"
@@ -24,7 +25,7 @@ Tr2Sprite2dNoesis::~Tr2Sprite2dNoesis()
 {
 }
 
-void Tr2Sprite2dNoesis::SetView( Tr2NoesisView* view )
+void Tr2Sprite2dNoesis::SetView( IRoot* view )
 {
 	m_view = view;
 	if( m_step )
@@ -33,7 +34,7 @@ void Tr2Sprite2dNoesis::SetView( Tr2NoesisView* view )
 	}
 }
 
-Tr2NoesisView* Tr2Sprite2dNoesis::GetView() const
+IRoot* Tr2Sprite2dNoesis::GetView() const
 {
 	return m_view;
 }
@@ -142,7 +143,8 @@ void Tr2Sprite2dNoesis::GatherSprites( Tr2Sprite2dScene* renderer )
 		return;
 	}
 
-	if( !m_view || !m_view->GetIsLoaded() )
+	if( !m_view || !TriNoesis::IsAvailable() ||
+		!TriNoesis::GetApi().ViewIsLoaded( TriNoesis::GetApi().ViewFromIRoot( m_view ) ) )
 	{
 		if( Tr2Noesis::IsLogVerbose() )
 		{
