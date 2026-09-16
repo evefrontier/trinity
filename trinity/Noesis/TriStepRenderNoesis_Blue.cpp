@@ -14,21 +14,21 @@ static PyObject* PySetView( PyObject* self, PyObject* args )
 		return nullptr;
 	}
 
-	const nhi_view_api* api = nullptr;
+	const nxt_view* api = nullptr;
 	if( capsule != Py_None )
 	{
-		void* pointer = PyCapsule_GetPointer( capsule, NHI_CAPSULE_VIEW_API );
+		void* pointer = PyCapsule_GetPointer( capsule, NXT_CAPSULE_VIEW );
 		if( pointer == nullptr )
 		{
 			PyErr_SetString( PyExc_TypeError,
-							 "expected a " NHI_CAPSULE_VIEW_API " capsule, or None" );
+							 "expected a " NXT_CAPSULE_VIEW " capsule, or None" );
 			return nullptr;
 		}
-		api = static_cast<const nhi_view_api*>( pointer );
-		if( nhi_interface_usable( &api->header ) == NHI_FALSE )
+		api = static_cast<const nxt_view*>( pointer );
+		if( nxt_interface_usable( &api->header ) == NXT_FALSE )
 		{
 			PyErr_SetString( PyExc_ValueError,
-							 "the view speaks an nhi ABI this Trinity cannot" );
+							 "the view speaks an nxt ABI this Trinity cannot" );
 			return nullptr;
 		}
 	}
@@ -46,9 +46,9 @@ const Be::ClassInfo* TriStepRenderNoesis::ExposeToBlue()
 		MAP_METHOD(
 			"set_view",
 			PySetView,
-			"The view to render, as the capsule its get_nhi_interface() returns. None\n"
+			"The view to render, as the capsule its get_nxt_interface() returns. None\n"
 			"clears it and the step draws nothing.\n"
-			":param view: an " NHI_CAPSULE_VIEW_API " capsule, or None\n"
+			":param view: an " NXT_CAPSULE_VIEW " capsule, or None\n"
 			":rtype: None" )
 
 		MAP_ATTRIBUTE(

@@ -67,12 +67,12 @@ bool NativeTexture( void* native, TriTextureResPtr& out )
 	return out != nullptr;
 }
 
-Tr2NoesisTexture* AsTexture( nhi_texture texture )
+Tr2NoesisTexture* AsTexture( nxt_texture texture )
 {
 	return reinterpret_cast<Tr2NoesisTexture*>( texture );
 }
 
-Tr2NoesisRenderTarget* AsTarget( nhi_render_target surface )
+Tr2NoesisRenderTarget* AsTarget( nxt_render_target surface )
 {
 	return reinterpret_cast<Tr2NoesisRenderTarget*>( surface );
 }
@@ -81,77 +81,77 @@ Tr2NoesisRenderTarget* AsTarget( nhi_render_target surface )
 // Device half
 // --------------------------------------------------------------------------------------
 
-void HostGetCaps( void* self, nhi_device_caps* out )
+void HostGetCaps( void* self, nxt_device_caps* out )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		// Zeroed, not left undefined: the library reads these to choose how it renders,
 		// and false is the conservative answer to each.
-		*out = nhi_device_caps();
+		*out = nxt_device_caps();
 		return;
 	}
 	device->GetCaps( *out );
 }
 
-nhi_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
+nxt_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
 										  uint32_t height, uint32_t sampleCount,
-										  nhi_bool needsStencil )
+										  nxt_bool needsStencil )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nhi_render_target>( device->CreateRenderTarget(
-		label, width, height, sampleCount, needsStencil != NHI_FALSE ) );
+	return reinterpret_cast<nxt_render_target>( device->CreateRenderTarget(
+		label, width, height, sampleCount, needsStencil != NXT_FALSE ) );
 }
 
-nhi_render_target HostCloneRenderTarget( void* self, const char* label, nhi_render_target surface )
+nxt_render_target HostCloneRenderTarget( void* self, const char* label, nxt_render_target surface )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nhi_render_target>(
+	return reinterpret_cast<nxt_render_target>(
 		device->CloneRenderTarget( label, AsTarget( surface ) ) );
 }
 
-void HostReleaseRenderTarget( void* /*self*/, nhi_render_target surface )
+void HostReleaseRenderTarget( void* /*self*/, nxt_render_target surface )
 {
 	// Destroys the wrapper. The AL resources it holds go with it, which is what the
 	// library means by releasing a handle it created.
 	delete AsTarget( surface );
 }
 
-nhi_texture HostGetRenderTargetTexture( void* /*self*/, nhi_render_target surface )
+nxt_texture HostGetRenderTargetTexture( void* /*self*/, nxt_render_target surface )
 {
 	Tr2NoesisRenderTarget* target = AsTarget( surface );
-	return target != nullptr ? reinterpret_cast<nhi_texture>( target->GetColor() ) : nullptr;
+	return target != nullptr ? reinterpret_cast<nxt_texture>( target->GetColor() ) : nullptr;
 }
 
-nhi_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
-							   uint32_t numLevels, nhi_texture_format format, const void** data )
+nxt_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
+							   uint32_t numLevels, nxt_texture_format format, const void** data )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nhi_texture>(
+	return reinterpret_cast<nxt_texture>(
 		device->CreateTexture( label, width, height, numLevels, format, data ) );
 }
 
-void HostReleaseTexture( void* /*self*/, nhi_texture texture )
+void HostReleaseTexture( void* /*self*/, nxt_texture texture )
 {
 	// For a wrapped host texture this drops only the wrapper: the Tr2TextureAL inside is
 	// a shared handle, so the resource it refers to is untouched. See release_texture.
 	delete AsTexture( texture );
 }
 
-void HostGetTextureInfo( void* /*self*/, nhi_texture texture, uint32_t* width, uint32_t* height,
-						 uint32_t* levels, nhi_bool* hasAlpha )
+void HostGetTextureInfo( void* /*self*/, nxt_texture texture, uint32_t* width, uint32_t* height,
+						 uint32_t* levels, nxt_bool* hasAlpha )
 {
 	Tr2NoesisTexture* t = AsTexture( texture );
 	if( t == nullptr )
@@ -159,17 +159,17 @@ void HostGetTextureInfo( void* /*self*/, nhi_texture texture, uint32_t* width, u
 		*width = 0;
 		*height = 0;
 		*levels = 0;
-		*hasAlpha = NHI_FALSE;
+		*hasAlpha = NXT_FALSE;
 		return;
 	}
 
 	*width = t->GetWidth();
 	*height = t->GetHeight();
 	*levels = t->GetLevels();
-	*hasAlpha = t->HasAlpha() ? NHI_TRUE : NHI_FALSE;
+	*hasAlpha = t->HasAlpha() ? NXT_TRUE : NXT_FALSE;
 }
 
-nhi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
+nxt_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
 										const void* blob, uint32_t size )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
@@ -180,13 +180,13 @@ nhi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t s
 	return device->CreatePixelShader( label, shader, blob, size );
 }
 
-void HostReleasePixelShader( void* /*self*/, nhi_pixel_shader /*shader*/ )
+void HostReleasePixelShader( void* /*self*/, nxt_pixel_shader /*shader*/ )
 {
 	// Handles are 1-based indices into a vector on the device, so there is nothing to
 	// free per handle. They live until the device does.
 }
 
-nhi_texture HostWrapNativeTexture( void* self, void* native, nhi_bool hasAlpha )
+nxt_texture HostWrapNativeTexture( void* self, void* native, nxt_bool hasAlpha )
 {
 	TriTextureResPtr resource;
 	if( !NativeTexture( native, resource ) )
@@ -206,11 +206,11 @@ nhi_texture HostWrapNativeTexture( void* self, void* native, nhi_bool hasAlpha )
 		return nullptr;
 	}
 
-	return reinterpret_cast<nhi_texture>(
-		device->WrapTexture( *texture, hasAlpha != NHI_FALSE ) );
+	return reinterpret_cast<nxt_texture>(
+		device->WrapTexture( *texture, hasAlpha != NXT_FALSE ) );
 }
 
-nhi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
+nxt_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
 {
 	*width = 0;
 	*height = 0;
@@ -220,25 +220,25 @@ nhi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width
 	{
 		// The one place the host can tell the caller it passed the wrong kind of object,
 		// because only this side knows what the handle was supposed to be.
-		return NHI_FALSE;
+		return NXT_FALSE;
 	}
 
 	Tr2TextureAL* texture = resource->GetTexture();
 	if( texture == nullptr || !texture->IsValid() )
 	{
-		return NHI_FALSE;
+		return NXT_FALSE;
 	}
 
 	*width = texture->GetWidth();
 	*height = texture->GetHeight();
-	return NHI_TRUE;
+	return NXT_TRUE;
 }
 
 // --------------------------------------------------------------------------------------
 // Frame half
 // --------------------------------------------------------------------------------------
 
-void HostUpdateTexture( void* self, nhi_texture texture, uint32_t level, uint32_t x, uint32_t y,
+void HostUpdateTexture( void* self, nxt_texture texture, uint32_t level, uint32_t x, uint32_t y,
 						uint32_t width, uint32_t height, const void* data )
 {
 	Device( self )->UpdateTexture( AsTexture( texture ), level, x, y, width, height, data );
@@ -249,22 +249,22 @@ void HostEndOffscreen( void* self ) { Device( self )->EndOffscreenRender(); }
 void HostBeginOnscreen( void* self ) { Device( self )->BeginOnscreenRender(); }
 void HostEndOnscreen( void* self ) { Device( self )->EndOnscreenRender(); }
 
-void HostSetRenderTarget( void* self, nhi_render_target surface )
+void HostSetRenderTarget( void* self, nxt_render_target surface )
 {
 	Device( self )->SetRenderTarget( AsTarget( surface ) );
 }
 
-void HostBeginTile( void* self, nhi_render_target surface, const nhi_tile* tile )
+void HostBeginTile( void* self, nxt_render_target surface, const nxt_tile* tile )
 {
 	Device( self )->BeginTile( AsTarget( surface ), *tile );
 }
 
-void HostEndTile( void* self, nhi_render_target surface )
+void HostEndTile( void* self, nxt_render_target surface )
 {
 	Device( self )->EndTile( AsTarget( surface ) );
 }
 
-void HostResolveRenderTarget( void* self, nhi_render_target surface, const nhi_tile* tiles,
+void HostResolveRenderTarget( void* self, nxt_render_target surface, const nxt_tile* tiles,
 							  uint32_t numTiles )
 {
 	Device( self )->ResolveRenderTarget( AsTarget( surface ), tiles, numTiles );
@@ -275,12 +275,12 @@ void HostUnmapVertices( void* self ) { Device( self )->UnmapVertices(); }
 void* HostMapIndices( void* self, uint32_t bytes ) { return Device( self )->MapIndices( bytes ); }
 void HostUnmapIndices( void* self ) { Device( self )->UnmapIndices(); }
 
-void HostDrawBatch( void* self, const nhi_batch* batch )
+void HostDrawBatch( void* self, const nxt_batch* batch )
 {
 	Device( self )->DrawBatch( *batch );
 }
 
-// nhi retain/release. Blue's refcount is Lock/Unlock, so these are that and nothing
+// nxt retain/release. Blue's refcount is Lock/Unlock, so these are that and nothing
 // more: the library holding this device host holds a Blue reference on it, and there is
 // no second lifetime to keep in step.
 void HostRetain( void* self )
@@ -293,12 +293,12 @@ void HostRelease( void* self )
 	Self( self ).Unlock();
 }
 
-// `owned` false leaves retain and release null, which nhi.h defines as borrowed: valid
+// `owned` false leaves retain and release null, which nxt.h defines as borrowed: valid
 // for the call it was passed to and never to be stored. That is the frame host.
-void FillHeader( nhi_interface_header& header, void* self, uint32_t size, bool owned )
+void FillHeader( nxt_interface_header& header, void* self, uint32_t size, bool owned )
 {
-	header.abi_version_major = NHI_ABI_VERSION_MAJOR;
-	header.abi_version_minor = NHI_ABI_VERSION_MINOR;
+	header.abi_version_major = NXT_ABI_VERSION_MAJOR;
+	header.abi_version_minor = NXT_ABI_VERSION_MINOR;
 	header.struct_size = size;
 	header.self = self;
 	header.retain = owned ? HostRetain : nullptr;
@@ -326,7 +326,7 @@ Tr2NoesisHost::~Tr2NoesisHost()
 
 void Tr2NoesisHost::FillVtables()
 {
-	FillHeader( m_deviceApi.header, this, sizeof( nhi_device_host ), true );
+	FillHeader( m_deviceApi.header, this, sizeof( nxt_device_host ), true );
 	m_deviceApi.get_caps = HostGetCaps;
 	m_deviceApi.create_render_target = HostCreateRenderTarget;
 	m_deviceApi.clone_render_target = HostCloneRenderTarget;
@@ -340,7 +340,7 @@ void Tr2NoesisHost::FillVtables()
 	m_deviceApi.wrap_native_texture = HostWrapNativeTexture;
 	m_deviceApi.get_native_texture_size = HostGetNativeTextureSize;
 
-	FillHeader( m_frameApi.header, this, sizeof( nhi_frame_host ), false );
+	FillHeader( m_frameApi.header, this, sizeof( nxt_frame_host ), false );
 	m_frameApi.update_texture = HostUpdateTexture;
 	m_frameApi.begin_offscreen_render = HostBeginOffscreen;
 	m_frameApi.end_offscreen_render = HostEndOffscreen;
@@ -357,14 +357,14 @@ void Tr2NoesisHost::FillVtables()
 	m_frameApi.draw_batch = HostDrawBatch;
 }
 
-bool Tr2NoesisHost::SetShaderSource( const nhi_shader_source* shaderSource )
+bool Tr2NoesisHost::SetShaderSource( const nxt_shader_source* shaderSource )
 {
-	if( shaderSource != nullptr && nhi_interface_usable( &shaderSource->header ) == NHI_FALSE )
+	if( shaderSource != nullptr && nxt_interface_usable( &shaderSource->header ) == NXT_FALSE )
 	{
-		CCP_NOESIS_LOGERR( "The shader source speaks an nhi ABI this Trinity cannot; this "
-						   "Trinity is nhi %u.%u",
-						   static_cast<uint32_t>( NHI_ABI_VERSION_MAJOR ),
-						   static_cast<uint32_t>( NHI_ABI_VERSION_MINOR ) );
+		CCP_NOESIS_LOGERR( "The shader source speaks an nxt ABI this Trinity cannot; this "
+						   "Trinity is nxt %u.%u",
+						   static_cast<uint32_t>( NXT_ABI_VERSION_MAJOR ),
+						   static_cast<uint32_t>( NXT_ABI_VERSION_MINOR ) );
 		return false;
 	}
 
@@ -426,7 +426,7 @@ bool Tr2NoesisHost::IsReady() const
 	return m_device != nullptr && m_device->IsValid();
 }
 
-const nhi_device_host* Tr2NoesisHost::GetNhiDeviceHost()
+const nxt_device_host* Tr2NoesisHost::GetNxtDeviceHost()
 {
 	// Valid as soon as a shader source is set, not once the device is built: the library
 	// wires this at startup and the device cannot exist until the first frame. Calls that
@@ -434,7 +434,7 @@ const nhi_device_host* Tr2NoesisHost::GetNhiDeviceHost()
 	return m_shaderSource != nullptr ? &m_deviceApi : nullptr;
 }
 
-const nhi_frame_host* Tr2NoesisHost::GetNsiFrameHost()
+const nxt_frame_host* Tr2NoesisHost::GetNsiFrameHost()
 {
 	return IsReady() ? &m_frameApi : nullptr;
 }
@@ -481,23 +481,23 @@ Tr2NoesisRenderDevice* Tr2NoesisHost::GetDevice() const
 // then, released by its destructor.
 static void DeviceHostCapsuleDestructor( PyObject* capsule )
 {
-	void* pointer = PyCapsule_GetPointer( capsule, NHI_CAPSULE_DEVICE_HOST );
+	void* pointer = PyCapsule_GetPointer( capsule, NXT_CAPSULE_DEVICE_HOST );
 	if( pointer == nullptr )
 	{
 		PyErr_Clear();
 		return;
 	}
-	const nhi_device_host* api = static_cast<const nhi_device_host*>( pointer );
+	const nxt_device_host* api = static_cast<const nxt_device_host*>( pointer );
 	if( api->header.release != nullptr )
 	{
 		api->header.release( api->header.self );
 	}
 }
 
-static PyObject* PyGetNhiInterface( PyObject* self, PyObject* /*args*/ )
+static PyObject* PyGetNxtInterface( PyObject* self, PyObject* /*args*/ )
 {
 	Tr2NoesisHost* host = BluePythonCast<Tr2NoesisHost*>( self );
-	const nhi_device_host* api = host->GetNhiDeviceHost();
+	const nxt_device_host* api = host->GetNxtDeviceHost();
 	if( api == nullptr )
 	{
 		// No shader source yet, so there is nothing usable to hand over.
@@ -509,8 +509,8 @@ static PyObject* PyGetNhiInterface( PyObject* self, PyObject* /*args*/ )
 		api->header.retain( api->header.self );
 	}
 
-	PyObject* capsule = PyCapsule_New( const_cast<nhi_device_host*>( api ),
-									   NHI_CAPSULE_DEVICE_HOST,
+	PyObject* capsule = PyCapsule_New( const_cast<nxt_device_host*>( api ),
+									   NXT_CAPSULE_DEVICE_HOST,
 									   DeviceHostCapsuleDestructor );
 	if( capsule == nullptr && api->header.release != nullptr )
 	{
@@ -527,19 +527,19 @@ static PyObject* PySetShaderSource( PyObject* self, PyObject* args )
 		return nullptr;
 	}
 
-	const nhi_shader_source* api = nullptr;
+	const nxt_shader_source* api = nullptr;
 	if( capsule != Py_None )
 	{
 		// The capsule name is the first gate: a capsule from a different major version of
 		// the ABI is refused here, before a single field is read.
-		void* pointer = PyCapsule_GetPointer( capsule, NHI_CAPSULE_SHADER_SOURCE );
+		void* pointer = PyCapsule_GetPointer( capsule, NXT_CAPSULE_SHADER_SOURCE );
 		if( pointer == nullptr )
 		{
 			PyErr_SetString( PyExc_TypeError,
-							 "expected a " NHI_CAPSULE_SHADER_SOURCE " capsule, or None" );
+							 "expected a " NXT_CAPSULE_SHADER_SOURCE " capsule, or None" );
 			return nullptr;
 		}
-		api = static_cast<const nhi_shader_source*>( pointer );
+		api = static_cast<const nxt_shader_source*>( pointer );
 	}
 
 	Tr2NoesisHost* host = BluePythonCast<Tr2NoesisHost*>( self );
@@ -558,16 +558,16 @@ const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 			"SetShaderSource",
 			PySetShaderSource,
 			"Takes the Noesis library's shader source, as the capsule its\n"
-			"get_nhi_interface() returns. The device itself is built on the first frame,\n"
+			"get_nxt_interface() returns. The device itself is built on the first frame,\n"
 			"because building it needs a live render context and there is none while Python\n"
 			"is still starting up.\n"
-			":param shaderSource: an " NHI_CAPSULE_SHADER_SOURCE " capsule, or None\n"
+			":param shaderSource: an " NXT_CAPSULE_SHADER_SOURCE " capsule, or None\n"
 			":rtype: bool" )
 
 		MAP_METHOD(
-			"get_nhi_interface",
-			PyGetNhiInterface,
-			"The nhi_device_host interface, in an " NHI_CAPSULE_DEVICE_HOST " capsule.\n"
+			"get_nxt_interface",
+			PyGetNxtInterface,
+			"The nxt_device_host interface, in an " NXT_CAPSULE_DEVICE_HOST " capsule.\n"
 			"Hand this to the Noesis library. None until a shader source has been set.\n"
 			":rtype: PyCapsule or None" )
 

@@ -32,7 +32,7 @@ public:
 	Tr2Sprite2dNoesis( IRoot* lockobj = NULL );
 
 	// The view interface, retained. None clears it.
-	void SetView( const nhi_view_api* view );
+	void SetView( const nxt_view* view );
 	~Tr2Sprite2dNoesis();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -48,7 +48,7 @@ private:
 	// The view interface, retained; the host, still a Blue object on this side. Both are
 	// pushed to the step every gather, because the step is created lazily and Python has
 	// already set these by the time it exists.
-	const nhi_view_api* m_view;
+	const nxt_view* m_view;
 	IRootPtr m_host;
 	TriStepRenderNoesisPtr m_step;
 	TriRenderJobPtr m_job;

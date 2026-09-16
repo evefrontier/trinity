@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisHost_H
 #define Tr2NoesisHost_H
 
-#include <nhi.h>
+#include <nxt.h>
 
 #include <memory>
 
@@ -15,7 +15,7 @@ struct Tr2ScissorRect;
 
 // --------------------------------------------------------------------------------------
 // Description:
-//   Trinity's side of the nhi.h boundary: the render device over TrinityAL, wrapped in
+//   Trinity's side of the nxt.h boundary: the render device over TrinityAL, wrapped in
 //   the two vtables the Noesis library calls through.
 //
 //   Python creates one of these and hands it to the library, which is the only way the
@@ -41,10 +41,10 @@ public:
 	Tr2NoesisHost( IRoot* lockobj = NULL );
 	~Tr2NoesisHost();
 
-	// Takes the library's shader source from an NHI_CAPSULE_SHADER_SOURCE capsule, and
+	// Takes the library's shader source from an NXT_CAPSULE_SHADER_SOURCE capsule, and
 	// retains it. Cheap and thread-agnostic: it only validates and retains, so Python can
 	// call it at startup. Null clears.
-	bool SetShaderSource( const nhi_shader_source* shaderSource );
+	bool SetShaderSource( const nxt_shader_source* shaderSource );
 
 	// Builds the device on first call and returns whether it is usable.
 	//
@@ -59,12 +59,12 @@ public:
 
 	bool IsReady() const;
 
-	// The interface the library is handed, inside NHI_CAPSULE_DEVICE_HOST.
-	const nhi_device_host* GetNhiDeviceHost();
+	// The interface the library is handed, inside NXT_CAPSULE_DEVICE_HOST.
+	const nxt_device_host* GetNxtDeviceHost();
 
 	// Trinity-internal. The frame vtable, valid only between BeginFrame and EndFrame.
 	// Not exposed through Blue: it never crosses as an object.
-	const nhi_frame_host* GetNsiFrameHost();
+	const nxt_frame_host* GetNsiFrameHost();
 
 	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame: an exit
 	// that skips EndFrame leaves the device holding a context the step has finished with.
@@ -110,10 +110,10 @@ private:
 	std::unique_ptr<Tr2NoesisRenderDevice> m_device;
 	// Retained, so it outlives whatever Python capsule delivered it. Released when it is
 	// replaced or the host goes.
-	const nhi_shader_source* m_shaderSource;
+	const nxt_shader_source* m_shaderSource;
 	bool m_deviceAttempted;
-	nhi_device_host m_deviceApi;
-	nhi_frame_host m_frameApi;
+	nxt_device_host m_deviceApi;
+	nxt_frame_host m_frameApi;
 };
 
 TYPEDEF_BLUECLASS( Tr2NoesisHost );

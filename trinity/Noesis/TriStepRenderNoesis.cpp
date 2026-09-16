@@ -16,7 +16,7 @@ TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
 	m_overrideY( 0 ),
 	m_overrideWidth( 0 ),
 	m_overrideHeight( 0 ),
-	m_viewApi( nullptr ),
+	m_view( nullptr ),
 	m_hasOverrideClip( false ),
 	m_overrideClipLeft( 0 ),
 	m_overrideClipTop( 0 ),
@@ -36,8 +36,8 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 	// Nothing wired, or nothing loaded: the normal state for a client with no Noesis UI.
 	Tr2NoesisHost* host = GetHostObject();
-	if( host == nullptr || m_viewApi == nullptr ||
-		!m_viewApi->is_loaded( m_viewApi->header.self ) )
+	if( host == nullptr || m_view == nullptr ||
+		!m_view->is_loaded( m_view->header.self ) )
 	{
 		return RS_OK;
 	}
@@ -49,7 +49,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	const nhi_frame_host* frame = host->GetNsiFrameHost();
+	const nxt_frame_host* frame = host->GetNsiFrameHost();
 	if( frame == nullptr )
 	{
 		return RS_OK;
@@ -69,7 +69,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// rather than at load time.
 	Tr2NoesisHost::ScopedFrame scopedFrame( *host, renderContext );
 
-	if( !m_viewApi->ensure_renderer( m_viewApi->header.self, frame ) )
+	if( !m_view->ensure_renderer( m_view->header.self, frame ) )
 	{
 		renderContext.m_esm.EndManagedRendering();
 		return RS_OK;
@@ -89,16 +89,16 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	m_viewApi->sync_size( m_viewApi->header.self, static_cast<uint32_t>( vp.width ),
+	m_view->sync_size( m_view->header.self, static_cast<uint32_t>( vp.width ),
 						  static_cast<uint32_t>( vp.height ) );
 
 	// Absolute seconds since an arbitrary origin, not a delta. Be::Time counts 100ns ticks.
-	m_viewApi->update( m_viewApi->header.self, static_cast<double>( realTime ) / 10000000.0 );
+	m_view->update( m_view->header.self, static_cast<double>( realTime ) / 10000000.0 );
 
 	// Everything below is ordered as the SDK requires: the render tree is only safe to read
 	// after UpdateRenderTree, and the offscreen phase must finish before the onscreen draw
 	// because the onscreen pass samples what it produced.
-	m_viewApi->update_render_tree( m_viewApi->header.self, frame );
+	m_view->update_render_tree( m_view->header.self, frame );
 
 	// Bracketed unconditionally. RenderOffscreen's return value says whether it drew anything,
 	// but the target has to be saved before the call either way, so it is only good for logging.
@@ -107,7 +107,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	const bool pushedDepthStencil = renderContext.m_esm.PushDepthStencilBuffer();
 
 	const bool renderedOffscreen =
-		m_viewApi->render_offscreen( m_viewApi->header.self, frame ) != NHI_FALSE;
+		m_view->render_offscreen( m_view->header.self, frame ) != NXT_FALSE;
 
 	if( pushedDepthStencil )
 	{
@@ -151,7 +151,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
-	m_viewApi->render( m_viewApi->header.self, frame, NHI_FALSE, NHI_FALSE );
+	m_view->render( m_view->header.self, frame, NXT_FALSE, NXT_FALSE );
 
 	host->ClearHostScissor();
 
@@ -172,9 +172,9 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	return RS_OK;
 }
 
-void TriStepRenderNoesis::SetView( const nhi_view_api* view )
+void TriStepRenderNoesis::SetView( const nxt_view* view )
 {
-	if( view == m_viewApi )
+	if( view == m_view )
 	{
 		return;
 	}
@@ -184,11 +184,11 @@ void TriStepRenderNoesis::SetView( const nhi_view_api* view )
 	{
 		view->header.retain( view->header.self );
 	}
-	if( m_viewApi != nullptr && m_viewApi->header.release != nullptr )
+	if( m_view != nullptr && m_view->header.release != nullptr )
 	{
-		m_viewApi->header.release( m_viewApi->header.self );
+		m_view->header.release( m_view->header.self );
 	}
-	m_viewApi = view;
+	m_view = view;
 }
 
 void TriStepRenderNoesis::SetHost( IRoot* host )

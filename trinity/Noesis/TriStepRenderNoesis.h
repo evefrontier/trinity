@@ -32,12 +32,12 @@ public:
 	TriStepResult Execute( Be::Time realTime, Be::Time simTime, Tr2RenderContext& renderContext );
 
 	// The view lives in the Noesis module, whose C++ types Trinity cannot name. It is
-	// held as the Blue object it is, with the library's handle beside it; nhi.h says the
+	// held as the Blue object it is, with the library's handle beside it; nxt.h says the
 	// handle borrows, so the IRootPtr is what keeps it alive.
 
 	// The view interface, retained. Null clears. Tr2Sprite2dNoesis pushes both of these
 	// into the step it owns; Python sets them on the sprite, not here.
-	void SetView( const nhi_view_api* view );
+	void SetView( const nxt_view* view );
 	void SetHost( IRoot* host );
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
@@ -58,7 +58,7 @@ private:
 
 	// Retained, so it outlives whatever capsule delivered it. Released when replaced or
 	// when the step goes. There is no second field to fall out of step with it.
-	const nhi_view_api* m_viewApi;
+	const nxt_view* m_view;
 	IRootPtr m_host;
 	bool m_hasOverrideViewport;
 	int m_overrideX;
