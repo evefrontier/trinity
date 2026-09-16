@@ -45,11 +45,12 @@ private:
 	void EnsureJob();
 	bool SyncOverrideViewport( Tr2Sprite2dScene* renderer );
 
-	// The view interface, retained; the host, still a Blue object on this side. Both are
-	// pushed to the step every gather, because the step is created lazily and Python has
-	// already set these by the time it exists.
+	// Both are pushed to the step every gather, because the step is created lazily and
+	// Python has already set these by the time it exists.
 	const nxt_view* m_view;
-	IRootPtr m_host;
+
+	// Typed, so Blue rejects anything that is not a host at the point of assignment.
+	Tr2NoesisHostPtr m_host;
 	TriStepRenderNoesisPtr m_step;
 	TriRenderJobPtr m_job;
 };

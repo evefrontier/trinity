@@ -35,7 +35,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	CCP_STATS_ZONE( __FUNCTION__ );
 
 	// Nothing wired, or nothing loaded: the normal state for a client with no Noesis UI.
-	Tr2NoesisHost* host = GetHostObject();
+	Tr2NoesisHost* host = m_host;
 	if( host == nullptr || m_view == nullptr ||
 		!m_view->is_loaded( m_view->header.self ) )
 	{
@@ -191,21 +191,9 @@ void TriStepRenderNoesis::SetView( const nxt_view* view )
 	m_view = view;
 }
 
-void TriStepRenderNoesis::SetHost( IRoot* host )
+void TriStepRenderNoesis::SetHost( Tr2NoesisHost* host )
 {
 	m_host = host;
-}
-
-Tr2NoesisHost* TriStepRenderNoesis::GetHostObject() const
-{
-	if( m_host == nullptr )
-	{
-		return nullptr;
-	}
-
-	Tr2NoesisHostPtr host;
-	host = BlueCastPtr( static_cast<IRoot*>( m_host ) );
-	return host;
 }
 
 void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int height )

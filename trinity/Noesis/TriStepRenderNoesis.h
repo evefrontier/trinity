@@ -31,14 +31,10 @@ public:
 	// IRenderStep
 	TriStepResult Execute( Be::Time realTime, Be::Time simTime, Tr2RenderContext& renderContext );
 
-	// The view lives in the Noesis module, whose C++ types Trinity cannot name. It is
-	// held as the Blue object it is, with the library's handle beside it; nxt.h says the
-	// handle borrows, so the IRootPtr is what keeps it alive.
-
 	// The view interface, retained. Null clears. Tr2Sprite2dNoesis pushes both of these
 	// into the step it owns; Python sets them on the sprite, not here.
 	void SetView( const nxt_view* view );
-	void SetHost( IRoot* host );
+	void SetHost( Tr2NoesisHost* host );
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
@@ -51,15 +47,14 @@ public:
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:
-	// Null only when no host is set; a host whose device is not built yet still counts,
-	// because Execute is what builds it. Resolved per frame rather than cached, because
-	// Python may rewire or rebuild the host between frames.
-	Tr2NoesisHost* GetHostObject() const;
-
 	// Retained, so it outlives whatever capsule delivered it. Released when replaced or
 	// when the step goes. There is no second field to fall out of step with it.
 	const nxt_view* m_view;
-	IRootPtr m_host;
+
+	// Typed, so Blue rejects anything that is not a host at the point of assignment. An
+	// IRootPtr here would take any object and resolve to nothing on the first frame that
+	// needed it, which shows up as an empty rectangle and no error.
+	Tr2NoesisHostPtr m_host;
 	bool m_hasOverrideViewport;
 	int m_overrideX;
 	int m_overrideY;
