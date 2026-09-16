@@ -41,9 +41,10 @@ public:
 	Tr2NoesisHost( IRoot* lockobj = NULL );
 	~Tr2NoesisHost();
 
-	// Takes the library's shader source. Cheap and thread-agnostic: it only resolves the
-	// interface, so Python can call it at startup.
-	bool SetShaderSource( IRoot* shaderSource );
+	// Takes the library's shader source from an NHI_CAPSULE_SHADER_SOURCE capsule, and
+	// retains it. Cheap and thread-agnostic: it only validates and retains, so Python can
+	// call it at startup. Null clears.
+	bool SetShaderSource( const nhi_shader_source* shaderSource );
 
 	// Builds the device on first call and returns whether it is usable.
 	//
@@ -107,7 +108,8 @@ private:
 	// A plain class, not a Blue object: it is an implementation detail of this host and
 	// never crosses the boundary on its own.
 	std::unique_ptr<Tr2NoesisRenderDevice> m_device;
-	IRootPtr m_shaderSourceObject;
+	// Retained, so it outlives whatever Python capsule delivered it. Released when it is
+	// replaced or the host goes.
 	const nhi_shader_source* m_shaderSource;
 	bool m_deviceAttempted;
 	nhi_device_host m_deviceApi;

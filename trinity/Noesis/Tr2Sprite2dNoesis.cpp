@@ -15,12 +15,33 @@
 
 #include <cmath>
 
-Tr2Sprite2dNoesis::Tr2Sprite2dNoesis( IRoot* /*lockobj*/ )
+Tr2Sprite2dNoesis::Tr2Sprite2dNoesis( IRoot* /*lockobj*/ ) :
+	m_view( nullptr )
 {
 }
 
 Tr2Sprite2dNoesis::~Tr2Sprite2dNoesis()
 {
+	SetView( nullptr );
+}
+
+void Tr2Sprite2dNoesis::SetView( const nhi_view_api* view )
+{
+	if( view == m_view )
+	{
+		return;
+	}
+
+	// Retain before releasing, so re-setting the same view is not a free-then-use.
+	if( view != nullptr && view->header.retain != nullptr )
+	{
+		view->header.retain( view->header.self );
+	}
+	if( m_view != nullptr && m_view->header.release != nullptr )
+	{
+		m_view->header.release( m_view->header.self );
+	}
+	m_view = view;
 }
 
 void Tr2Sprite2dNoesis::EnsureJob()
@@ -130,8 +151,7 @@ void Tr2Sprite2dNoesis::GatherSprites( Tr2Sprite2dScene* renderer )
 		return;
 	}
 
-	const nhi_view_api* viewApi = Nhi::QueryViewApi( m_view );
-	if( viewApi == nullptr || !viewApi->is_loaded( viewApi->header.self ) )
+	if( m_view == nullptr || !m_view->is_loaded( m_view->header.self ) )
 	{
 		if( Tr2Noesis::IsLogVerbose() )
 		{

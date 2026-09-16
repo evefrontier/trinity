@@ -269,12 +269,29 @@ void HostDrawBatch( void* self, const nhi_batch* batch )
 	Device( self )->DrawBatch( *batch );
 }
 
-void FillHeader( nhi_interface_header& header, void* self, uint32_t size )
+// nhi retain/release. Blue's refcount is Lock/Unlock, so these are that and nothing
+// more: the library holding this device host holds a Blue reference on it, and there is
+// no second lifetime to keep in step.
+void HostRetain( void* self )
+{
+	Self( self ).Lock();
+}
+
+void HostRelease( void* self )
+{
+	Self( self ).Unlock();
+}
+
+// `owned` false leaves retain and release null, which nhi.h defines as borrowed: valid
+// for the call it was passed to and never to be stored. That is the frame host.
+void FillHeader( nhi_interface_header& header, void* self, uint32_t size, bool owned )
 {
 	header.abi_version_major = NHI_ABI_VERSION_MAJOR;
 	header.abi_version_minor = NHI_ABI_VERSION_MINOR;
 	header.struct_size = size;
 	header.self = self;
+	header.retain = owned ? HostRetain : nullptr;
+	header.release = owned ? HostRelease : nullptr;
 }
 
 }
@@ -290,11 +307,15 @@ Tr2NoesisHost::Tr2NoesisHost( IRoot* ) :
 
 Tr2NoesisHost::~Tr2NoesisHost()
 {
+	if( m_shaderSource != nullptr && m_shaderSource->header.release != nullptr )
+	{
+		m_shaderSource->header.release( m_shaderSource->header.self );
+	}
 }
 
 void Tr2NoesisHost::FillVtables()
 {
-	FillHeader( m_deviceApi.header, this, sizeof( nhi_device_host ) );
+	FillHeader( m_deviceApi.header, this, sizeof( nhi_device_host ), true );
 	m_deviceApi.get_caps = HostGetCaps;
 	m_deviceApi.create_render_target = HostCreateRenderTarget;
 	m_deviceApi.clone_render_target = HostCloneRenderTarget;
@@ -308,7 +329,7 @@ void Tr2NoesisHost::FillVtables()
 	m_deviceApi.wrap_native_texture = HostWrapNativeTexture;
 	m_deviceApi.get_native_texture_size = HostGetNativeTextureSize;
 
-	FillHeader( m_frameApi.header, this, sizeof( nhi_frame_host ) );
+	FillHeader( m_frameApi.header, this, sizeof( nhi_frame_host ), false );
 	m_frameApi.update_texture = HostUpdateTexture;
 	m_frameApi.begin_offscreen_render = HostBeginOffscreen;
 	m_frameApi.end_offscreen_render = HostEndOffscreen;
@@ -325,19 +346,27 @@ void Tr2NoesisHost::FillVtables()
 	m_frameApi.draw_batch = HostDrawBatch;
 }
 
-bool Tr2NoesisHost::SetShaderSource( IRoot* shaderSource )
+bool Tr2NoesisHost::SetShaderSource( const nhi_shader_source* shaderSource )
 {
-	m_shaderSourceObject = shaderSource;
-	m_shaderSource = Nhi::QueryShaderSource( shaderSource );
-
-	if( shaderSource != nullptr && m_shaderSource == nullptr )
+	if( shaderSource != nullptr && nhi_interface_usable( &shaderSource->header ) == NHI_FALSE )
 	{
-		CCP_NOESIS_LOGERR( "The object given as a shader source is not one, or speaks an "
-						   "nhi ABI this Trinity cannot; this Trinity is nhi %u.%u",
+		CCP_NOESIS_LOGERR( "The shader source speaks an nhi ABI this Trinity cannot; this "
+						   "Trinity is nhi %u.%u",
 						   static_cast<uint32_t>( NHI_ABI_VERSION_MAJOR ),
 						   static_cast<uint32_t>( NHI_ABI_VERSION_MINOR ) );
 		return false;
 	}
+
+	// Retain before releasing, so setting the same source twice is not a free-then-use.
+	if( shaderSource != nullptr && shaderSource->header.retain != nullptr )
+	{
+		shaderSource->header.retain( shaderSource->header.self );
+	}
+	if( m_shaderSource != nullptr && m_shaderSource->header.release != nullptr )
+	{
+		m_shaderSource->header.release( m_shaderSource->header.self );
+	}
+	m_shaderSource = shaderSource;
 
 	// A new source means a new device; the old one was built from the old blobs.
 	m_device.reset();
@@ -436,6 +465,33 @@ Tr2NoesisRenderDevice* Tr2NoesisHost::GetDevice() const
 	return m_device.get();
 }
 
+static PyObject* PySetShaderSource( PyObject* self, PyObject* args )
+{
+	PyObject* capsule = nullptr;
+	if( !PyArg_ParseTuple( args, "O", &capsule ) )
+	{
+		return nullptr;
+	}
+
+	const nhi_shader_source* api = nullptr;
+	if( capsule != Py_None )
+	{
+		// The capsule name is the first gate: a capsule from a different major version of
+		// the ABI is refused here, before a single field is read.
+		void* pointer = PyCapsule_GetPointer( capsule, NHI_CAPSULE_SHADER_SOURCE );
+		if( pointer == nullptr )
+		{
+			PyErr_SetString( PyExc_TypeError,
+							 "expected a " NHI_CAPSULE_SHADER_SOURCE " capsule, or None" );
+			return nullptr;
+		}
+		api = static_cast<const nhi_shader_source*>( pointer );
+	}
+
+	Tr2NoesisHost* host = BluePythonCast<Tr2NoesisHost*>( self );
+	return PyBool_FromLong( host->SetShaderSource( api ) ? 1 : 0 );
+}
+
 const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 {
 	EXPOSURE_BEGIN( Tr2NoesisHost,
@@ -445,13 +501,14 @@ const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 		MAP_INTERFACE( Tr2NoesisHost )
 		MAP_INTERFACE( INhiDeviceHost )
 
-		MAP_METHOD_AND_WRAP(
+		MAP_METHOD(
 			"SetShaderSource",
-			SetShaderSource,
-			"Takes the Noesis library's shader source. The device itself is built on the first\n"
-			"frame, because building it needs a live render context and there is none while\n"
-			"Python is still starting up.\n"
-			":param shaderSource: an NsiShaderSource from the Noesis library\n"
+			PySetShaderSource,
+			"Takes the Noesis library's shader source, as the capsule its\n"
+			"get_nhi_interface() returns. The device itself is built on the first frame,\n"
+			"because building it needs a live render context and there is none while Python\n"
+			"is still starting up.\n"
+			":param shaderSource: an " NHI_CAPSULE_SHADER_SOURCE " capsule, or None\n"
 			":rtype: bool" )
 
 		MAP_PROPERTY_READONLY(

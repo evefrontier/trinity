@@ -25,6 +25,11 @@ TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
 {
 }
 
+TriStepRenderNoesis::~TriStepRenderNoesis()
+{
+	SetView( nullptr );
+}
+
 TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTime*/, Tr2RenderContext& renderContext )
 {
 	CCP_STATS_ZONE( __FUNCTION__ );
@@ -167,24 +172,23 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	return RS_OK;
 }
 
-void TriStepRenderNoesis::py__init__( IRoot* view )
+void TriStepRenderNoesis::SetView( const nhi_view_api* view )
 {
-	SetView( view );
-}
-
-void TriStepRenderNoesis::SetView( IRoot* view )
-{
-	m_view = view;
-
-	// Asks the object whether it is a view rather than assuming. A wrong object leaves
-	// the api null and the step simply draws nothing.
-	m_viewApi = Nhi::QueryViewApi( view );
-	if( view != nullptr && m_viewApi == nullptr )
+	if( view == m_viewApi )
 	{
-		CCP_NOESIS_LOGERR( "TriStepRenderNoesis was given an object that is not a Noesis "
-						   "view, or one speaking an incompatible nhi ABI; it will render "
-						   "nothing" );
+		return;
 	}
+
+	// Retain before releasing, so re-setting the same view is not a free-then-use.
+	if( view != nullptr && view->header.retain != nullptr )
+	{
+		view->header.retain( view->header.self );
+	}
+	if( m_viewApi != nullptr && m_viewApi->header.release != nullptr )
+	{
+		m_viewApi->header.release( m_viewApi->header.self );
+	}
+	m_viewApi = view;
 }
 
 void TriStepRenderNoesis::SetHost( IRoot* host )

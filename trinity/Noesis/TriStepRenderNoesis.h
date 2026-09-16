@@ -26,6 +26,7 @@ BLUE_CLASS( TriStepRenderNoesis ) :
 public:
 	EXPOSE_TO_BLUE();
 	TriStepRenderNoesis( IRoot* lockobj = NULL );
+	~TriStepRenderNoesis();
 
 	// IRenderStep
 	TriStepResult Execute( Be::Time realTime, Be::Time simTime, Tr2RenderContext& renderContext );
@@ -33,13 +34,10 @@ public:
 	// The view lives in the Noesis module, whose C++ types Trinity cannot name. It is
 	// held as the Blue object it is, with the library's handle beside it; nhi.h says the
 	// handle borrows, so the IRootPtr is what keeps it alive.
-	void py__init__( IRoot* view );
 
-	// Python assigns the 'view' and 'host' attributes, which Blue maps straight onto the
-	// members; these are the C++ path, used by Tr2Sprite2dNoesis when it wires the step it
-	// owns. SetView is what resolves the view's vtable, so a member written behind its
-	// back leaves the step drawing nothing.
-	void SetView( IRoot* view );
+	// The view interface, retained. Null clears. Tr2Sprite2dNoesis pushes both of these
+	// into the step it owns; Python sets them on the sprite, not here.
+	void SetView( const nhi_view_api* view );
 	void SetHost( IRoot* host );
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
@@ -58,9 +56,8 @@ private:
 	// Python may rewire or rebuild the host between frames.
 	Tr2NoesisHost* GetHostObject() const;
 
-	// Both belong to other modules, so they are held as the opaque Blue objects they are.
-	// m_viewApi is the view's vtable, resolved by SetView and valid until it is set again.
-	IRootPtr m_view;
+	// Retained, so it outlives whatever capsule delivered it. Released when replaced or
+	// when the step goes. There is no second field to fall out of step with it.
 	const nhi_view_api* m_viewApi;
 	IRootPtr m_host;
 	bool m_hasOverrideViewport;

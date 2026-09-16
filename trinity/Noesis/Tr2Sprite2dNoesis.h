@@ -30,6 +30,9 @@ public:
 	EXPOSE_TO_BLUE();
 
 	Tr2Sprite2dNoesis( IRoot* lockobj = NULL );
+
+	// The view interface, retained. None clears it.
+	void SetView( const nhi_view_api* view );
 	~Tr2Sprite2dNoesis();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -42,11 +45,10 @@ private:
 	void EnsureJob();
 	bool SyncOverrideViewport( Tr2Sprite2dScene* renderer );
 
-	// Written only by Python, through Blue attributes mapped straight onto them, and read
-	// only by EnsureJob. Both belong to other modules, so they are held as the opaque Blue
-	// objects they are. No setters deliberately: a write runs no hook, which is why
-	// EnsureJob pushes both to the step every gather.
-	IRootPtr m_view;
+	// The view interface, retained; the host, still a Blue object on this side. Both are
+	// pushed to the step every gather, because the step is created lazily and Python has
+	// already set these by the time it exists.
+	const nhi_view_api* m_view;
 	IRootPtr m_host;
 	TriStepRenderNoesisPtr m_step;
 	TriRenderJobPtr m_job;
