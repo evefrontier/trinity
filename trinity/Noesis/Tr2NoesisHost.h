@@ -46,7 +46,6 @@ public:
 	// Takes the library's shader source. Cheap and thread-agnostic: it only resolves the
 	// interface, so Python can call it at startup.
 	bool SetShaderSource( IRoot* shaderSource );
-	IRoot* GetShaderSource() const;
 
 	// Builds the device on first call and returns whether it is usable.
 	//

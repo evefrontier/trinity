@@ -25,35 +25,6 @@ Tr2Sprite2dNoesis::~Tr2Sprite2dNoesis()
 {
 }
 
-void Tr2Sprite2dNoesis::SetView( IRoot* view )
-{
-	m_view = view;
-	if( m_step )
-	{
-		m_step->SetView( m_view );
-		m_step->SetHost( m_host );
-	}
-}
-
-IRoot* Tr2Sprite2dNoesis::GetView() const
-{
-	return m_view;
-}
-
-void Tr2Sprite2dNoesis::SetHost( IRoot* host )
-{
-	m_host = host;
-	if( m_step )
-	{
-		m_step->SetHost( m_host );
-	}
-}
-
-IRoot* Tr2Sprite2dNoesis::GetHost() const
-{
-	return m_host;
-}
-
 void Tr2Sprite2dNoesis::EnsureJob()
 {
 	if( !m_step )
@@ -65,8 +36,13 @@ void Tr2Sprite2dNoesis::EnsureJob()
 		}
 	}
 
-	// Python writes m_view through the Blue attribute; keep the step in sync every gather.
+	// Python writes m_view and m_host through Blue attributes, and it does so before the
+	// first gather -- which is when the step above comes into existence. Neither setter
+	// can reach a step that does not exist yet, so both are pushed here. Miss the host
+	// and Execute takes its "nothing wired" path every frame: no drawing, no error, an
+	// empty rectangle where the UI should be.
 	m_step->SetView( m_view );
+	m_step->SetHost( m_host );
 
 	if( !m_job )
 	{

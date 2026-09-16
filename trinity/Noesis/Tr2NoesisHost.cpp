@@ -296,11 +296,6 @@ bool Tr2NoesisHost::SetShaderSource( IRoot* shaderSource )
 	return m_shaderSource != nullptr;
 }
 
-IRoot* Tr2NoesisHost::GetShaderSource() const
-{
-	return m_shaderSourceObject;
-}
-
 bool Tr2NoesisHost::EnsureDevice()
 {
 	if( m_deviceAttempted )

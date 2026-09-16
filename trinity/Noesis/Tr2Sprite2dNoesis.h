@@ -34,13 +34,6 @@ public:
 	Tr2Sprite2dNoesis( IRoot* lockobj = NULL );
 	~Tr2Sprite2dNoesis();
 
-	// Opaque: the view belongs to the Noesis module. See TriStepRenderNoesis.
-	void SetView( IRoot* view );
-	IRoot* GetView() const;
-
-	void SetHost( IRoot* host );
-	IRoot* GetHost() const;
-
 	//////////////////////////////////////////////////////////////////////////
 	// ITr2SpriteObject
 	unsigned int GetVertexCount();
@@ -51,6 +44,10 @@ private:
 	void EnsureJob();
 	bool SyncOverrideViewport( Tr2Sprite2dScene* renderer );
 
+	// Written only by Python, through Blue attributes mapped straight onto them, and read
+	// only by EnsureJob. Both belong to other modules, so they are held as the opaque Blue
+	// objects they are. There are deliberately no setters: a write has no hook to run, so
+	// EnsureJob pushing both to the step every gather is the one place they propagate.
 	IRootPtr m_view;
 	IRootPtr m_host;
 	TriStepRenderNoesisPtr m_step;

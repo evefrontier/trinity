@@ -37,12 +37,12 @@ public:
 	// handle borrows, so the IRootPtr is what keeps it alive.
 	void py__init__( IRoot* view );
 
+	// Python assigns the 'view' and 'host' attributes, which Blue maps straight onto the
+	// members; these are the C++ path, used by Tr2Sprite2dNoesis when it wires the step it
+	// owns. SetView is what resolves the view's vtable, so a member written behind its
+	// back leaves the step drawing nothing.
 	void SetView( IRoot* view );
-	IRoot* GetView() const;
-
-	// The Tr2NoesisHost this step renders through. Without one the step draws nothing.
 	void SetHost( IRoot* host );
-	IRoot* GetHost() const;
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
@@ -50,9 +50,8 @@ public:
 	// size even when it extends past the target or a parent clip; onscreen draws use
 	// that full rect so the GPU clips overflow instead of scaling into the remaining
 	// pixels. SetOverrideClip is the parent CarbonUI clip in render-target pixels; it
-	// only applies while the override viewport is set, so clearing that clears both.
+	// only applies while the override viewport is set.
 	void SetOverrideViewport( int x, int y, int width, int height );
-	void ClearOverrideViewport();
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:

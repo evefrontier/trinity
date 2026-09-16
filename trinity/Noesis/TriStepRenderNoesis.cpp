@@ -193,11 +193,6 @@ void TriStepRenderNoesis::SetHost( IRoot* host )
 	m_host = host;
 }
 
-IRoot* TriStepRenderNoesis::GetHost() const
-{
-	return m_host;
-}
-
 Tr2NoesisHost* TriStepRenderNoesis::GetHostObject() const
 {
 	if( m_host == nullptr )
@@ -212,11 +207,6 @@ Tr2NoesisHost* TriStepRenderNoesis::GetHostObject() const
 	return host;
 }
 
-IRoot* TriStepRenderNoesis::GetView() const
-{
-	return m_view;
-}
-
 void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int height )
 {
 	m_hasOverrideViewport = true;
@@ -224,12 +214,6 @@ void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int heig
 	m_overrideY = y;
 	m_overrideWidth = width;
 	m_overrideHeight = height;
-}
-
-void TriStepRenderNoesis::ClearOverrideViewport()
-{
-	m_hasOverrideViewport = false;
-	m_hasOverrideClip = false;
 }
 
 void TriStepRenderNoesis::SetOverrideClip( int left, int top, int right, int bottom )
