@@ -4,8 +4,6 @@
 
 #include "Noesis/Tr2Sprite2dNoesis.h"
 
-#if WITH_NOESIS
-
 BLUE_DEFINE( Tr2Sprite2dNoesis );
 
 const Be::ClassInfo* Tr2Sprite2dNoesis::ExposeToBlue()
@@ -28,5 +26,3 @@ const Be::ClassInfo* Tr2Sprite2dNoesis::ExposeToBlue()
 
 	EXPOSURE_CHAINTO( Tr2SpriteObjectBase )
 }
-
-#endif

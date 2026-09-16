@@ -4,8 +4,6 @@
 #ifndef TriStepRenderNoesis_H
 #define TriStepRenderNoesis_H
 
-#if WITH_NOESIS
-
 #include "Noesis/Tr2NoesisHost.h"
 #include "RenderJob/TriRenderStep.h"
 
@@ -78,7 +76,5 @@ private:
 };
 
 TYPEDEF_BLUECLASS( TriStepRenderNoesis );
-
-#endif
 
 #endif

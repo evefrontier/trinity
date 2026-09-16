@@ -4,8 +4,6 @@
 #ifndef Tr2NoesisRenderDevice_H
 #define Tr2NoesisRenderDevice_H
 
-#if WITH_NOESIS
-
 #include <nsi.h>
 
 #include <../trinityal/include/TrinityAL.h>
@@ -309,7 +307,5 @@ private:
 	DynamicRing m_vertices;
 	DynamicRing m_indices;
 };
-
-#endif
 
 #endif

@@ -4,8 +4,6 @@
 
 #include "Noesis/TriStepRenderNoesis.h"
 
-#if WITH_NOESIS
-
 BLUE_DEFINE( TriStepRenderNoesis );
 
 const Be::ClassInfo* TriStepRenderNoesis::ExposeToBlue()
@@ -35,5 +33,3 @@ const Be::ClassInfo* TriStepRenderNoesis::ExposeToBlue()
 
 	EXPOSURE_CHAINTO( TriRenderStep )
 }
-
-#endif

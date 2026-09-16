@@ -4,8 +4,6 @@
 
 #include "Noesis/Tr2Sprite2dNoesis.h"
 
-#if WITH_NOESIS
-
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisHost.h"
 
@@ -190,5 +188,3 @@ unsigned int Tr2Sprite2dNoesis::GetVertexCount()
 {
 	return 0;
 }
-
-#endif

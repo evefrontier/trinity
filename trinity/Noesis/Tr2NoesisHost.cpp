@@ -4,8 +4,6 @@
 
 #include "Noesis/Tr2NoesisHost.h"
 
-#if WITH_NOESIS
-
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisRenderDevice.h"
 #include "Resources/TriTextureRes.h"
@@ -464,5 +462,3 @@ const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 
 	EXPOSURE_END()
 }
-
-#endif

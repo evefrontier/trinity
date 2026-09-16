@@ -3,8 +3,6 @@
 #include "StdAfx.h"
 #include "Noesis/Tr2NoesisRenderDevice.h"
 
-#if WITH_NOESIS
-
 #include "Noesis/Tr2NoesisLog.h"
 #include "Tr2RenderContext.h"
 
@@ -1936,5 +1934,3 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 		CCP_ASSERT_M( false, "Noesis render state not implemented by the AL" );
 	}
 }
-
-#endif

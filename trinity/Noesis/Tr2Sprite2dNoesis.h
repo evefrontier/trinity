@@ -4,8 +4,6 @@
 #ifndef Tr2Sprite2dNoesis_h
 #define Tr2Sprite2dNoesis_h
 
-#if WITH_NOESIS
-
 #include "Sprite2d/Tr2SpriteObject.h"
 #include "Noesis/Tr2NoesisHost.h"
 
@@ -55,7 +53,5 @@ private:
 };
 
 TYPEDEF_BLUECLASS( Tr2Sprite2dNoesis );
-
-#endif
 
 #endif

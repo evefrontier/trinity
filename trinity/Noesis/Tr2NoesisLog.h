@@ -4,8 +4,6 @@
 #ifndef Tr2NoesisLog_H
 #define Tr2NoesisLog_H
 
-#if WITH_NOESIS
-
 namespace CCP
 {
 inline CcpLogChannel_t& GetNoesisChannel()
@@ -36,7 +34,5 @@ inline bool IsLogVerbose()
 }
 
 }
-
-#endif
 
 #endif

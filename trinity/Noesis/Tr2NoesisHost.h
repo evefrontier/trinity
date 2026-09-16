@@ -4,8 +4,6 @@
 #ifndef Tr2NoesisHost_H
 #define Tr2NoesisHost_H
 
-#if WITH_NOESIS
-
 #include <nsi_blue.h>
 
 #include <memory>
@@ -117,7 +115,5 @@ private:
 };
 
 TYPEDEF_BLUECLASS( Tr2NoesisHost );
-
-#endif
 
 #endif

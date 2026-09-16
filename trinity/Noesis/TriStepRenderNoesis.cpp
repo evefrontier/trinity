@@ -4,8 +4,6 @@
 
 #include "Noesis/TriStepRenderNoesis.h"
 
-#if WITH_NOESIS
-
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisHost.h"
 
@@ -223,5 +221,3 @@ void TriStepRenderNoesis::SetOverrideClip( int left, int top, int right, int bot
 	m_overrideClipRight = right;
 	m_overrideClipBottom = bottom;
 }
-
-#endif

@@ -180,10 +180,6 @@
           "version>=": "2.12.0.14"
         }
       ]
-    },
-    "with-noesis": {
-      "description": "Build the host side of the Noesis integration. Needs no packages: the NoesisGUI SDK moved to frontier-noesis, and the nsi ABI header comes from FRONTIER_NOESIS_DIR.",
-      "dependencies": []
     }
   },
   "overrides": [
