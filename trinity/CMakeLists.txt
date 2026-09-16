@@ -1838,7 +1838,7 @@ endif()
 
 #[[
     Noesis lives in frontier-noesis now. Trinity keeps only the host side: the render
-    device behind the nsi.h vtables, and the two Blue adapters that drive a view from a
+    device behind the nhi.h vtables, and the two Blue adapters that drive a view from a
     render job or a sprite tree. The SDK, the shader permutations and everything
     Python-facing moved out, so nothing here includes or links NoesisGUI.
 ]]
@@ -1865,18 +1865,18 @@ if(WITH_NOESIS)
         than a path into somebody's working tree. Neither repository depends on the other
         -- only on the contract.
     ]]
-    set(FRONTIER_NOESIS_DIR "" CACHE PATH "Path to a frontier-noesis checkout or install providing nsi.h")
+    set(FRONTIER_NOESIS_DIR "" CACHE PATH "Path to a frontier-noesis checkout or install providing nhi.h")
     if(NOT FRONTIER_NOESIS_DIR)
         message(FATAL_ERROR "WITH_NOESIS requires FRONTIER_NOESIS_DIR pointing at a frontier-noesis checkout or install tree")
     endif()
 
-    find_path(NSI_INCLUDE_DIR nsi.h
+    find_path(NHI_INCLUDE_DIR nhi.h
         HINTS "${FRONTIER_NOESIS_DIR}/include" "${FRONTIER_NOESIS_DIR}"
         NO_DEFAULT_PATH)
-    if(NOT NSI_INCLUDE_DIR)
-        message(FATAL_ERROR "nsi.h not found under ${FRONTIER_NOESIS_DIR}")
+    if(NOT NHI_INCLUDE_DIR)
+        message(FATAL_ERROR "nhi.h not found under ${FRONTIER_NOESIS_DIR}")
     endif()
-    message(STATUS "Using the nsi ABI from ${NSI_INCLUDE_DIR}")
+    message(STATUS "Using the nhi ABI from ${NHI_INCLUDE_DIR}")
 endif()
 
 
@@ -1951,7 +1951,7 @@ function(set_shared_trinity_properties target)
             and nothing to find at load time.
         ]]
         target_compile_definitions(${target} PRIVATE WITH_NOESIS)
-        target_include_directories(${target} PRIVATE ${NSI_INCLUDE_DIR})
+        target_include_directories(${target} PRIVATE ${NHI_INCLUDE_DIR})
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)

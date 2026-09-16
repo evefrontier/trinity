@@ -36,7 +36,7 @@ const uint32_t PS_T4 = 1 << 8;
 // Maps one attribute the library described onto the AL's vertex vocabulary. Semantic and
 // index cross the ABI exactly as the bytecode was compiled with them, so the fxc semantic
 // renames are the library's business and nothing here has to restate them.
-bool ToVertexUsage( const nsi_vertex_attribute& attr, Tr2VertexDefinition::UsageCode& usage )
+bool ToVertexUsage( const nhi_vertex_attribute& attr, Tr2VertexDefinition::UsageCode& usage )
 {
 	if( attr.semantic == nullptr )
 	{
@@ -60,46 +60,46 @@ bool ToVertexUsage( const nsi_vertex_attribute& attr, Tr2VertexDefinition::Usage
 	return false;
 }
 
-uint32_t VertexAttrSize( nsi_vertex_attr_type type )
+uint32_t VertexAttrSize( nhi_vertex_attr_type type )
 {
 	switch( type )
 	{
-	case NSI_VERTEX_ATTR_FLOAT:
+	case NHI_VERTEX_ATTR_FLOAT:
 		return 4;
-	case NSI_VERTEX_ATTR_FLOAT2:
+	case NHI_VERTEX_ATTR_FLOAT2:
 		return 8;
-	case NSI_VERTEX_ATTR_FLOAT4:
+	case NHI_VERTEX_ATTR_FLOAT4:
 		return 16;
-	case NSI_VERTEX_ATTR_UBYTE4_NORM:
+	case NHI_VERTEX_ATTR_UBYTE4_NORM:
 		return 4;
-	case NSI_VERTEX_ATTR_USHORT4_NORM:
+	case NHI_VERTEX_ATTR_USHORT4_NORM:
 		return 8;
 	}
 	return 0;
 }
 
-bool ToVertexDataType( nsi_vertex_attr_type type, Tr2VertexDefinition::DataType& dataType,
+bool ToVertexDataType( nhi_vertex_attr_type type, Tr2VertexDefinition::DataType& dataType,
 					   uint32_t& dimension )
 {
 	switch( type )
 	{
-	case NSI_VERTEX_ATTR_FLOAT:
+	case NHI_VERTEX_ATTR_FLOAT:
 		dataType = Tr2VertexDefinition::FLOAT32_1;
 		dimension = 1;
 		return true;
-	case NSI_VERTEX_ATTR_FLOAT2:
+	case NHI_VERTEX_ATTR_FLOAT2:
 		dataType = Tr2VertexDefinition::FLOAT32_2;
 		dimension = 2;
 		return true;
-	case NSI_VERTEX_ATTR_FLOAT4:
+	case NHI_VERTEX_ATTR_FLOAT4:
 		dataType = Tr2VertexDefinition::FLOAT32_4;
 		dimension = 4;
 		return true;
-	case NSI_VERTEX_ATTR_UBYTE4_NORM:
+	case NHI_VERTEX_ATTR_UBYTE4_NORM:
 		dataType = Tr2VertexDefinition::UBYTE_4_NORM;
 		dimension = 4;
 		return true;
-	case NSI_VERTEX_ATTR_USHORT4_NORM:
+	case NHI_VERTEX_ATTR_USHORT4_NORM:
 		dataType = Tr2VertexDefinition::USHORT_4_NORM;
 		dimension = 4;
 		return true;
@@ -107,9 +107,9 @@ bool ToVertexDataType( nsi_vertex_attr_type type, Tr2VertexDefinition::DataType&
 	return false;
 }
 
-// The bit layout is nsi.h's guarantee, and the library asserts its own agreement with
+// The bit layout is nhi.h's guarantee, and the library asserts its own agreement with
 // the SDK at its end. Here it is enough that a byte addresses 64 slots.
-static_assert( sizeof( nsi_sampler_state ) == 1, "nsi_sampler_state is a packed byte" );
+static_assert( sizeof( nhi_sampler_state ) == 1, "nhi_sampler_state is a packed byte" );
 
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 {
@@ -148,7 +148,7 @@ void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 	}
 }
 
-uint32_t GetBatchSignature( const nsi_batch& batch )
+uint32_t GetBatchSignature( const nhi_batch& batch )
 {
 	uint32_t signature = 0;
 	if( batch.pattern )
@@ -200,14 +200,14 @@ PixelFormat NoesisStencilFormat()
 #endif
 }
 
-PixelFormat ToPixelFormat( nsi_texture_format format )
+PixelFormat ToPixelFormat( nhi_texture_format format )
 {
 	switch( format )
 	{
-	case NSI_TEXTURE_FORMAT_RGBA8:
-	case NSI_TEXTURE_FORMAT_RGBX8:
+	case NHI_TEXTURE_FORMAT_RGBA8:
+	case NHI_TEXTURE_FORMAT_RGBX8:
 		return PIXEL_FORMAT_R8G8B8A8_UNORM;
-	case NSI_TEXTURE_FORMAT_R8:
+	case NHI_TEXTURE_FORMAT_R8:
 		return PIXEL_FORMAT_R8_UNORM;
 	default:
 		CCP_ASSERT_M( false, "Unsupported Noesis texture format" );
@@ -215,14 +215,14 @@ PixelFormat ToPixelFormat( nsi_texture_format format )
 	}
 }
 
-uint32_t BytesPerPixel( nsi_texture_format format )
+uint32_t BytesPerPixel( nhi_texture_format format )
 {
 	switch( format )
 	{
-	case NSI_TEXTURE_FORMAT_RGBA8:
-	case NSI_TEXTURE_FORMAT_RGBX8:
+	case NHI_TEXTURE_FORMAT_RGBA8:
+	case NHI_TEXTURE_FORMAT_RGBX8:
 		return 4;
-	case NSI_TEXTURE_FORMAT_R8:
+	case NHI_TEXTURE_FORMAT_R8:
 		return 1;
 	default:
 		CCP_ASSERT_M( false, "Unsupported Noesis texture format" );
@@ -231,10 +231,10 @@ uint32_t BytesPerPixel( nsi_texture_format format )
 }
 
 bool AddVertexAttributes( Tr2VertexDefinition& definition, Tr2ShaderSignatureAL* vsSignature,
-						  const std::vector<nsi_vertex_attribute>& attributes )
+						  const std::vector<nhi_vertex_attribute>& attributes )
 {
 	uint32_t registerIndex = 0;
-	for( const nsi_vertex_attribute& attr : attributes )
+	for( const nhi_vertex_attribute& attr : attributes )
 	{
 		Tr2VertexDefinition::UsageCode usage = Tr2VertexDefinition::POSITION;
 		Tr2VertexDefinition::DataType dataType = Tr2VertexDefinition::FLOAT32_4;
@@ -260,31 +260,31 @@ bool AddVertexAttributes( Tr2VertexDefinition& definition, Tr2ShaderSignatureAL*
 	return true;
 }
 
-void ToAddressMode( nsi_wrap_mode wrap, Tr2SamplerDescription& desc )
+void ToAddressMode( nhi_wrap_mode wrap, Tr2SamplerDescription& desc )
 {
 	switch( wrap )
 	{
-	case NSI_WRAP_CLAMP_TO_EDGE:
+	case NHI_WRAP_CLAMP_TO_EDGE:
 		desc.m_addressU = TA_CLAMP;
 		desc.m_addressV = TA_CLAMP;
 		break;
-	case NSI_WRAP_CLAMP_TO_ZERO:
+	case NHI_WRAP_CLAMP_TO_ZERO:
 		desc.m_addressU = TA_BORDER;
 		desc.m_addressV = TA_BORDER;
 		break;
-	case NSI_WRAP_REPEAT:
+	case NHI_WRAP_REPEAT:
 		desc.m_addressU = TA_WRAP;
 		desc.m_addressV = TA_WRAP;
 		break;
-	case NSI_WRAP_MIRROR_U:
+	case NHI_WRAP_MIRROR_U:
 		desc.m_addressU = TA_MIRROR;
 		desc.m_addressV = TA_WRAP;
 		break;
-	case NSI_WRAP_MIRROR_V:
+	case NHI_WRAP_MIRROR_V:
 		desc.m_addressU = TA_WRAP;
 		desc.m_addressV = TA_MIRROR;
 		break;
-	case NSI_WRAP_MIRROR:
+	case NHI_WRAP_MIRROR:
 		desc.m_addressU = TA_MIRROR;
 		desc.m_addressV = TA_MIRROR;
 		break;
@@ -296,20 +296,20 @@ void ToAddressMode( nsi_wrap_mode wrap, Tr2SamplerDescription& desc )
 	}
 }
 
-Tr2RenderContextEnum::TextureFilter ToMinMagFilter( nsi_minmag_filter filter )
+Tr2RenderContextEnum::TextureFilter ToMinMagFilter( nhi_minmag_filter filter )
 {
-	return filter == NSI_MINMAG_LINEAR ? TF_LINEAR : TF_POINT;
+	return filter == NHI_MINMAG_LINEAR ? TF_LINEAR : TF_POINT;
 }
 
-Tr2RenderContextEnum::TextureFilter ToMipFilter( nsi_mip_filter filter )
+Tr2RenderContextEnum::TextureFilter ToMipFilter( nhi_mip_filter filter )
 {
 	switch( filter )
 	{
-	case NSI_MIP_LINEAR:
+	case NHI_MIP_LINEAR:
 		return TF_LINEAR;
-	case NSI_MIP_NEAREST:
+	case NHI_MIP_NEAREST:
 		return TF_POINT;
-	case NSI_MIP_DISABLED:
+	case NHI_MIP_DISABLED:
 		return TF_NONE;
 	default:
 		CCP_ASSERT_M( false, "Unknown Noesis mip filter" );
@@ -684,7 +684,7 @@ Tr2BufferAL& Tr2NoesisRenderDevice::DynamicRing::CurrentChunk()
 // --------------------------------------------------------------------------------------
 
 Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primaryContext,
-											  const nsi_shader_source& shaders ) :
+											  const nhi_shader_source& shaders ) :
 	m_primary( &primaryContext ),
 	m_context( &primaryContext ),
 	m_valid( true ),
@@ -699,10 +699,10 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 		return;
 	}
 
-	m_caps.linear_rendering = NSI_FALSE;
-	m_caps.subpixel_rendering = NSI_TRUE;
-	m_caps.depth_range_zero_to_one = NSI_TRUE;
-	m_caps.clip_space_y_inverted = NSI_FALSE;
+	m_caps.linear_rendering = NHI_FALSE;
+	m_caps.subpixel_rendering = NHI_TRUE;
+	m_caps.depth_range_zero_to_one = NHI_TRUE;
+	m_caps.clip_space_y_inverted = NHI_FALSE;
 
 	CreateVertexLayouts();
 	CreateShaders();
@@ -763,7 +763,7 @@ void Tr2NoesisRenderDevice::ClearHostScissor()
 	m_hasHostScissor = false;
 }
 
-void Tr2NoesisRenderDevice::GetCaps( nsi_device_caps& out ) const
+void Tr2NoesisRenderDevice::GetCaps( nhi_device_caps& out ) const
 {
 	out = m_caps;
 }
@@ -839,7 +839,7 @@ Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CloneRenderTarget( const char* lab
 }
 
 Tr2NoesisTexture* Tr2NoesisRenderDevice::CreateTexture( const char* label, uint32_t width, uint32_t height,
-												   uint32_t numLevels, nsi_texture_format format, const void** data )
+												   uint32_t numLevels, nhi_texture_format format, const void** data )
 {
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
 	CCP_ASSERT_M( numLevels > 0, "CreateTexture with zero mip levels" );
@@ -889,7 +889,7 @@ Tr2NoesisTexture* Tr2NoesisRenderDevice::CreateTexture( const char* label, uint3
 	{
 		CCP_NOESIS_LOG( "Texture '%s' %u x %u x %u", SafeLabel( label, "" ), width, height, numLevels );
 	}
-	return new Tr2NoesisTexture( textureAL, width, height, numLevels, format == NSI_TEXTURE_FORMAT_RGBA8 );
+	return new Tr2NoesisTexture( textureAL, width, height, numLevels, format == NHI_TEXTURE_FORMAT_RGBA8 );
 }
 
 Tr2NoesisTexture* Tr2NoesisRenderDevice::WrapTexture( const Tr2TextureAL& texture, bool hasAlpha )
@@ -1109,7 +1109,7 @@ void Tr2NoesisRenderDevice::SetRenderTarget( Tr2NoesisRenderTarget* surface )
 	m_context->SetViewport( Tr2Viewport( surface->GetWidth(), surface->GetHeight() ) );
 }
 
-void Tr2NoesisRenderDevice::BeginTile( Tr2NoesisRenderTarget* surface, const nsi_tile& tile )
+void Tr2NoesisRenderDevice::BeginTile( Tr2NoesisRenderTarget* surface, const nhi_tile& tile )
 {
 	CCP_ASSERT_M( m_context != nullptr, "BeginTile without a render context" );
 	CCP_ASSERT_M( surface != nullptr, "BeginTile with null surface" );
@@ -1129,7 +1129,7 @@ void Tr2NoesisRenderDevice::EndTile( Tr2NoesisRenderTarget* /*surface*/ )
 	// the full target.
 }
 
-void Tr2NoesisRenderDevice::ResolveRenderTarget( Tr2NoesisRenderTarget* /*surface*/, const nsi_tile* /*tiles*/, uint32_t /*numTiles*/ )
+void Tr2NoesisRenderDevice::ResolveRenderTarget( Tr2NoesisRenderTarget* /*surface*/, const nhi_tile* /*tiles*/, uint32_t /*numTiles*/ )
 {
 	// Sample count is 1, so there is no MSAA resolve. Color targets are created
 	// RENDER_TARGET | SHADER_RESOURCE, so defaultState is PIXEL_SHADER_RESOURCE |
@@ -1168,7 +1168,7 @@ void Tr2NoesisRenderDevice::UnmapIndices()
 	m_indices.Unmap( *m_context );
 }
 
-void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
+void Tr2NoesisRenderDevice::DrawBatch( const nhi_batch& batch )
 {
 	CCP_ASSERT_M( m_context != nullptr, "DrawBatch without a render context" );
 	CCP_ASSERT_M( !batch.single_pass_stereo, "Noesis sent a stereo batch; the stereo permutations are not compiled" );
@@ -1321,7 +1321,7 @@ void Tr2NoesisRenderDevice::ReportFrameBatches()
 	m_logBatchDetail = false;
 }
 
-void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nsi_uniform_data& uniforms,
+void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nhi_uniform_data& uniforms,
 										 Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name )
 {
 	if( uniforms.values == nullptr || uniforms.num_dwords == 0 )
@@ -1382,7 +1382,7 @@ void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nsi_
 	}
 }
 
-void Tr2NoesisRenderDevice::BindUniforms( const nsi_batch& batch, uint32_t flags )
+void Tr2NoesisRenderDevice::BindUniforms( const nhi_batch& batch, uint32_t flags )
 {
 	if( flags & VS_CB0 )
 	{
@@ -1402,7 +1402,7 @@ void Tr2NoesisRenderDevice::BindUniforms( const nsi_batch& batch, uint32_t flags
 	}
 }
 
-void Tr2NoesisRenderDevice::BindResources( const nsi_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId )
+void Tr2NoesisRenderDevice::BindResources( const nhi_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId )
 {
 	if( ( flags & ( PS_T0 | PS_T1 | PS_T2 | PS_T3 | PS_T4 ) ) == 0 )
 	{
@@ -1414,8 +1414,8 @@ void Tr2NoesisRenderDevice::BindResources( const nsi_batch& batch, uint32_t flag
 	{
 		uint32_t flag;
 		uint32_t registerIndex;
-		nsi_texture texture;
-		nsi_sampler_state sampler = 0;
+		nhi_texture texture;
+		nhi_sampler_state sampler = 0;
 	} bindings[] = {
 		{ PS_T0, 0, batch.pattern, batch.pattern_sampler },
 		{ PS_T1, 1, batch.ramps, batch.ramps_sampler },
@@ -1493,7 +1493,7 @@ void Tr2NoesisRenderDevice::CreateVertexLayouts()
 	}
 }
 
-bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
+bool Tr2NoesisRenderDevice::ReadShaderSource( const nhi_shader_source& shaders )
 {
 	// Everything the host needs to build pipelines comes from here. Read once and cached,
 	// because a blob is stable for the life of the process and asking per batch would put
@@ -1527,8 +1527,8 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 	const uint32_t blobCount = shaders.get_count( shaders.header.self );
 	for( uint32_t i = 0; i < blobCount; ++i )
 	{
-		nsi_shader_blob blob = {};
-		if( shaders.get_blob( shaders.header.self, i, &blob ) != NSI_OK )
+		nhi_shader_blob blob = {};
+		if( shaders.get_blob( shaders.header.self, i, &blob ) != NHI_OK )
 		{
 			CCP_NOESIS_LOGERR( "Shader blob %u could not be read", i );
 			return false;
@@ -1554,7 +1554,7 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 		info.bytecodeSize = blob.size;
 		info.name = blob.name;
 
-		const bool isVertex = blob.stage == NSI_SHADER_STAGE_VERTEX;
+		const bool isVertex = blob.stage == NHI_SHADER_STAGE_VERTEX;
 		std::vector<ShaderInfo>& table = isVertex ? m_vertexInfo : m_shaderInfo;
 		if( table.size() <= blob.id )
 		{
@@ -1597,7 +1597,7 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 	for( uint32_t format = 0; format < formatCount; ++format )
 	{
 		uint32_t stride = 0;
-		for( const nsi_vertex_attribute& attr : m_vertexFormats[format] )
+		for( const nhi_vertex_attribute& attr : m_vertexFormats[format] )
 		{
 			stride += VertexAttrSize( attr.type );
 		}
@@ -1626,13 +1626,13 @@ void Tr2NoesisRenderDevice::CreateShaders()
 			m_valid = false;
 			continue;
 		}
-		if( ( m_vertexInfo[vs].resourceFlags & NSI_SHADER_USES_VS_CB0 ) != 0 )
+		if( ( m_vertexInfo[vs].resourceFlags & NHI_SHADER_USES_VS_CB0 ) != 0 )
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
 		}
 		// Which constant buffers a vertex shader binds arrives on the blob, so which
 		// permutations are SDF is not a fact this side has to know.
-		if( ( m_vertexInfo[vs].resourceFlags & NSI_SHADER_USES_VS_CB1 ) != 0 )
+		if( ( m_vertexInfo[vs].resourceFlags & NHI_SHADER_USES_VS_CB1 ) != 0 )
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
 		}
@@ -1704,28 +1704,28 @@ void Tr2NoesisRenderDevice::CreateShaders()
 
 void Tr2NoesisRenderDevice::CreateSamplers()
 {
-	// nsi_sampler_state packs wrapMode:3, minmagFilter:1, mipFilter:2; unused:2 stays 0
+	// nhi_sampler_state packs wrapMode:3, minmagFilter:1, mipFilter:2; unused:2 stays 0
 	// or the index lands past the 64 slots those six bits address.
 	static_assert( sizeof( m_samplers ) / sizeof( m_samplers[0] ) == ( 1u << 6 ),
 				   "m_samplers must cover every 6-bit sampler value" );
 
-	for( uint8_t wrap = 0; wrap <= NSI_WRAP_MIRROR; ++wrap )
+	for( uint8_t wrap = 0; wrap <= NHI_WRAP_MIRROR; ++wrap )
 	{
-		for( uint8_t minmag = 0; minmag <= NSI_MINMAG_LINEAR; ++minmag )
+		for( uint8_t minmag = 0; minmag <= NHI_MINMAG_LINEAR; ++minmag )
 		{
-			for( uint8_t mip = 0; mip <= NSI_MIP_LINEAR; ++mip )
+			for( uint8_t mip = 0; mip <= NHI_MIP_LINEAR; ++mip )
 			{
-				// Packed the way nsi.h documents, then unpacked with its own helpers, so
+				// Packed the way nhi.h documents, then unpacked with its own helpers, so
 				// the index a batch arrives with and the slot built here cannot disagree
 				// about where the bits are.
-				const nsi_sampler_state state = static_cast<nsi_sampler_state>(
+				const nhi_sampler_state state = static_cast<nhi_sampler_state>(
 					( wrap & 0x7 ) | ( ( minmag & 0x1 ) << 3 ) | ( ( mip & 0x3 ) << 4 ) );
 
 				Tr2SamplerDescription desc;
-				desc.m_minFilter = ToMinMagFilter( nsi_sampler_minmag_filter( state ) );
-				desc.m_magFilter = ToMinMagFilter( nsi_sampler_minmag_filter( state ) );
-				desc.m_mipFilter = ToMipFilter( nsi_sampler_mip_filter( state ) );
-				ToAddressMode( nsi_sampler_wrap_mode( state ), desc );
+				desc.m_minFilter = ToMinMagFilter( nhi_sampler_minmag_filter( state ) );
+				desc.m_magFilter = ToMinMagFilter( nhi_sampler_minmag_filter( state ) );
+				desc.m_mipFilter = ToMipFilter( nhi_sampler_mip_filter( state ) );
+				ToAddressMode( nhi_sampler_wrap_mode( state ), desc );
 				desc.m_addressW = TA_CLAMP;
 				desc.m_mipLODBias = -0.75f;
 				desc.m_maxAnisotropy = 1;
@@ -1797,18 +1797,18 @@ bool Tr2NoesisRenderDevice::EnsureOnscreenStencil( uint32_t width, uint32_t heig
 	return true;
 }
 
-void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
+void Tr2NoesisRenderDevice::ApplyRenderState( const nhi_batch& batch )
 {
 	// Emitted in full for every batch, never as a delta: any state we leave out can
 	// survive from whichever render step ran before us.
 	CCP_ASSERT_M( m_context != nullptr, "ApplyRenderState without a render context" );
 
-	// Unpacked with nsi.h's own helpers rather than by re-deriving the shifts from the
-	// comment on nsi_render_state.
-	const nsi_render_state state = batch.render_state;
-	const nsi_blend_mode blendMode = nsi_render_state_blend_mode( state );
-	const bool colorEnable = nsi_render_state_color_enable( state ) != NSI_FALSE;
-	const bool wireframe = nsi_render_state_wireframe( state ) != NSI_FALSE;
+	// Unpacked with nhi.h's own helpers rather than by re-deriving the shifts from the
+	// comment on nhi_render_state.
+	const nhi_render_state state = batch.render_state;
+	const nhi_blend_mode blendMode = nhi_render_state_blend_mode( state );
+	const bool colorEnable = nhi_render_state_color_enable( state ) != NHI_FALSE;
+	const bool wireframe = nhi_render_state_wireframe( state ) != NHI_FALSE;
 	// Two entries per state, and the count below is the ceiling for any one batch.
 	uint32_t pairs[2 * 32];
 	const uint32_t capacity = static_cast<uint32_t>( std::size( pairs ) );
@@ -1834,7 +1834,7 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 	add( RS_SRGBWRITEENABLE, 0 );
 	add( RS_ALPHATESTENABLE, 0 );
 
-	if( colorEnable && blendMode != NSI_BLEND_SRC )
+	if( colorEnable && blendMode != NHI_BLEND_SRC )
 	{
 		add( RS_ALPHABLENDENABLE, 1 );
 		add( RS_SEPARATEALPHABLENDENABLE, 1 );
@@ -1845,23 +1845,23 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 
 		switch( blendMode )
 		{
-		case NSI_BLEND_SRC_OVER:
+		case NHI_BLEND_SRC_OVER:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRCALPHA );
 			break;
-		case NSI_BLEND_SRC_OVER_MULTIPLY:
+		case NHI_BLEND_SRC_OVER_MULTIPLY:
 			add( RS_SRCBLEND, BM_DESTCOLOR );
 			add( RS_DESTBLEND, BM_INVSRCALPHA );
 			break;
-		case NSI_BLEND_SRC_OVER_SCREEN:
+		case NHI_BLEND_SRC_OVER_SCREEN:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRCCOLOR );
 			break;
-		case NSI_BLEND_SRC_OVER_ADDITIVE:
+		case NHI_BLEND_SRC_OVER_ADDITIVE:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_ONE );
 			break;
-		case NSI_BLEND_SRC_OVER_DUAL:
+		case NHI_BLEND_SRC_OVER_DUAL:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRC1COLOR );
 			add( RS_DESTBLENDALPHA, BM_INVSRC1ALPHA );
@@ -1879,9 +1879,9 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 		add( RS_SEPARATEALPHABLENDENABLE, 0 );
 	}
 
-	const nsi_stencil_mode stencilMode = nsi_render_state_stencil_mode( state );
-	const bool zTest = stencilMode == NSI_STENCIL_DISABLED_ZTEST ||
-					   stencilMode == NSI_STENCIL_EQUAL_KEEP_ZTEST;
+	const nhi_stencil_mode stencilMode = nhi_render_state_stencil_mode( state );
+	const bool zTest = stencilMode == NHI_STENCIL_DISABLED_ZTEST ||
+					   stencilMode == NHI_STENCIL_EQUAL_KEEP_ZTEST;
 	add( RS_ZENABLE, zTest ? 1 : 0 );
 	add( RS_ZFUNC, CMP_GREATEREQUAL );
 
@@ -1890,22 +1890,22 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 	uint32_t stencilPass = STENCILOP_KEEP;
 	switch( stencilMode )
 	{
-	case NSI_STENCIL_DISABLED:
-	case NSI_STENCIL_DISABLED_ZTEST:
+	case NHI_STENCIL_DISABLED:
+	case NHI_STENCIL_DISABLED_ZTEST:
 		break;
-	case NSI_STENCIL_EQUAL_KEEP:
-	case NSI_STENCIL_EQUAL_KEEP_ZTEST:
+	case NHI_STENCIL_EQUAL_KEEP:
+	case NHI_STENCIL_EQUAL_KEEP_ZTEST:
 		stencilEnable = true;
 		break;
-	case NSI_STENCIL_EQUAL_INCR:
+	case NHI_STENCIL_EQUAL_INCR:
 		stencilEnable = true;
 		stencilPass = STENCILOP_INCR;
 		break;
-	case NSI_STENCIL_EQUAL_DECR:
+	case NHI_STENCIL_EQUAL_DECR:
 		stencilEnable = true;
 		stencilPass = STENCILOP_DECR;
 		break;
-	case NSI_STENCIL_CLEAR:
+	case NHI_STENCIL_CLEAR:
 		stencilEnable = true;
 		stencilFunc = CMP_ALWAYS;
 		stencilPass = STENCILOP_ZERO;

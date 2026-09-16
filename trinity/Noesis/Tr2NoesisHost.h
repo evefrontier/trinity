@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisHost_H
 #define Tr2NoesisHost_H
 
-#include <nsi_blue.h>
+#include <nhi_blue.h>
 
 #include <memory>
 
@@ -15,7 +15,7 @@ struct Tr2ScissorRect;
 
 // --------------------------------------------------------------------------------------
 // Description:
-//   Trinity's side of the nsi.h boundary: the render device over TrinityAL, wrapped in
+//   Trinity's side of the nhi.h boundary: the render device over TrinityAL, wrapped in
 //   the two vtables the Noesis library calls through.
 //
 //   Python creates one of these and hands it to the library, which is the only way the
@@ -33,7 +33,7 @@ struct Tr2ScissorRect;
 //   where it started.
 // --------------------------------------------------------------------------------------
 
-class Tr2NoesisHost : public INsiDeviceHost
+class Tr2NoesisHost : public INhiDeviceHost
 {
 public:
 	EXPOSE_TO_BLUE();
@@ -58,12 +58,12 @@ public:
 
 	bool IsReady() const;
 
-	// INsiDeviceHost
-	const nsi_device_host* GetNsiDeviceHost() override;
+	// INhiDeviceHost
+	const nhi_device_host* GetNsiDeviceHost() override;
 
 	// Trinity-internal. The frame vtable, valid only between BeginFrame and EndFrame.
 	// Not exposed through Blue: it never crosses as an object.
-	const nsi_frame_host* GetNsiFrameHost();
+	const nhi_frame_host* GetNsiFrameHost();
 
 	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame: an exit
 	// that skips EndFrame leaves the device holding a context the step has finished with.
@@ -108,10 +108,10 @@ private:
 	// never crosses the boundary on its own.
 	std::unique_ptr<Tr2NoesisRenderDevice> m_device;
 	IRootPtr m_shaderSourceObject;
-	const nsi_shader_source* m_shaderSource;
+	const nhi_shader_source* m_shaderSource;
 	bool m_deviceAttempted;
-	nsi_device_host m_deviceApi;
-	nsi_frame_host m_frameApi;
+	nhi_device_host m_deviceApi;
+	nhi_frame_host m_frameApi;
 };
 
 TYPEDEF_BLUECLASS( Tr2NoesisHost );

@@ -31,7 +31,7 @@ public:
 	TriStepResult Execute( Be::Time realTime, Be::Time simTime, Tr2RenderContext& renderContext );
 
 	// The view lives in the Noesis module, whose C++ types Trinity cannot name. It is
-	// held as the Blue object it is, with the library's handle beside it; nsi.h says the
+	// held as the Blue object it is, with the library's handle beside it; nhi.h says the
 	// handle borrows, so the IRootPtr is what keeps it alive.
 	void py__init__( IRoot* view );
 
@@ -61,7 +61,7 @@ private:
 	// Both belong to other modules, so they are held as the opaque Blue objects they are.
 	// m_viewApi is the view's vtable, resolved by SetView and valid until it is set again.
 	IRootPtr m_view;
-	const nsi_view_api* m_viewApi;
+	const nhi_view_api* m_viewApi;
 	IRootPtr m_host;
 	bool m_hasOverrideViewport;
 	int m_overrideX;

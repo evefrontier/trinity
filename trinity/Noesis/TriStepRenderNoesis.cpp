@@ -44,7 +44,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	const nsi_frame_host* frame = host->GetNsiFrameHost();
+	const nhi_frame_host* frame = host->GetNsiFrameHost();
 	if( frame == nullptr )
 	{
 		return RS_OK;
@@ -102,7 +102,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	const bool pushedDepthStencil = renderContext.m_esm.PushDepthStencilBuffer();
 
 	const bool renderedOffscreen =
-		m_viewApi->render_offscreen( m_viewApi->header.self, frame ) != NSI_FALSE;
+		m_viewApi->render_offscreen( m_viewApi->header.self, frame ) != NHI_FALSE;
 
 	if( pushedDepthStencil )
 	{
@@ -146,7 +146,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
-	m_viewApi->render( m_viewApi->header.self, frame, NSI_FALSE, NSI_FALSE );
+	m_viewApi->render( m_viewApi->header.self, frame, NHI_FALSE, NHI_FALSE );
 
 	host->ClearHostScissor();
 
@@ -178,11 +178,11 @@ void TriStepRenderNoesis::SetView( IRoot* view )
 
 	// Asks the object whether it is a view rather than assuming. A wrong object leaves
 	// the api null and the step simply draws nothing.
-	m_viewApi = Nsi::QueryViewApi( view );
+	m_viewApi = Nhi::QueryViewApi( view );
 	if( view != nullptr && m_viewApi == nullptr )
 	{
 		CCP_NOESIS_LOGERR( "TriStepRenderNoesis was given an object that is not a Noesis "
-						   "view, or one speaking an incompatible nsi ABI; it will render "
+						   "view, or one speaking an incompatible nhi ABI; it will render "
 						   "nothing" );
 	}
 }

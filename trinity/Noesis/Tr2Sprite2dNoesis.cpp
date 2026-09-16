@@ -130,7 +130,7 @@ void Tr2Sprite2dNoesis::GatherSprites( Tr2Sprite2dScene* renderer )
 		return;
 	}
 
-	const nsi_view_api* viewApi = Nsi::QueryViewApi( m_view );
+	const nhi_view_api* viewApi = Nhi::QueryViewApi( m_view );
 	if( viewApi == nullptr || !viewApi->is_loaded( viewApi->header.self ) )
 	{
 		if( Tr2Noesis::IsLogVerbose() )

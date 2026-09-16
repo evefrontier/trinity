@@ -14,9 +14,9 @@ BLUE_DEFINE( Tr2NoesisHost );
 // Each module defines the IIDs it uses, including ones it only implements. Be::IID
 // compares by name and hash rather than by address, so these match the definitions in
 // frontier-noesis. Same pattern trinity.cpp uses for the Blue interfaces it consumes.
-BLUE_DEFINE_INTERFACE( INsiDeviceHost );
-BLUE_DEFINE_INTERFACE( INsiShaderSource );
-BLUE_DEFINE_INTERFACE( INsiView );
+BLUE_DEFINE_INTERFACE( INhiDeviceHost );
+BLUE_DEFINE_INTERFACE( INhiShaderSource );
+BLUE_DEFINE_INTERFACE( INhiView );
 
 namespace
 {
@@ -49,12 +49,12 @@ Tr2NoesisRenderDevice* Device( void* self )
 	return device;
 }
 
-Tr2NoesisTexture* AsTexture( nsi_texture texture )
+Tr2NoesisTexture* AsTexture( nhi_texture texture )
 {
 	return reinterpret_cast<Tr2NoesisTexture*>( texture );
 }
 
-Tr2NoesisRenderTarget* AsTarget( nsi_render_target surface )
+Tr2NoesisRenderTarget* AsTarget( nhi_render_target surface )
 {
 	return reinterpret_cast<Tr2NoesisRenderTarget*>( surface );
 }
@@ -63,77 +63,77 @@ Tr2NoesisRenderTarget* AsTarget( nsi_render_target surface )
 // Device half
 // --------------------------------------------------------------------------------------
 
-void HostGetCaps( void* self, nsi_device_caps* out )
+void HostGetCaps( void* self, nhi_device_caps* out )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		// Zeroed, not left undefined: the library reads these to choose how it renders,
 		// and false is the conservative answer to each.
-		*out = nsi_device_caps();
+		*out = nhi_device_caps();
 		return;
 	}
 	device->GetCaps( *out );
 }
 
-nsi_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
+nhi_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
 										  uint32_t height, uint32_t sampleCount,
-										  nsi_bool needsStencil )
+										  nhi_bool needsStencil )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nsi_render_target>( device->CreateRenderTarget(
-		label, width, height, sampleCount, needsStencil != NSI_FALSE ) );
+	return reinterpret_cast<nhi_render_target>( device->CreateRenderTarget(
+		label, width, height, sampleCount, needsStencil != NHI_FALSE ) );
 }
 
-nsi_render_target HostCloneRenderTarget( void* self, const char* label, nsi_render_target surface )
+nhi_render_target HostCloneRenderTarget( void* self, const char* label, nhi_render_target surface )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nsi_render_target>(
+	return reinterpret_cast<nhi_render_target>(
 		device->CloneRenderTarget( label, AsTarget( surface ) ) );
 }
 
-void HostReleaseRenderTarget( void* /*self*/, nsi_render_target surface )
+void HostReleaseRenderTarget( void* /*self*/, nhi_render_target surface )
 {
 	// Destroys the wrapper. The AL resources it holds go with it, which is what the
 	// library means by releasing a handle it created.
 	delete AsTarget( surface );
 }
 
-nsi_texture HostGetRenderTargetTexture( void* /*self*/, nsi_render_target surface )
+nhi_texture HostGetRenderTargetTexture( void* /*self*/, nhi_render_target surface )
 {
 	Tr2NoesisRenderTarget* target = AsTarget( surface );
-	return target != nullptr ? reinterpret_cast<nsi_texture>( target->GetColor() ) : nullptr;
+	return target != nullptr ? reinterpret_cast<nhi_texture>( target->GetColor() ) : nullptr;
 }
 
-nsi_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
-							   uint32_t numLevels, nsi_texture_format format, const void** data )
+nhi_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
+							   uint32_t numLevels, nhi_texture_format format, const void** data )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nsi_texture>(
+	return reinterpret_cast<nhi_texture>(
 		device->CreateTexture( label, width, height, numLevels, format, data ) );
 }
 
-void HostReleaseTexture( void* /*self*/, nsi_texture texture )
+void HostReleaseTexture( void* /*self*/, nhi_texture texture )
 {
 	// For a wrapped host texture this drops only the wrapper: the Tr2TextureAL inside is
 	// a shared handle, so the resource it refers to is untouched. See release_texture.
 	delete AsTexture( texture );
 }
 
-void HostGetTextureInfo( void* /*self*/, nsi_texture texture, uint32_t* width, uint32_t* height,
-						 uint32_t* levels, nsi_bool* hasAlpha )
+void HostGetTextureInfo( void* /*self*/, nhi_texture texture, uint32_t* width, uint32_t* height,
+						 uint32_t* levels, nhi_bool* hasAlpha )
 {
 	Tr2NoesisTexture* t = AsTexture( texture );
 	if( t == nullptr )
@@ -141,17 +141,17 @@ void HostGetTextureInfo( void* /*self*/, nsi_texture texture, uint32_t* width, u
 		*width = 0;
 		*height = 0;
 		*levels = 0;
-		*hasAlpha = NSI_FALSE;
+		*hasAlpha = NHI_FALSE;
 		return;
 	}
 
 	*width = t->GetWidth();
 	*height = t->GetHeight();
 	*levels = t->GetLevels();
-	*hasAlpha = t->HasAlpha() ? NSI_TRUE : NSI_FALSE;
+	*hasAlpha = t->HasAlpha() ? NHI_TRUE : NHI_FALSE;
 }
 
-nsi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
+nhi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
 										const void* blob, uint32_t size )
 {
 	Tr2NoesisRenderDevice* device = Device( self );
@@ -162,13 +162,13 @@ nsi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t s
 	return device->CreatePixelShader( label, shader, blob, size );
 }
 
-void HostReleasePixelShader( void* /*self*/, nsi_pixel_shader /*shader*/ )
+void HostReleasePixelShader( void* /*self*/, nhi_pixel_shader /*shader*/ )
 {
 	// Handles are 1-based indices into a vector on the device, so there is nothing to
 	// free per handle. They live until the device does.
 }
 
-nsi_texture HostWrapNativeTexture( void* self, void* native, nsi_bool hasAlpha )
+nhi_texture HostWrapNativeTexture( void* self, void* native, nhi_bool hasAlpha )
 {
 	// `native` is the Blue object Python passed to the video sink: a Trinity texture
 	// resource. The library never looked inside it, which is why it can be anything the
@@ -193,11 +193,11 @@ nsi_texture HostWrapNativeTexture( void* self, void* native, nsi_bool hasAlpha )
 		return nullptr;
 	}
 
-	return reinterpret_cast<nsi_texture>(
-		device->WrapTexture( *texture, hasAlpha != NSI_FALSE ) );
+	return reinterpret_cast<nhi_texture>(
+		device->WrapTexture( *texture, hasAlpha != NHI_FALSE ) );
 }
 
-nsi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
+nhi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
 {
 	*width = 0;
 	*height = 0;
@@ -209,25 +209,25 @@ nsi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width
 	{
 		// The one place the host can tell the caller it passed the wrong kind of object,
 		// because only this side knows what the handle was supposed to be.
-		return NSI_FALSE;
+		return NHI_FALSE;
 	}
 
 	Tr2TextureAL* texture = resource->GetTexture();
 	if( texture == nullptr || !texture->IsValid() )
 	{
-		return NSI_FALSE;
+		return NHI_FALSE;
 	}
 
 	*width = texture->GetWidth();
 	*height = texture->GetHeight();
-	return NSI_TRUE;
+	return NHI_TRUE;
 }
 
 // --------------------------------------------------------------------------------------
 // Frame half
 // --------------------------------------------------------------------------------------
 
-void HostUpdateTexture( void* self, nsi_texture texture, uint32_t level, uint32_t x, uint32_t y,
+void HostUpdateTexture( void* self, nhi_texture texture, uint32_t level, uint32_t x, uint32_t y,
 						uint32_t width, uint32_t height, const void* data )
 {
 	Device( self )->UpdateTexture( AsTexture( texture ), level, x, y, width, height, data );
@@ -238,22 +238,22 @@ void HostEndOffscreen( void* self ) { Device( self )->EndOffscreenRender(); }
 void HostBeginOnscreen( void* self ) { Device( self )->BeginOnscreenRender(); }
 void HostEndOnscreen( void* self ) { Device( self )->EndOnscreenRender(); }
 
-void HostSetRenderTarget( void* self, nsi_render_target surface )
+void HostSetRenderTarget( void* self, nhi_render_target surface )
 {
 	Device( self )->SetRenderTarget( AsTarget( surface ) );
 }
 
-void HostBeginTile( void* self, nsi_render_target surface, const nsi_tile* tile )
+void HostBeginTile( void* self, nhi_render_target surface, const nhi_tile* tile )
 {
 	Device( self )->BeginTile( AsTarget( surface ), *tile );
 }
 
-void HostEndTile( void* self, nsi_render_target surface )
+void HostEndTile( void* self, nhi_render_target surface )
 {
 	Device( self )->EndTile( AsTarget( surface ) );
 }
 
-void HostResolveRenderTarget( void* self, nsi_render_target surface, const nsi_tile* tiles,
+void HostResolveRenderTarget( void* self, nhi_render_target surface, const nhi_tile* tiles,
 							  uint32_t numTiles )
 {
 	Device( self )->ResolveRenderTarget( AsTarget( surface ), tiles, numTiles );
@@ -264,15 +264,15 @@ void HostUnmapVertices( void* self ) { Device( self )->UnmapVertices(); }
 void* HostMapIndices( void* self, uint32_t bytes ) { return Device( self )->MapIndices( bytes ); }
 void HostUnmapIndices( void* self ) { Device( self )->UnmapIndices(); }
 
-void HostDrawBatch( void* self, const nsi_batch* batch )
+void HostDrawBatch( void* self, const nhi_batch* batch )
 {
 	Device( self )->DrawBatch( *batch );
 }
 
-void FillHeader( nsi_interface_header& header, void* self, uint32_t size )
+void FillHeader( nhi_interface_header& header, void* self, uint32_t size )
 {
-	header.abi_version_major = NSI_ABI_VERSION_MAJOR;
-	header.abi_version_minor = NSI_ABI_VERSION_MINOR;
+	header.abi_version_major = NHI_ABI_VERSION_MAJOR;
+	header.abi_version_minor = NHI_ABI_VERSION_MINOR;
 	header.struct_size = size;
 	header.self = self;
 }
@@ -294,7 +294,7 @@ Tr2NoesisHost::~Tr2NoesisHost()
 
 void Tr2NoesisHost::FillVtables()
 {
-	FillHeader( m_deviceApi.header, this, sizeof( nsi_device_host ) );
+	FillHeader( m_deviceApi.header, this, sizeof( nhi_device_host ) );
 	m_deviceApi.get_caps = HostGetCaps;
 	m_deviceApi.create_render_target = HostCreateRenderTarget;
 	m_deviceApi.clone_render_target = HostCloneRenderTarget;
@@ -308,7 +308,7 @@ void Tr2NoesisHost::FillVtables()
 	m_deviceApi.wrap_native_texture = HostWrapNativeTexture;
 	m_deviceApi.get_native_texture_size = HostGetNativeTextureSize;
 
-	FillHeader( m_frameApi.header, this, sizeof( nsi_frame_host ) );
+	FillHeader( m_frameApi.header, this, sizeof( nhi_frame_host ) );
 	m_frameApi.update_texture = HostUpdateTexture;
 	m_frameApi.begin_offscreen_render = HostBeginOffscreen;
 	m_frameApi.end_offscreen_render = HostEndOffscreen;
@@ -328,14 +328,14 @@ void Tr2NoesisHost::FillVtables()
 bool Tr2NoesisHost::SetShaderSource( IRoot* shaderSource )
 {
 	m_shaderSourceObject = shaderSource;
-	m_shaderSource = Nsi::QueryShaderSource( shaderSource );
+	m_shaderSource = Nhi::QueryShaderSource( shaderSource );
 
 	if( shaderSource != nullptr && m_shaderSource == nullptr )
 	{
 		CCP_NOESIS_LOGERR( "The object given as a shader source is not one, or speaks an "
-						   "nsi ABI this Trinity cannot; this Trinity is nsi %u.%u",
-						   static_cast<uint32_t>( NSI_ABI_VERSION_MAJOR ),
-						   static_cast<uint32_t>( NSI_ABI_VERSION_MINOR ) );
+						   "nhi ABI this Trinity cannot; this Trinity is nhi %u.%u",
+						   static_cast<uint32_t>( NHI_ABI_VERSION_MAJOR ),
+						   static_cast<uint32_t>( NHI_ABI_VERSION_MINOR ) );
 		return false;
 	}
 
@@ -386,7 +386,7 @@ bool Tr2NoesisHost::IsReady() const
 	return m_device != nullptr && m_device->IsValid();
 }
 
-const nsi_device_host* Tr2NoesisHost::GetNsiDeviceHost()
+const nhi_device_host* Tr2NoesisHost::GetNsiDeviceHost()
 {
 	// Valid as soon as a shader source is set, not once the device is built: the library
 	// wires this at startup and the device cannot exist until the first frame. Calls that
@@ -394,7 +394,7 @@ const nsi_device_host* Tr2NoesisHost::GetNsiDeviceHost()
 	return m_shaderSource != nullptr ? &m_deviceApi : nullptr;
 }
 
-const nsi_frame_host* Tr2NoesisHost::GetNsiFrameHost()
+const nhi_frame_host* Tr2NoesisHost::GetNsiFrameHost()
 {
 	return IsReady() ? &m_frameApi : nullptr;
 }
@@ -443,7 +443,7 @@ const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 					"vtables the Noesis library calls through. Build it with the library's shader\n"
 					"source, then hand it to noesis.set_device_host." )
 		MAP_INTERFACE( Tr2NoesisHost )
-		MAP_INTERFACE( INsiDeviceHost )
+		MAP_INTERFACE( INhiDeviceHost )
 
 		MAP_METHOD_AND_WRAP(
 			"SetShaderSource",
