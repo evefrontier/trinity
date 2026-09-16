@@ -31,12 +31,10 @@
 //   Noesis texture.
 //   BeginTile sets the AL scissor to the tile (Y-flipped from Noesis's lower-left origin).
 //   EndTile is a no-op: the next SetRenderTarget resets scissor to the full target.
-//   BeginOnscreenRender binds a depth-stencil (D24S8 on D3D, D32S8 on Metal;
-//   ClipToBounds stencil, Transform3D depth)
-//   and scissors to the current viewport intersected with an optional host clip
-//   (CarbonUI clipChildren); EndOnscreenRender restores both.
-//   EndUpdatingTextures is not overridden: UpdateSubresource restores shader-read
-//   state before it returns (see UpdateTexture).
+//   BeginOnscreenRender binds a depth-stencil (D24S8 on D3D, D32S8 on Metal; stencil
+//   for ClipToBounds, depth for Transform3D) and scissors to the current viewport
+//   intersected with an optional host clip (CarbonUI clipChildren); EndOnscreenRender
+//   restores both.
 // --------------------------------------------------------------------------------------
 
 class Tr2NoesisTexture
@@ -66,10 +64,9 @@ class Tr2NoesisRenderTarget
 public:
 	Tr2NoesisRenderTarget( Tr2NoesisTexture* color, Tr2TextureAL stencil, uint32_t width, uint32_t height );
 
-	// Borrowed, not owned, and deliberately so: the library names this texture through
-	// get_render_target_texture and holds its own reference to the handle, which it drops
-	// with release_texture after release_render_target returns. Deleting it here would be
-	// a double free, not a leak fixed. See release_render_target in nsi.h.
+	// Borrowed, not owned. The library names this texture through
+	// get_render_target_texture and releases that handle itself, after
+	// release_render_target returns; freeing it here would double-free.
 	Tr2NoesisTexture* GetColor();
 	Tr2TextureAL& GetStencil();
 	bool HasStencil() const;
@@ -99,10 +96,10 @@ public:
 	// The frame's deferred context. Must be set before Map*, UpdateTexture, SetRenderTarget
 	// or the Begin/End render markers. Defaults to the primary context passed at construction.
 	void SetRenderContext( Tr2RenderContextAL& renderContext );
-	// Drops it at the end of the frame, so a frame-half call that arrives out of order
-	// trips the assert at the top of each of those methods rather than recording into a
-	// context the step has already finished with. Resource creation is unaffected: it goes
-	// through the primary context, which is owned for the life of the device.
+	// Dropped at the end of the frame, so an out-of-order frame-half call trips the assert
+	// at the top of each of those methods instead of recording into a context the step has
+	// finished with. Resource creation is unaffected: it uses the primary context, which
+	// lives as long as the device.
 	void ClearRenderContext();
 
 	// Extra onscreen scissor in render-target pixels, intersected with the viewport
@@ -246,9 +243,9 @@ private:
 	bool m_hasHostScissor;
 	Tr2ScissorRect m_hostScissor;
 
-	// Everything the library told us about a shader, cached at build time. The host keeps
-	// no SDK-shaped tables of its own: a blob is enough on its own to build a pipeline,
-	// and this is just that answer kept rather than asked for again per batch.
+	// What the library says about a shader, cached at build time rather than asked for
+	// again per batch. A blob carries everything needed to build a pipeline, so there is
+	// no SDK-shaped table to keep in step with it.
 	struct ShaderInfo
 	{
 		uint8_t vertexShader = 0;
@@ -270,9 +267,9 @@ private:
 	std::vector<uint32_t> m_vertexStrides;
 
 
-	// Sized from the shader source rather than an SDK constant: how many permutations
-	// and vertex formats exist is the library's business now, and a build of it with
-	// more or fewer must not need a matching change here.
+	// Sized from the shader source rather than an SDK constant: how many permutations and
+	// vertex formats exist is the library's to decide, and a build of it with more or
+	// fewer must not need a matching change here.
 	std::vector<Tr2ShaderAL> m_vertexShaders;
 	std::vector<Tr2ShaderAL> m_pixelShaders;
 	std::vector<Tr2ShaderProgramAL> m_programs;

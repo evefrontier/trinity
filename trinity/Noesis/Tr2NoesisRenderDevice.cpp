@@ -35,13 +35,9 @@ const uint32_t PS_T3 = 1 << 7;
 const uint32_t PS_T4 = 1 << 8;
 
 
-// PROGRAM_FLAGS and SHADER_NAMES used to live here, transcribed from the SDK. Both now
-// arrive on the shader blob, so the host no longer keeps a copy to fall out of step.
-
-// Maps one attribute the library described onto the AL's vertex vocabulary. The semantic
-// and index come across the ABI exactly as the shader bytecode was compiled with them, so
-// there is nothing to keep in step here -- unlike the table this replaces, which restated
-// the fxc semantic renames and had to be revisited whenever they changed.
+// Maps one attribute the library described onto the AL's vertex vocabulary. Semantic and
+// index cross the ABI exactly as the bytecode was compiled with them, so the fxc semantic
+// renames are the library's business and nothing here has to restate them.
 bool ToVertexUsage( const nsi_vertex_attribute& attr, Tr2VertexDefinition::UsageCode& usage )
 {
 	if( attr.semantic == nullptr )
@@ -113,8 +109,8 @@ bool ToVertexDataType( nsi_vertex_attr_type type, Tr2VertexDefinition::DataType&
 	return false;
 }
 
-// The sampler bit layout is nsi.h's guarantee now, and the library asserts its own
-// agreement with the SDK at its end. Here it is enough that a byte addresses 64 slots.
+// The bit layout is nsi.h's guarantee, and the library asserts its own agreement with
+// the SDK at its end. Here it is enough that a byte addresses 64 slots.
 static_assert( sizeof( nsi_sampler_state ) == 1, "nsi_sampler_state is a packed byte" );
 
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
@@ -710,9 +706,6 @@ Tr2NoesisRenderDevice::Tr2NoesisRenderDevice( Tr2PrimaryRenderContextAL& primary
 	m_caps.depth_range_zero_to_one = NSI_TRUE;
 	m_caps.clip_space_y_inverted = NSI_FALSE;
 
-	// The offscreen sample count and glyph cache size are SDK settings, so they moved to
-	// frontier-noesis with the rest of the SDK. Nothing to do here.
-
 	CreateVertexLayouts();
 	CreateShaders();
 	CreateSamplers();
@@ -1010,9 +1003,9 @@ void Tr2NoesisRenderDevice::UpdateTexture( Tr2NoesisTexture* texture, uint32_t l
 	// the texture's defaultState (PIXEL_SHADER_RESOURCE | NON_PIXEL_SHADER_RESOURCE
 	// for anything created with SHADER_RESOURCE), including the dynamic glyph atlas
 	// (SHADER_RESOURCE | COPY_DESTINATION). That is the copy-write -> shader-read
-	// barrier EndUpdatingTextures exists for, so the 19th virtual is left at the
-	// SDK default. Tr2ResourceSetAL::Create is not the covering mechanism:
-	// AddTransition skips when (defaultState & PIXEL_SHADER_RESOURCE) != 0.
+	// barrier, so the library has none of its own left to issue. Tr2ResourceSetAL::Create
+	// does not cover it: AddTransition skips when
+	// (defaultState & PIXEL_SHADER_RESOURCE) != 0.
 }
 
 void Tr2NoesisRenderDevice::BeginOffscreenRender()
@@ -1237,9 +1230,8 @@ void Tr2NoesisRenderDevice::DrawBatch( const nsi_batch& batch )
 		format = m_shaderInfo[shader].vertexFormat;
 	}
 
-	// The SDK's own IsValidState lived on the other side of the boundary. The library
-	// filters the render-state combinations it sends, so there is nothing left to assert
-	// here that would not simply be repeating its work with less information.
+	// The library filters the render-state combinations it sends, so anything asserted
+	// here would repeat that check with less information than it had.
 
 	ApplyRenderState( batch );
 
@@ -1345,8 +1337,8 @@ void Tr2NoesisRenderDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nsi_
 	const uint32_t bytes = uniforms.num_dwords * sizeof( uint32_t );
 	if( buffer.GetSize() < bytes )
 	{
-		// Sized from what Noesis actually sends rather than transcribed from the SDK's cbuffer
-		// layouts, so a layout change costs a reallocation instead of overrunning a buffer.
+		// Sized from what Noesis actually sends, so a cbuffer layout change costs a
+		// reallocation instead of overrunning a buffer.
 		const uint32_t size = ( bytes + 255 ) & ~255u;
 		Tr2ConstantBufferAL grown;
 		if( FAILED( grown.Create( size, *m_primary ) ) )
@@ -1544,9 +1536,9 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 			return false;
 		}
 
-		// Checked once here rather than per batch: every later use of these indexes a
-		// vector with them, and a blob that names a format we were not given would read
-		// off the end of one long after the bad value arrived.
+		// Checked here rather than per batch: every later use indexes a vector with this,
+		// so a blob naming a format we were not given would read off the end long after
+		// the bad value arrived.
 		if( blob.vertex_format >= formatCount )
 		{
 			CCP_NOESIS_LOGERR( "Shader blob %u ('%s') names vertex format %u, but the library "
@@ -1585,8 +1577,8 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 		return false;
 	}
 
-	// Pixel blobs pair with a stock vertex shader by id; a pairing we cannot satisfy is
-	// the same class of mistake as the format check above and is cheaper to catch here.
+	// Pixel blobs pair with a stock vertex shader by id, and CreateShaders indexes with
+	// that id; reject a pairing we cannot satisfy before it gets there.
 	for( uint32_t shader = 0; shader < m_shaderInfo.size(); ++shader )
 	{
 		if( m_shaderInfo[shader].bytecode != nullptr &&
@@ -1640,8 +1632,8 @@ void Tr2NoesisRenderDevice::CreateShaders()
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
 		}
-		// Which constant buffers a vertex shader binds comes from the library with the
-		// blob, so the SDF range is no longer a fact this side has to know.
+		// Which constant buffers a vertex shader binds arrives on the blob, so which
+		// permutations are SDF is not a fact this side has to know.
 		if( ( m_vertexInfo[vs].resourceFlags & NSI_SHADER_USES_VS_CB1 ) != 0 )
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
@@ -1676,8 +1668,8 @@ void Tr2NoesisRenderDevice::CreateShaders()
 			continue;
 		}
 
-		// The flags come from the library with the blob, so this signature matches the
-		// bytecode by construction rather than by a table kept in step by hand.
+		// The flags arrive on the blob, so this signature matches the bytecode by
+		// construction.
 		Tr2ShaderSignatureAL signature;
 		FillPixelSignature( signature, info.resourceFlags );
 
@@ -1944,9 +1936,5 @@ void Tr2NoesisRenderDevice::ApplyRenderState( const nsi_batch& batch )
 		CCP_ASSERT_M( false, "Noesis render state not implemented by the AL" );
 	}
 }
-
-// The process-wide device factory used to live here. Tr2NoesisHost owns the device now:
-// Python creates the host and hands it to the library, so there is no global to find and
-// nothing to attempt lazily on the first frame.
 
 #endif

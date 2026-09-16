@@ -28,17 +28,11 @@ Tr2NoesisHost& Self( void* self )
 	return *static_cast<Tr2NoesisHost*>( self );
 }
 
-// The device half of the vtable goes to the library as soon as Python sets a shader
-// source, but the device itself is not built until the render step's first Execute --
-// it needs a live render context, and there is none while Python is starting up. So
-// there is a window where the library holds a usable vtable over a device that does not
-// exist yet.
-//
-// The library cannot close it: unlike the frame half, these entry points are meant to be
-// callable outside a frame, so there is no RequireFrame to lean on. Every device-half
-// thunk therefore asks for the device rather than assuming it, and a call that lands in
-// the window declines instead of dereferencing null. What the SDK gets back is a failed
-// resource creation, which it already handles; what it would otherwise get is a crash.
+// Null between Python wiring the host and the first Execute building the device. The
+// library holds the device-half vtable across that window and is entitled to call into
+// it: these entry points carry no frame, so there is no RequireFrame to close it from
+// that side. Device-half thunks must therefore decline rather than dereference. A failed
+// resource creation is something the SDK handles; a null dereference is not.
 Tr2NoesisRenderDevice* Device( void* self )
 {
 	Tr2NoesisRenderDevice* device = Self( self ).GetDevice();
@@ -76,8 +70,8 @@ void HostGetCaps( void* self, nsi_device_caps* out )
 	Tr2NoesisRenderDevice* device = Device( self );
 	if( device == nullptr )
 	{
-		// Zeroed rather than left undefined: the library reads these to decide how it
-		// renders, and every field's false is the conservative answer.
+		// Zeroed, not left undefined: the library reads these to choose how it renders,
+		// and false is the conservative answer to each.
 		*out = nsi_device_caps();
 		return;
 	}
@@ -172,9 +166,8 @@ nsi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t s
 
 void HostReleasePixelShader( void* /*self*/, nsi_pixel_shader /*shader*/ )
 {
-	// Custom shaders live in a vector on the device and are handed out as 1-based
-	// indices, so there is nothing per-handle to free. ClearPixelShaders drops them all
-	// when the device goes.
+	// Handles are 1-based indices into a vector on the device, so there is nothing to
+	// free per handle. They live until the device does.
 }
 
 nsi_texture HostWrapNativeTexture( void* self, void* native, nsi_bool hasAlpha )
@@ -361,8 +354,8 @@ bool Tr2NoesisHost::EnsureDevice()
 		return m_device != nullptr && m_device->IsValid();
 	}
 
-	// Latched before the shader-source check, not after it: Execute calls this every frame,
-	// and a host wired without a shader source would otherwise log the same error forever.
+	// Latched before the check below, because Execute calls this every frame and a host
+	// wired without a shader source must not log the same error forever.
 	m_deviceAttempted = true;
 
 	if( m_shaderSource == nullptr )
@@ -398,8 +391,8 @@ bool Tr2NoesisHost::IsReady() const
 const nsi_device_host* Tr2NoesisHost::GetNsiDeviceHost()
 {
 	// Valid as soon as a shader source is set, not once the device is built: the library
-	// wires this at startup and the device cannot exist until the first frame. Every call
-	// through it happens inside a frame, by which point EnsureDevice has run.
+	// wires this at startup and the device cannot exist until the first frame. Calls that
+	// land in that window are the reason Device() checks before dereferencing.
 	return m_shaderSource != nullptr ? &m_deviceApi : nullptr;
 }
 

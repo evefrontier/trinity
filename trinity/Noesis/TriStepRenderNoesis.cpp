@@ -58,13 +58,12 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// though ApplyRenderState sets it per batch as well.
 	renderContext.m_esm.BeginManagedRendering( Tr2RenderContextEnum::CULLMODE_NONE );
 
-	// The device is Trinity-owned and reaches the library through the nsi_render_host
-	// vtable. Bringing up the renderer creates GPU resources, so it belongs inside the
-	// bracket rather than at load time.
+	// Binds this frame's context for the duration of the call. Scoped because the exits
+	// below are easy to add to, and one that skipped the close would leave the device
+	// recording into a context this step had finished with.
 	//
-	// Scoped rather than paired by hand: the exits below are easy to add to and the one
-	// that forgot to close the frame would leave the device recording into a context this
-	// step had already finished with.
+	// Bringing up the renderer creates GPU resources, so it belongs inside the bracket
+	// rather than at load time.
 	Tr2NoesisHost::ScopedFrame scopedFrame( *host, renderContext );
 
 	if( !m_viewApi->ensure_renderer( m_viewApi->header.self, frame ) )
@@ -202,8 +201,6 @@ Tr2NoesisHost* TriStepRenderNoesis::GetHostObject() const
 		return nullptr;
 	}
 
-	// Readiness is not checked here: the device is built on the first Execute, so a host
-	// that is merely not-yet-built must still be returned.
 	Tr2NoesisHostPtr host;
 	host = BlueCastPtr( static_cast<IRoot*>( m_host ) );
 	return host;

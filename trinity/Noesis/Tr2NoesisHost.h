@@ -67,14 +67,13 @@ public:
 	// Not exposed through Blue: it never crosses as an object.
 	const nsi_frame_host* GetNsiFrameHost();
 
-	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame below to
-	// calling these directly: Execute has several early exits, and one that skipped EndFrame
-	// would leave the device holding a context the step had finished with.
+	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame: an exit
+	// that skips EndFrame leaves the device holding a context the step has finished with.
 	void BeginFrame( Tr2RenderContext& renderContext );
 	void EndFrame();
 
-	// The frame bracket as a scope. Mirrors the library's own ScopedFrame on the other side
-	// of the boundary, which brackets the same frame from the other direction.
+	// The frame bracket as a scope, mirroring the library's own ScopedFrame around the
+	// same frame from the other side.
 	class ScopedFrame
 	{
 	public:

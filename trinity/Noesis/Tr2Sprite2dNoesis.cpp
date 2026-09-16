@@ -36,11 +36,9 @@ void Tr2Sprite2dNoesis::EnsureJob()
 		}
 	}
 
-	// Python writes m_view and m_host through Blue attributes, and it does so before the
-	// first gather -- which is when the step above comes into existence. Neither setter
-	// can reach a step that does not exist yet, so both are pushed here. Miss the host
-	// and Execute takes its "nothing wired" path every frame: no drawing, no error, an
-	// empty rectangle where the UI should be.
+	// Python has already written both by the time the step above first exists, so this is
+	// the only place they reach it. Miss either and Execute takes its "nothing wired" path
+	// every frame: no drawing, no error, an empty rectangle where the UI should be.
 	m_step->SetView( m_view );
 	m_step->SetHost( m_host );
 

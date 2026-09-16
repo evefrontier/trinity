@@ -55,12 +55,13 @@ public:
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:
-	// Null unless a ready host is set. Resolved per frame rather than cached, because
+	// Null only when no host is set; a host whose device is not built yet still counts,
+	// because Execute is what builds it. Resolved per frame rather than cached, because
 	// Python may rewire or rebuild the host between frames.
 	Tr2NoesisHost* GetHostObject() const;
 
-	// The view and the host both belong to other modules; held as the Blue objects they
-	// are, with the vtables resolved once when they are set.
+	// Both belong to other modules, so they are held as the opaque Blue objects they are.
+	// m_viewApi is the view's vtable, resolved by SetView and valid until it is set again.
 	IRootPtr m_view;
 	const nsi_view_api* m_viewApi;
 	IRootPtr m_host;
