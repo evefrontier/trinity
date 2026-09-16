@@ -67,9 +67,33 @@ public:
 	// Not exposed through Blue: it never crosses as an object.
 	const nsi_frame_host* GetNsiFrameHost();
 
-	// Binds the frame's deferred context. The render step brackets each view with these.
+	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame below to
+	// calling these directly: Execute has several early exits, and one that skipped EndFrame
+	// would leave the device holding a context the step had finished with.
 	void BeginFrame( Tr2RenderContext& renderContext );
 	void EndFrame();
+
+	// The frame bracket as a scope. Mirrors the library's own ScopedFrame on the other side
+	// of the boundary, which brackets the same frame from the other direction.
+	class ScopedFrame
+	{
+	public:
+		ScopedFrame( Tr2NoesisHost& host, Tr2RenderContext& renderContext ) :
+			m_host( host )
+		{
+			m_host.BeginFrame( renderContext );
+		}
+		~ScopedFrame()
+		{
+			m_host.EndFrame();
+		}
+
+		ScopedFrame( const ScopedFrame& ) = delete;
+		ScopedFrame& operator=( const ScopedFrame& ) = delete;
+
+	private:
+		Tr2NoesisHost& m_host;
+	};
 
 	// Extra onscreen scissor in render-target pixels, intersected with the viewport that
 	// is already clamped to the target. The sprite path uses this for parent clipChildren

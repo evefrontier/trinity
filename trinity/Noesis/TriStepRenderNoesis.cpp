@@ -61,11 +61,14 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// The device is Trinity-owned and reaches the library through the nsi_render_host
 	// vtable. Bringing up the renderer creates GPU resources, so it belongs inside the
 	// bracket rather than at load time.
-	host->BeginFrame( renderContext );
+	//
+	// Scoped rather than paired by hand: the exits below are easy to add to and the one
+	// that forgot to close the frame would leave the device recording into a context this
+	// step had already finished with.
+	Tr2NoesisHost::ScopedFrame scopedFrame( *host, renderContext );
 
 	if( !m_viewApi->ensure_renderer( m_viewApi->header.self, frame ) )
 	{
-		host->EndFrame();
 		renderContext.m_esm.EndManagedRendering();
 		return RS_OK;
 	}
@@ -157,7 +160,6 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	renderContext.SetStreamSource( 0, Tr2BufferAL(), 0, 0 );
 	renderContext.SetShaderProgram( Tr2ShaderProgramAL() );
 
-	host->EndFrame();
 	renderContext.m_esm.EndManagedRendering();
 
 	if( renderedOffscreen && Tr2Noesis::IsLogVerbose() )

@@ -28,9 +28,33 @@ Tr2NoesisHost& Self( void* self )
 	return *static_cast<Tr2NoesisHost*>( self );
 }
 
+// The device half of the vtable goes to the library as soon as Python sets a shader
+// source, but the device itself is not built until the render step's first Execute --
+// it needs a live render context, and there is none while Python is starting up. So
+// there is a window where the library holds a usable vtable over a device that does not
+// exist yet.
+//
+// The library cannot close it: unlike the frame half, these entry points are meant to be
+// callable outside a frame, so there is no RequireFrame to lean on. Every device-half
+// thunk therefore asks for the device rather than assuming it, and a call that lands in
+// the window declines instead of dereferencing null. What the SDK gets back is a failed
+// resource creation, which it already handles; what it would otherwise get is a crash.
 Tr2NoesisRenderDevice* Device( void* self )
 {
-	return Self( self ).GetDevice();
+	Tr2NoesisRenderDevice* device = Self( self ).GetDevice();
+	if( device == nullptr )
+	{
+		static bool s_reported = false;
+		if( !s_reported )
+		{
+			s_reported = true;
+			CCP_NOESIS_LOGERR( "The Noesis library asked the host for GPU work before the "
+							   "render device was built; declining. This happens when the SDK "
+							   "creates a resource outside a frame, which nothing here can "
+							   "serve yet." );
+		}
+	}
+	return device;
 }
 
 Tr2NoesisTexture* AsTexture( nsi_texture texture )
@@ -49,21 +73,39 @@ Tr2NoesisRenderTarget* AsTarget( nsi_render_target surface )
 
 void HostGetCaps( void* self, nsi_device_caps* out )
 {
-	Device( self )->GetCaps( *out );
+	Tr2NoesisRenderDevice* device = Device( self );
+	if( device == nullptr )
+	{
+		// Zeroed rather than left undefined: the library reads these to decide how it
+		// renders, and every field's false is the conservative answer.
+		*out = nsi_device_caps();
+		return;
+	}
+	device->GetCaps( *out );
 }
 
 nsi_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
 										  uint32_t height, uint32_t sampleCount,
 										  nsi_bool needsStencil )
 {
-	return reinterpret_cast<nsi_render_target>( Device( self )->CreateRenderTarget(
+	Tr2NoesisRenderDevice* device = Device( self );
+	if( device == nullptr )
+	{
+		return nullptr;
+	}
+	return reinterpret_cast<nsi_render_target>( device->CreateRenderTarget(
 		label, width, height, sampleCount, needsStencil != NSI_FALSE ) );
 }
 
 nsi_render_target HostCloneRenderTarget( void* self, const char* label, nsi_render_target surface )
 {
+	Tr2NoesisRenderDevice* device = Device( self );
+	if( device == nullptr )
+	{
+		return nullptr;
+	}
 	return reinterpret_cast<nsi_render_target>(
-		Device( self )->CloneRenderTarget( label, AsTarget( surface ) ) );
+		device->CloneRenderTarget( label, AsTarget( surface ) ) );
 }
 
 void HostReleaseRenderTarget( void* /*self*/, nsi_render_target surface )
@@ -76,14 +118,19 @@ void HostReleaseRenderTarget( void* /*self*/, nsi_render_target surface )
 nsi_texture HostGetRenderTargetTexture( void* /*self*/, nsi_render_target surface )
 {
 	Tr2NoesisRenderTarget* target = AsTarget( surface );
-	return target != nullptr ? reinterpret_cast<nsi_texture>( target->GetTexture() ) : nullptr;
+	return target != nullptr ? reinterpret_cast<nsi_texture>( target->GetColor() ) : nullptr;
 }
 
 nsi_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
 							   uint32_t numLevels, nsi_texture_format format, const void** data )
 {
+	Tr2NoesisRenderDevice* device = Device( self );
+	if( device == nullptr )
+	{
+		return nullptr;
+	}
 	return reinterpret_cast<nsi_texture>(
-		Device( self )->CreateTexture( label, width, height, numLevels, format, data ) );
+		device->CreateTexture( label, width, height, numLevels, format, data ) );
 }
 
 void HostReleaseTexture( void* /*self*/, nsi_texture texture )
@@ -108,14 +155,19 @@ void HostGetTextureInfo( void* /*self*/, nsi_texture texture, uint32_t* width, u
 
 	*width = t->GetWidth();
 	*height = t->GetHeight();
-	*levels = t->HasMipMaps() ? 2 : 1;
+	*levels = t->GetLevels();
 	*hasAlpha = t->HasAlpha() ? NSI_TRUE : NSI_FALSE;
 }
 
 nsi_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
 										const void* blob, uint32_t size )
 {
-	return Device( self )->CreatePixelShader( label, shader, blob, size );
+	Tr2NoesisRenderDevice* device = Device( self );
+	if( device == nullptr )
+	{
+		return nullptr;
+	}
+	return device->CreatePixelShader( label, shader, blob, size );
 }
 
 void HostReleasePixelShader( void* /*self*/, nsi_pixel_shader /*shader*/ )
@@ -144,8 +196,14 @@ nsi_texture HostWrapNativeTexture( void* self, void* native, nsi_bool hasAlpha )
 		return nullptr;
 	}
 
+	Tr2NoesisRenderDevice* device = Device( self );
+	if( device == nullptr )
+	{
+		return nullptr;
+	}
+
 	return reinterpret_cast<nsi_texture>(
-		Device( self )->WrapTexture( *texture, hasAlpha != NSI_FALSE ) );
+		device->WrapTexture( *texture, hasAlpha != NSI_FALSE ) );
 }
 
 nsi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
@@ -303,13 +361,16 @@ bool Tr2NoesisHost::EnsureDevice()
 		return m_device != nullptr && m_device->IsValid();
 	}
 
+	// Latched before the shader-source check, not after it: Execute calls this every frame,
+	// and a host wired without a shader source would otherwise log the same error forever.
+	m_deviceAttempted = true;
+
 	if( m_shaderSource == nullptr )
 	{
 		CCP_NOESIS_LOGERR( "No shader source is set; Python must pass the Noesis library's "
 						   "shader source before anything can render" );
 		return false;
 	}
-	m_deviceAttempted = true;
 
 	// Safe here and not at Python-init time: the step calls this from Execute, which runs
 	// on the render thread with the main-thread context already live.
@@ -357,6 +418,10 @@ void Tr2NoesisHost::BeginFrame( Tr2RenderContext& renderContext )
 
 void Tr2NoesisHost::EndFrame()
 {
+	if( m_device != nullptr )
+	{
+		m_device->ClearRenderContext();
+	}
 }
 
 void Tr2NoesisHost::SetHostScissor( const Tr2ScissorRect& rect )

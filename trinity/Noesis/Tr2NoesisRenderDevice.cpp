@@ -422,14 +422,14 @@ uint32_t Tr2NoesisTexture::GetHeight() const
 	return m_height;
 }
 
+uint32_t Tr2NoesisTexture::GetLevels() const
+{
+	return m_levels;
+}
+
 bool Tr2NoesisTexture::HasMipMaps() const
 {
 	return m_levels > 1;
-}
-
-bool Tr2NoesisTexture::IsInverted() const
-{
-	return false;
 }
 
 bool Tr2NoesisTexture::HasAlpha() const
@@ -457,11 +457,6 @@ Tr2NoesisRenderTarget::Tr2NoesisRenderTarget( Tr2NoesisTexture* color, Tr2Textur
 	m_width( width ),
 	m_height( height )
 {
-}
-
-Tr2NoesisTexture* Tr2NoesisRenderTarget::GetTexture()
-{
-	return m_color;
 }
 
 Tr2NoesisTexture* Tr2NoesisRenderTarget::GetColor()
@@ -753,6 +748,19 @@ void Tr2NoesisRenderDevice::SetRenderContext( Tr2RenderContextAL& renderContext 
 	m_context = &renderContext;
 }
 
+void Tr2NoesisRenderDevice::ClearRenderContext()
+{
+	if( m_context != nullptr )
+	{
+		// A ring left mapped across a frame boundary is a bug SyncFrame already asserts on,
+		// but unmapping here means the buffer is not left locked against a context nobody
+		// will touch again.
+		m_vertices.Unmap( *m_context );
+		m_indices.Unmap( *m_context );
+	}
+	m_context = nullptr;
+}
+
 void Tr2NoesisRenderDevice::SetHostScissor( const Tr2ScissorRect& rect )
 {
 	m_hasHostScissor = true;
@@ -809,7 +817,10 @@ Tr2NoesisRenderTarget* Tr2NoesisRenderDevice::CreateRenderTarget( const char* la
 	}
 
 	Tr2NoesisTexture* color = new Tr2NoesisTexture( colorAL, width, height, 1, true );
-	CCP_NOESIS_LOG( "RenderTarget '%s' %u x %u", SafeLabel( label, "" ), width, height );
+	if( Tr2Noesis::IsLogVerbose() )
+	{
+		CCP_NOESIS_LOG( "RenderTarget '%s' %u x %u", SafeLabel( label, "" ), width, height );
+	}
 	return new Tr2NoesisRenderTarget( color, stencilAL, width, height );
 }
 
@@ -971,14 +982,6 @@ void* Tr2NoesisRenderDevice::CreatePixelShader( const char* label, uint8_t shade
 						name, shader, flags, m_customShaders.size() );
 	}
 	return reinterpret_cast<void*>( m_customShaders.size() );
-}
-
-void Tr2NoesisRenderDevice::ClearPixelShaders()
-{
-	m_customShaders.clear();
-	// Resource sets cache the custom program by handle. Drop them rather than
-	// leave entries keyed to indices that CreatePixelShader will reuse.
-	m_resourceSets.clear();
 }
 
 void Tr2NoesisRenderDevice::UpdateTexture( Tr2NoesisTexture* texture, uint32_t level, uint32_t x, uint32_t y,
@@ -1541,6 +1544,18 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 			return false;
 		}
 
+		// Checked once here rather than per batch: every later use of these indexes a
+		// vector with them, and a blob that names a format we were not given would read
+		// off the end of one long after the bad value arrived.
+		if( blob.vertex_format >= formatCount )
+		{
+			CCP_NOESIS_LOGERR( "Shader blob %u ('%s') names vertex format %u, but the library "
+							   "described only %u",
+							   i, blob.name != nullptr ? blob.name : "?",
+							   static_cast<uint32_t>( blob.vertex_format ), formatCount );
+			return false;
+		}
+
 		ShaderInfo info;
 		info.vertexShader = blob.vertex_shader;
 		info.vertexFormat = blob.vertex_format;
@@ -1549,22 +1564,18 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 		info.bytecodeSize = blob.size;
 		info.name = blob.name;
 
-		std::vector<ShaderInfo>& table =
-			blob.stage == NSI_SHADER_STAGE_VERTEX ? m_vertexInfo : m_shaderInfo;
+		const bool isVertex = blob.stage == NSI_SHADER_STAGE_VERTEX;
+		std::vector<ShaderInfo>& table = isVertex ? m_vertexInfo : m_shaderInfo;
 		if( table.size() <= blob.id )
 		{
 			table.resize( blob.id + 1 );
 		}
 		table[blob.id] = info;
-
-		std::vector<Tr2ShaderAL>& shaderTable =
-			blob.stage == NSI_SHADER_STAGE_VERTEX ? m_vertexShaders : m_pixelShaders;
-		if( shaderTable.size() <= blob.id )
-		{
-			shaderTable.resize( blob.id + 1 );
-		}
-
 	}
+
+	// One AL shader slot per described blob, ids being contiguous per stage.
+	m_vertexShaders.resize( m_vertexInfo.size() );
+	m_pixelShaders.resize( m_shaderInfo.size() );
 
 	if( m_vertexShaders.empty() || m_pixelShaders.empty() )
 	{
@@ -1572,6 +1583,22 @@ bool Tr2NoesisRenderDevice::ReadShaderSource( const nsi_shader_source& shaders )
 						   static_cast<uint32_t>( m_vertexShaders.size() ),
 						   static_cast<uint32_t>( m_pixelShaders.size() ) );
 		return false;
+	}
+
+	// Pixel blobs pair with a stock vertex shader by id; a pairing we cannot satisfy is
+	// the same class of mistake as the format check above and is cheaper to catch here.
+	for( uint32_t shader = 0; shader < m_shaderInfo.size(); ++shader )
+	{
+		if( m_shaderInfo[shader].bytecode != nullptr &&
+			m_shaderInfo[shader].vertexShader >= m_vertexShaders.size() )
+		{
+			CCP_NOESIS_LOGERR( "Pixel shader '%s' names vertex shader %u, but the library "
+							   "supplied only %u",
+							   m_shaderInfo[shader].name,
+							   static_cast<uint32_t>( m_shaderInfo[shader].vertexShader ),
+							   static_cast<uint32_t>( m_vertexShaders.size() ) );
+			return false;
+		}
 	}
 
 	// The stride of a format is the sum of its attributes, so it is derived rather than

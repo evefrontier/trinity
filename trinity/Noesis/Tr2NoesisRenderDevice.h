@@ -26,7 +26,9 @@
 //
 //   DrawBatch draws every compiled permutation. Custom_Effect and BrushShader
 //   permutations come from CreatePixelShader; the batch carries that handle in
-//   pixelShader. WrapTexture lets a host Tr2TextureAL be sampled as a Noesis texture.
+//   pixelShader, and they live until the device does -- release_pixel_shader has
+//   nothing per-handle to free. WrapTexture lets a host Tr2TextureAL be sampled as a
+//   Noesis texture.
 //   BeginTile sets the AL scissor to the tile (Y-flipped from Noesis's lower-left origin).
 //   EndTile is a no-op: the next SetRenderTarget resets scissor to the full target.
 //   BeginOnscreenRender binds a depth-stencil (D24S8 on D3D, D32S8 on Metal;
@@ -44,8 +46,8 @@ public:
 
 	uint32_t GetWidth() const;
 	uint32_t GetHeight() const;
+	uint32_t GetLevels() const;
 	bool HasMipMaps() const;
-	bool IsInverted() const;
 	bool HasAlpha() const;
 
 	Tr2TextureAL& GetAL();
@@ -64,8 +66,10 @@ class Tr2NoesisRenderTarget
 public:
 	Tr2NoesisRenderTarget( Tr2NoesisTexture* color, Tr2TextureAL stencil, uint32_t width, uint32_t height );
 
-	Tr2NoesisTexture* GetTexture();
-
+	// Borrowed, not owned, and deliberately so: the library names this texture through
+	// get_render_target_texture and holds its own reference to the handle, which it drops
+	// with release_texture after release_render_target returns. Deleting it here would be
+	// a double free, not a leak fixed. See release_render_target in nsi.h.
 	Tr2NoesisTexture* GetColor();
 	Tr2TextureAL& GetStencil();
 	bool HasStencil() const;
@@ -95,6 +99,11 @@ public:
 	// The frame's deferred context. Must be set before Map*, UpdateTexture, SetRenderTarget
 	// or the Begin/End render markers. Defaults to the primary context passed at construction.
 	void SetRenderContext( Tr2RenderContextAL& renderContext );
+	// Drops it at the end of the frame, so a frame-half call that arrives out of order
+	// trips the assert at the top of each of those methods rather than recording into a
+	// context the step has already finished with. Resource creation is unaffected: it goes
+	// through the primary context, which is owned for the life of the device.
+	void ClearRenderContext();
 
 	// Extra onscreen scissor in render-target pixels, intersected with the viewport
 	// (already clamped to the target). Sprite 2d uses this for parent clipChildren
@@ -117,7 +126,6 @@ public:
 	// The returned handle is what ShaderEffect::SetPixelShader / BrushShader::SetPixelShader
 	// store; DrawBatch looks it up from Batch::pixelShader. Null on failure.
 	void* CreatePixelShader( const char* label, uint8_t shader, const void* hlsl, uint32_t size );
-	void ClearPixelShaders();
 	void UpdateTexture( Tr2NoesisTexture* texture, uint32_t level, uint32_t x, uint32_t y,
 						uint32_t width, uint32_t height, const void* data );
 	void BeginOffscreenRender();
@@ -304,23 +312,6 @@ private:
 	DynamicRing m_vertices;
 	DynamicRing m_indices;
 };
-
-namespace Tr2Noesis
-{
-
-// The one render device for the process, built on first use from the main-thread primary
-// render context. Null if construction failed.
-//
-// Every view's renderer shares it, which is Noesis's own model: the glyph atlas, the 64
-// shader programs and the dynamic rings all live here. Deliberately never destroyed --
-// TrinityAL objects in a static's destructor would be released after Trinity has torn the
-// GPU device down. Surviving a device reset is gap G2, not this function's business.
-//
-// Call only from the render path. Construction creates AL resources, so it must not happen
-// from arbitrary Python.
-Tr2NoesisRenderDevice* GetRenderDevice();
-
-}
 
 #endif
 
