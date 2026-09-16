@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisHost_H
 #define Tr2NoesisHost_H
 
-#include <nhi_blue.h>
+#include <nhi.h>
 
 #include <memory>
 
@@ -33,7 +33,7 @@ struct Tr2ScissorRect;
 //   where it started.
 // --------------------------------------------------------------------------------------
 
-class Tr2NoesisHost : public INhiDeviceHost
+class Tr2NoesisHost : public IRoot
 {
 public:
 	EXPOSE_TO_BLUE();
@@ -59,8 +59,8 @@ public:
 
 	bool IsReady() const;
 
-	// INhiDeviceHost
-	const nhi_device_host* GetNsiDeviceHost() override;
+	// The interface the library is handed, inside NHI_CAPSULE_DEVICE_HOST.
+	const nhi_device_host* GetNhiDeviceHost();
 
 	// Trinity-internal. The frame vtable, valid only between BeginFrame and EndFrame.
 	// Not exposed through Blue: it never crosses as an object.

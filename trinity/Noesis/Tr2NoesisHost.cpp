@@ -11,13 +11,6 @@
 
 BLUE_DEFINE( Tr2NoesisHost );
 
-// Each module defines the IIDs it uses, including ones it only implements. Be::IID
-// compares by name and hash rather than by address, so these match the definitions in
-// frontier-noesis. Same pattern trinity.cpp uses for the Blue interfaces it consumes.
-BLUE_DEFINE_INTERFACE( INhiDeviceHost );
-BLUE_DEFINE_INTERFACE( INhiShaderSource );
-BLUE_DEFINE_INTERFACE( INhiView );
-
 namespace
 {
 
@@ -47,6 +40,31 @@ Tr2NoesisRenderDevice* Device( void* self )
 		}
 	}
 	return device;
+}
+
+// `native` is the Python object Python passed to the video sink -- a Trinity texture
+// resource. The library never looks inside it, which is why it can be anything this host
+// recognises, and why unwrapping it is the host's job.
+//
+// Called with the GIL held: the only callers are the video element, on the thread Python
+// drives.
+bool NativeTexture( void* native, TriTextureResPtr& out )
+{
+	PyObject* object = static_cast<PyObject*>( native );
+	if( object == nullptr || object == Py_None )
+	{
+		return false;
+	}
+
+	IRoot* root = nullptr;
+	if( !BlueExtractArgument( object, root, 0 ) || root == nullptr )
+	{
+		PyErr_Clear();
+		return false;
+	}
+
+	out = BlueCastPtr( root );
+	return out != nullptr;
 }
 
 Tr2NoesisTexture* AsTexture( nhi_texture texture )
@@ -170,13 +188,8 @@ void HostReleasePixelShader( void* /*self*/, nhi_pixel_shader /*shader*/ )
 
 nhi_texture HostWrapNativeTexture( void* self, void* native, nhi_bool hasAlpha )
 {
-	// `native` is the Blue object Python passed to the video sink: a Trinity texture
-	// resource. The library never looked inside it, which is why it can be anything the
-	// host recognises.
-	IRoot* object = static_cast<IRoot*>( native );
 	TriTextureResPtr resource;
-	resource = BlueCastPtr( object );
-	if( resource == nullptr )
+	if( !NativeTexture( native, resource ) )
 	{
 		return nullptr;
 	}
@@ -202,10 +215,8 @@ nhi_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width
 	*width = 0;
 	*height = 0;
 
-	IRoot* object = static_cast<IRoot*>( native );
 	TriTextureResPtr resource;
-	resource = BlueCastPtr( object );
-	if( resource == nullptr )
+	if( !NativeTexture( native, resource ) )
 	{
 		// The one place the host can tell the caller it passed the wrong kind of object,
 		// because only this side knows what the handle was supposed to be.
@@ -415,7 +426,7 @@ bool Tr2NoesisHost::IsReady() const
 	return m_device != nullptr && m_device->IsValid();
 }
 
-const nhi_device_host* Tr2NoesisHost::GetNsiDeviceHost()
+const nhi_device_host* Tr2NoesisHost::GetNhiDeviceHost()
 {
 	// Valid as soon as a shader source is set, not once the device is built: the library
 	// wires this at startup and the device cannot exist until the first frame. Calls that
@@ -465,6 +476,49 @@ Tr2NoesisRenderDevice* Tr2NoesisHost::GetDevice() const
 	return m_device.get();
 }
 
+// The library retains the interface out of this capsule, so the capsule may be dropped
+// the moment it has been handed over. The capsule holds a reference of its own until
+// then, released by its destructor.
+static void DeviceHostCapsuleDestructor( PyObject* capsule )
+{
+	void* pointer = PyCapsule_GetPointer( capsule, NHI_CAPSULE_DEVICE_HOST );
+	if( pointer == nullptr )
+	{
+		PyErr_Clear();
+		return;
+	}
+	const nhi_device_host* api = static_cast<const nhi_device_host*>( pointer );
+	if( api->header.release != nullptr )
+	{
+		api->header.release( api->header.self );
+	}
+}
+
+static PyObject* PyGetNhiInterface( PyObject* self, PyObject* /*args*/ )
+{
+	Tr2NoesisHost* host = BluePythonCast<Tr2NoesisHost*>( self );
+	const nhi_device_host* api = host->GetNhiDeviceHost();
+	if( api == nullptr )
+	{
+		// No shader source yet, so there is nothing usable to hand over.
+		Py_RETURN_NONE;
+	}
+
+	if( api->header.retain != nullptr )
+	{
+		api->header.retain( api->header.self );
+	}
+
+	PyObject* capsule = PyCapsule_New( const_cast<nhi_device_host*>( api ),
+									   NHI_CAPSULE_DEVICE_HOST,
+									   DeviceHostCapsuleDestructor );
+	if( capsule == nullptr && api->header.release != nullptr )
+	{
+		api->header.release( api->header.self );
+	}
+	return capsule;
+}
+
 static PyObject* PySetShaderSource( PyObject* self, PyObject* args )
 {
 	PyObject* capsule = nullptr;
@@ -499,7 +553,6 @@ const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 					"vtables the Noesis library calls through. Build it with the library's shader\n"
 					"source, then hand it to noesis.set_device_host." )
 		MAP_INTERFACE( Tr2NoesisHost )
-		MAP_INTERFACE( INhiDeviceHost )
 
 		MAP_METHOD(
 			"SetShaderSource",
@@ -510,6 +563,13 @@ const Be::ClassInfo* Tr2NoesisHost::ExposeToBlue()
 			"is still starting up.\n"
 			":param shaderSource: an " NHI_CAPSULE_SHADER_SOURCE " capsule, or None\n"
 			":rtype: bool" )
+
+		MAP_METHOD(
+			"get_nhi_interface",
+			PyGetNhiInterface,
+			"The nhi_device_host interface, in an " NHI_CAPSULE_DEVICE_HOST " capsule.\n"
+			"Hand this to the Noesis library. None until a shader source has been set.\n"
+			":rtype: PyCapsule or None" )
 
 		MAP_PROPERTY_READONLY(
 			"isReady",
