@@ -4,7 +4,7 @@
 #ifndef TriStepRenderNoesis_H
 #define TriStepRenderNoesis_H
 
-#include "Noesis/Tr2NoesisHost.h"
+#include "Noesis/Tr2NoesisRenderDevice.h"
 #include "RenderJob/TriRenderStep.h"
 
 // --------------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ public:
 	// The view interface, retained. Null clears. Tr2Sprite2dNoesis pushes both of these
 	// into the step it owns; Python sets them on the sprite, not here.
 	void SetView( const nxt_view* view );
-	void SetHost( Tr2NoesisHost* host );
+	void SetRenderDevice( Tr2NoesisRenderDevice* host );
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
 	// updates it from the sprite's layout each gather. The overlay path leaves it cleared
@@ -54,7 +54,7 @@ private:
 	// Typed, so Blue rejects anything that is not a host at the point of assignment. An
 	// IRootPtr here would take any object and resolve to nothing on the first frame that
 	// needed it, which shows up as an empty rectangle and no error.
-	Tr2NoesisHostPtr m_host;
+	Tr2NoesisRenderDevicePtr m_renderDevice;
 	bool m_hasOverrideViewport;
 	int m_overrideX;
 	int m_overrideY;

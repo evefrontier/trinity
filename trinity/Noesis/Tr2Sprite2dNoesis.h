@@ -5,7 +5,7 @@
 #define Tr2Sprite2dNoesis_h
 
 #include "Sprite2d/Tr2SpriteObject.h"
-#include "Noesis/Tr2NoesisHost.h"
+#include "Noesis/Tr2NoesisRenderDevice.h"
 
 // --------------------------------------------------------------------------------------
 // Description:
@@ -50,7 +50,7 @@ private:
 	const nxt_view* m_view;
 
 	// Typed, so Blue rejects anything that is not a host at the point of assignment.
-	Tr2NoesisHostPtr m_host;
+	Tr2NoesisRenderDevicePtr m_renderDevice;
 	TriStepRenderNoesisPtr m_step;
 	TriRenderJobPtr m_job;
 };

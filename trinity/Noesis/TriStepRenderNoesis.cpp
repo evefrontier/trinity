@@ -5,7 +5,7 @@
 #include "Noesis/TriStepRenderNoesis.h"
 
 #include "Noesis/Tr2NoesisLog.h"
-#include "Noesis/Tr2NoesisHost.h"
+#include "Noesis/Tr2NoesisRenderDevice.h"
 
 #include "Tr2RenderContext.h"
 
@@ -35,7 +35,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	CCP_STATS_ZONE( __FUNCTION__ );
 
 	// Nothing wired, or nothing loaded: the normal state for a client with no Noesis UI.
-	Tr2NoesisHost* host = m_host;
+	Tr2NoesisRenderDevice* host = m_renderDevice;
 	if( host == nullptr || m_view == nullptr ||
 		!m_view->is_loaded( m_view->header.self ) )
 	{
@@ -49,7 +49,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	const nxt_frame_host* frame = host->GetNsiFrameHost();
+	const nxt_frame_context* frame = host->GetNsiFrameHost();
 	if( frame == nullptr )
 	{
 		return RS_OK;
@@ -67,7 +67,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	//
 	// Bringing up the renderer creates GPU resources, so it belongs inside the bracket
 	// rather than at load time.
-	Tr2NoesisHost::ScopedFrame scopedFrame( *host, renderContext );
+	Tr2NoesisRenderDevice::ScopedFrame scopedFrame( *host, renderContext );
 
 	if( !m_view->ensure_renderer( m_view->header.self, frame ) )
 	{
@@ -191,9 +191,9 @@ void TriStepRenderNoesis::SetView( const nxt_view* view )
 	m_view = view;
 }
 
-void TriStepRenderNoesis::SetHost( Tr2NoesisHost* host )
+void TriStepRenderNoesis::SetRenderDevice( Tr2NoesisRenderDevice* host )
 {
-	m_host = host;
+	m_renderDevice = host;
 }
 
 void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int height )

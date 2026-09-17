@@ -5,7 +5,7 @@
 #include "Noesis/Tr2Sprite2dNoesis.h"
 
 #include "Noesis/Tr2NoesisLog.h"
-#include "Noesis/Tr2NoesisHost.h"
+#include "Noesis/Tr2NoesisRenderDevice.h"
 
 #include "Noesis/TriStepRenderNoesis.h"
 #include "RenderJob/TriRenderJob.h"
@@ -59,7 +59,7 @@ void Tr2Sprite2dNoesis::EnsureJob()
 	// the only place they reach it. Miss either and Execute takes its "nothing wired" path
 	// every frame: no drawing, no error, an empty rectangle where the UI should be.
 	m_step->SetView( m_view );
-	m_step->SetHost( m_host );
+	m_step->SetRenderDevice( m_renderDevice );
 
 	if( !m_job )
 	{

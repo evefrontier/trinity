@@ -3,58 +3,45 @@
 #include "StdAfx.h"
 
 #include "Noesis/Tr2Sprite2dNoesis.h"
+#include "Noesis/Tr2NoesisNxtInterface.h"
 
 BLUE_DEFINE( Tr2Sprite2dNoesis );
 
 static PyObject* PySetView( PyObject* self, PyObject* args )
 {
-	PyObject* capsule = nullptr;
-	if( !PyArg_ParseTuple( args, "O", &capsule ) )
+	PyObject* view = nullptr;
+	if( !PyArg_ParseTuple( args, "O", &view ) )
 	{
 		return nullptr;
 	}
 
-	const nxt_view* api = nullptr;
-	if( capsule != Py_None )
+	void* pointer = nullptr;
+	if( !Tr2NoesisTakeNxtInterface( view, NXT_CAPSULE_VIEW, pointer ) )
 	{
-		void* pointer = PyCapsule_GetPointer( capsule, NXT_CAPSULE_VIEW );
-		if( pointer == nullptr )
-		{
-			PyErr_SetString( PyExc_TypeError,
-							 "expected a " NXT_CAPSULE_VIEW " capsule, or None" );
-			return nullptr;
-		}
-		api = static_cast<const nxt_view*>( pointer );
-		if( nxt_interface_usable( &api->header ) == NXT_FALSE )
-		{
-			PyErr_SetString( PyExc_ValueError,
-							 "the view speaks an nxt ABI this Trinity cannot" );
-			return nullptr;
-		}
+		return nullptr;
 	}
 
-	BluePythonCast<Tr2Sprite2dNoesis*>( self )->SetView( api );
+	BluePythonCast<Tr2Sprite2dNoesis*>( self )->SetView( static_cast<const nxt_view*>( pointer ) );
 	Py_RETURN_NONE;
 }
 
 const Be::ClassInfo* Tr2Sprite2dNoesis::ExposeToBlue()
 {
-	EXPOSURE_BEGIN( Tr2Sprite2dNoesis, "A sprite-tree node that renders a Tr2NoesisView at this z-order." )
+	EXPOSURE_BEGIN( Tr2Sprite2dNoesis, "A sprite-tree node that renders a Noesis view at this z-order." )
 		MAP_INTERFACE( ITr2SpriteObject )
 		MAP_INTERFACE( Tr2Sprite2dNoesis )
 
 		MAP_METHOD(
 			"set_view",
 			PySetView,
-			"The view to render, as the capsule its get_nxt_interface() returns. None\n"
-			"clears it and the sprite draws nothing.\n"
-			":param view: an " NXT_CAPSULE_VIEW " capsule, or None\n"
+			"The view to render. None clears it and the sprite draws nothing.\n"
+			":param view: a noesis.View, or None\n"
 			":rtype: None" )
 
 		MAP_ATTRIBUTE(
-			"host",
-			m_host,
-			"The Tr2NoesisHost to render through",
+			"render_device",
+			m_renderDevice,
+			"The Tr2NoesisRenderDevice to render through",
 			Be::READWRITE )
 
 	EXPOSURE_CHAINTO( Tr2SpriteObjectBase )

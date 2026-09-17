@@ -1843,11 +1843,12 @@ endif()
     Python-facing moved out, so nothing here includes or links NoesisGUI.
 ]]
 set(NOESIS_RELATED_SOURCES
-    Noesis/Tr2NoesisHost.cpp
-    Noesis/Tr2NoesisHost.h
-    Noesis/Tr2NoesisLog.h
     Noesis/Tr2NoesisRenderDevice.cpp
     Noesis/Tr2NoesisRenderDevice.h
+    Noesis/Tr2NoesisLog.h
+    Noesis/Tr2NoesisNxtInterface.h
+    Noesis/Tr2NoesisGpuDevice.cpp
+    Noesis/Tr2NoesisGpuDevice.h
     Noesis/Tr2Sprite2dNoesis.cpp
     Noesis/Tr2Sprite2dNoesis.h
     Noesis/Tr2Sprite2dNoesis_Blue.cpp
