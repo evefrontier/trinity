@@ -16,7 +16,8 @@ static PyObject* PySetView( PyObject* self, PyObject* args )
 	}
 
 	void* pointer = nullptr;
-	if( !Tr2NoesisTakeNxtInterface( view, NXT_CAPSULE_VIEW, pointer ) )
+	if( !Tr2NoesisTakeNxtInterface( view, NXT_CAPSULE_VIEW,
+								   sizeof( nxt_view ), pointer ) )
 	{
 		return nullptr;
 	}

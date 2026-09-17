@@ -360,12 +360,15 @@ void Tr2NoesisRenderDevice::FillVtables()
 
 bool Tr2NoesisRenderDevice::SetShaderSource( const nxt_shader_source* shaderSource )
 {
-	if( shaderSource != nullptr && nxt_interface_usable( &shaderSource->header ) == NXT_FALSE )
+	if( shaderSource != nullptr && NXT_INTERFACE_USABLE( shaderSource ) == NXT_FALSE )
 	{
-		CCP_NOESIS_LOGERR( "The shader source speaks an nxt ABI this Trinity cannot; this "
-						   "Trinity is nxt %u.%u",
+		CCP_NOESIS_LOGERR( "The shader source speaks an nxt ABI this Trinity cannot: it "
+						   "reports major %u with %u bytes of vtable, and this Trinity needs "
+						   "major %u with at least %u",
+						   shaderSource->header.abi_version_major,
+						   shaderSource->header.struct_size,
 						   static_cast<uint32_t>( NXT_ABI_VERSION_MAJOR ),
-						   static_cast<uint32_t>( NXT_ABI_VERSION_MINOR ) );
+						   static_cast<uint32_t>( sizeof( nxt_shader_source ) ) );
 		return false;
 	}
 
@@ -529,7 +532,8 @@ static PyObject* PySetShaderSource( PyObject* self, PyObject* args )
 	}
 
 	void* pointer = nullptr;
-	if( !Tr2NoesisTakeNxtInterface( source, NXT_CAPSULE_SHADER_SOURCE, pointer ) )
+	if( !Tr2NoesisTakeNxtInterface( source, NXT_CAPSULE_SHADER_SOURCE,
+								   sizeof( nxt_shader_source ), pointer ) )
 	{
 		return nullptr;
 	}

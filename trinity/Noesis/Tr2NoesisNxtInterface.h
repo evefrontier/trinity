@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisNxtInterface_H
 #define Tr2NoesisNxtInterface_H
 
-#include "nxt.h"
+#include "nxt_python.h"
 
 // --------------------------------------------------------------------------------------
 // Description:
@@ -15,51 +15,38 @@
 //   The capsule is how the two modules pass a pointer neither can name a type for, but
 //   that is plumbing and script has no use for it. So the object is what crosses, and the
 //   protocol is a method on it: anything with _nxt_interface() can be handed over.
+//
+//   That protocol lives in nxt_python.h, next to the ABI it carries. This is the thin
+//   Trinity-side wrapper that decides how a refusal reads from Python.
 // --------------------------------------------------------------------------------------
 
 // False with a Python error set when `object` cannot produce the named interface. True
 // with a null `out` when `object` is None, which every caller treats as "clear it".
 //
-// The capsule is dropped before returning. That is safe because `object` is alive for the
-// whole call and owns the interface -- the capsule's reference is only ever the second
-// one. A caller that stores the pointer still has to retain it.
-inline bool Tr2NoesisTakeNxtInterface( PyObject* object, const char* capsuleName, void*& out )
+// `expectedSize` is the sizeof of the interface being asked for, so a sender whose vtable
+// stops short of what this Trinity calls is refused rather than called into.
+//
+// The extraction and the version check are nxt_python.h's, shared with frontier-noesis so
+// the two sides cannot drift on a convention they both have to implement. What is left
+// here is the Trinity-side choice of what an ABI mismatch reads like in Python.
+inline bool Tr2NoesisTakeNxtInterface( PyObject* object, const char* capsuleName,
+									   size_t expectedSize, void*& out )
 {
-	out = nullptr;
-	if( object == nullptr || object == Py_None )
+	switch( nxt_take_interface( object, capsuleName, expectedSize, &out ) )
 	{
-		return true;
-	}
-
-	PyObject* capsule = PyObject_CallMethod( object, "_nxt_interface", nullptr );
-	if( capsule == nullptr )
-	{
-		// Whatever the call raised says more than anything this could add -- most often
-		// that the object has no such method, which names the mistake exactly.
+	case NXT_TAKE_ERROR:
+		// Whatever the helper raised names the mistake exactly.
 		return false;
-	}
 
-	void* pointer = PyCapsule_GetPointer( capsule, capsuleName );
-	Py_DECREF( capsule );
-
-	if( pointer == nullptr )
-	{
-		PyErr_Clear();
-		PyErr_Format( PyExc_TypeError, "_nxt_interface() did not return a %s capsule",
-					  capsuleName );
-		return false;
-	}
-
-	const nxt_interface_header* header = static_cast<const nxt_interface_header*>( pointer );
-	if( nxt_interface_usable( header ) == NXT_FALSE )
-	{
+	case NXT_TAKE_ABI:
 		PyErr_Format( PyExc_ValueError, "the %s speaks an nxt ABI this Trinity cannot",
 					  capsuleName );
+		out = nullptr;
 		return false;
-	}
 
-	out = pointer;
-	return true;
+	default:
+		return true;
+	}
 }
 
 #endif
