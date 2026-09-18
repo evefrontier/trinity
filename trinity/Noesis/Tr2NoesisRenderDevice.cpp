@@ -239,46 +239,63 @@ nxt_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width
 // Frame half
 // --------------------------------------------------------------------------------------
 
+// The frame vtable only exists between BeginFrame and EndFrame, and the only thing that
+// brackets it is TriStepRenderNoesis::Execute, which returns before it asks for the
+// frame vtable if EnsureDevice() said no. So unlike the device half above, a frame entry
+// point cannot be reached without a device, and these dereference rather than decline.
+//
+// That invariant lives in the step rather than here, so it is asserted at the boundary
+// rather than assumed silently: the device half's null return is a contract with the
+// library, this is a contract with our own step.
+Tr2NoesisGpuDevice& FrameDevice( void* self )
+{
+	Tr2NoesisGpuDevice* device = Self( self ).GetDevice();
+	CCP_ASSERT_M( device != nullptr,
+				  "a frame entry point was reached without a device; the render step must "
+				  "not hand out the frame vtable unless EnsureDevice succeeded" );
+	return *device;
+}
+
 void HostUpdateTexture( void* self, nxt_texture texture, uint32_t level, uint32_t x, uint32_t y,
 						uint32_t width, uint32_t height, const void* data )
 {
-	Device( self )->UpdateTexture( AsTexture( texture ), level, x, y, width, height, data );
+	FrameDevice( self ).UpdateTexture( AsTexture( texture ), level, x, y, width, height, data );
 }
 
-void HostBeginOffscreen( void* self ) { Device( self )->BeginOffscreenRender(); }
-void HostEndOffscreen( void* self ) { Device( self )->EndOffscreenRender(); }
-void HostBeginOnscreen( void* self ) { Device( self )->BeginOnscreenRender(); }
-void HostEndOnscreen( void* self ) { Device( self )->EndOnscreenRender(); }
+void HostBeginOffscreen( void* self ) { FrameDevice( self ).BeginOffscreenRender(); }
+void HostEndOffscreen( void* self ) { FrameDevice( self ).EndOffscreenRender(); }
+void HostBeginOnscreen( void* self ) { FrameDevice( self ).BeginOnscreenRender(); }
+void HostEndOnscreen( void* self ) { FrameDevice( self ).EndOnscreenRender(); }
 
 void HostSetRenderTarget( void* self, nxt_render_target surface )
 {
-	Device( self )->SetRenderTarget( AsTarget( surface ) );
+	FrameDevice( self ).SetRenderTarget( AsTarget( surface ) );
 }
 
 void HostBeginTile( void* self, nxt_render_target surface, const nxt_tile* tile )
 {
-	Device( self )->BeginTile( AsTarget( surface ), *tile );
+	FrameDevice( self ).BeginTile( AsTarget( surface ), *tile );
 }
 
 void HostEndTile( void* self, nxt_render_target surface )
 {
-	Device( self )->EndTile( AsTarget( surface ) );
+	FrameDevice( self ).EndTile( AsTarget( surface ) );
 }
 
 void HostResolveRenderTarget( void* self, nxt_render_target surface, const nxt_tile* tiles,
 							  uint32_t numTiles )
 {
-	Device( self )->ResolveRenderTarget( AsTarget( surface ), tiles, numTiles );
+	FrameDevice( self ).ResolveRenderTarget( AsTarget( surface ), tiles, numTiles );
 }
 
-void* HostMapVertices( void* self, uint32_t bytes ) { return Device( self )->MapVertices( bytes ); }
-void HostUnmapVertices( void* self ) { Device( self )->UnmapVertices(); }
-void* HostMapIndices( void* self, uint32_t bytes ) { return Device( self )->MapIndices( bytes ); }
-void HostUnmapIndices( void* self ) { Device( self )->UnmapIndices(); }
+void* HostMapVertices( void* self, uint32_t bytes ) { return FrameDevice( self ).MapVertices( bytes ); }
+void HostUnmapVertices( void* self ) { FrameDevice( self ).UnmapVertices(); }
+void* HostMapIndices( void* self, uint32_t bytes ) { return FrameDevice( self ).MapIndices( bytes ); }
+void HostUnmapIndices( void* self ) { FrameDevice( self ).UnmapIndices(); }
 
 void HostDrawBatch( void* self, const nxt_batch* batch )
 {
-	Device( self )->DrawBatch( *batch );
+	FrameDevice( self ).DrawBatch( *batch );
 }
 
 // nxt retain/release. Blue's refcount is Lock/Unlock, so these are that and nothing
