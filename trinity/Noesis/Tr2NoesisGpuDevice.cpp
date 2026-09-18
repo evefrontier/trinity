@@ -111,6 +111,11 @@ bool ToVertexDataType( nxt_vertex_attr_type type, Tr2VertexDefinition::DataType&
 // the SDK at its end. Here it is enough that a byte addresses 64 slots.
 static_assert( sizeof( nxt_sampler_state ) == 1, "nxt_sampler_state is a packed byte" );
 
+// Only the six bits nxt.h defines. The top two are documented as unused, but this value
+// arrives over the ABI and the table it indexes has exactly 64 entries, so it is masked
+// rather than trusted -- an assert would compile out in the builds that ship.
+const nxt_sampler_state SAMPLER_INDEX_MASK = 0x3f;
+
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 {
 	if( flags & PS_CB0 )
@@ -1444,8 +1449,11 @@ void Tr2NoesisGpuDevice::BindResources( const nxt_batch& batch, uint32_t flags, 
 		const bool srvSet = description.SetSrv( PIXEL_SHADER, binding.registerIndex, texture->GetAL() );
 		CCP_ASSERT_M( srvSet, "Noesis shader program has no SRV at the register the resource flags claim" );
 
-		CCP_ASSERT_M( binding.sampler < std::size( m_samplers ), "Noesis sampler index out of range" );
-		const bool samplerSet = description.SetSampler( PIXEL_SHADER, binding.registerIndex, m_samplers[binding.sampler] );
+		// Masked, not asserted: see SAMPLER_INDEX_MASK.
+		CCP_ASSERT_M( ( binding.sampler & ~SAMPLER_INDEX_MASK ) == 0,
+					  "Noesis sampler state used a bit nxt.h reserves" );
+		const nxt_sampler_state sampler = binding.sampler & SAMPLER_INDEX_MASK;
+		const bool samplerSet = description.SetSampler( PIXEL_SHADER, binding.registerIndex, m_samplers[sampler] );
 		CCP_ASSERT_M( samplerSet, "Noesis shader program has no sampler at the register PROGRAM_FLAGS claims" );
 	}
 
@@ -1737,7 +1745,6 @@ void Tr2NoesisGpuDevice::CreateSamplers()
 				desc.m_borderColor[2] = 0.0f;
 				desc.m_borderColor[3] = 0.0f;
 
-				CCP_ASSERT_M( state < std::size( m_samplers ), "Noesis sampler index out of range" );
 				const ALResult result = m_samplers[state].Create( desc, *m_primary );
 				if( FAILED( result ) )
 				{
