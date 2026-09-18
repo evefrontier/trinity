@@ -1192,14 +1192,14 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 	// Indices are bound at the chunk base and addressed through startIndex instead.
 	m_context->SetStreamSource( 0, m_vertices.CurrentChunk(),
 								m_vertices.drawPos + batch.vertex_offset, m_vertexStrides[resolved.vertexFormat] );
-	m_context->SetIndices( m_indices.CurrentChunk(), 2 );
+	m_context->SetIndices( m_indices.CurrentChunk(), m_indices.stride );
 
 	BindUniforms( batch, resolved.flags );
 	BindResources( batch, resolved.flags, *resolved.program, resolved.programId );
 
 	CCP_ASSERT_M( ( batch.num_indices % 3 ) == 0, "Noesis batch index count is not a whole number of triangles" );
 
-	const uint32_t startIndex = m_indices.drawPos / 2 + batch.start_index;
+	const uint32_t startIndex = m_indices.drawPos / m_indices.stride + batch.start_index;
 	const ALResult result = m_context->DrawIndexedPrimitive( batch.num_vertices, startIndex, batch.num_indices / 3, 0 );
 	if( FAILED( result ) )
 	{
