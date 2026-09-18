@@ -131,14 +131,6 @@ bool Tr2Sprite2dNoesis::SyncOverrideViewport( Tr2Sprite2dScene* renderer )
 	m_step->SetOverrideViewport( x, y, width, height );
 	m_step->SetOverrideClip( clipLeft, clipTop, clipRight, clipBottom );
 
-	if( Tr2Noesis::IsLogVerbose() )
-	{
-		CCP_NOESIS_LOG( "Tr2Sprite2dNoesis viewport (%d, %d) %dx%d clip (%d,%d)-(%d,%d) (sprite %.0f,%.0f %.0fx%.0f)",
-						x, y, width, height,
-						clipLeft, clipTop, clipRight, clipBottom,
-						origin.x, origin.y, m_displayWidth, m_displayHeight );
-	}
-
 	return true;
 }
 
@@ -153,19 +145,11 @@ void Tr2Sprite2dNoesis::GatherSprites( Tr2Sprite2dScene* renderer )
 
 	if( m_view == nullptr || !m_view->is_loaded( m_view->header.self ) )
 	{
-		if( Tr2Noesis::IsLogVerbose() )
-		{
-			CCP_NOESIS_LOG( "Tr2Sprite2dNoesis skip: %s", m_view == nullptr ? "no view" : "view not loaded" );
-		}
 		return;
 	}
 
 	if( m_displayWidth <= 0.0f || m_displayHeight <= 0.0f )
 	{
-		if( Tr2Noesis::IsLogVerbose() )
-		{
-			CCP_NOESIS_LOG( "Tr2Sprite2dNoesis skip: display size %.0fx%.0f", m_displayWidth, m_displayHeight );
-		}
 		return;
 	}
 

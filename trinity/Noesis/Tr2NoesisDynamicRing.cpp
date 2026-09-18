@@ -24,8 +24,6 @@ bool Tr2NoesisDynamicRing::Create( uint32_t bufferStride, uint32_t bytesPerChunk
 	frame = primary.GetRecordingFrameNumber();
 	mapped = false;
 	growthCapped = false;
-	frameBytes = 0;
-	reportedPeak = 0;
 
 	// One chunk up front, so a device that cannot get GPU memory reports it at construction
 	// rather than on the first heavy frame. AppendChunk leaves it current and stamped with
@@ -129,20 +127,9 @@ void Tr2NoesisDynamicRing::SyncFrame( Tr2PrimaryRenderContextAL& primary )
 		return;
 	}
 
-	if( frameBytes > reportedPeak )
-	{
-		reportedPeak = frameBytes;
-		if( Tr2Noesis::IsLogVerbose() )
-		{
-			CCP_NOESIS_LOG( "Noesis ring '%s' peak %u bytes in one frame, %u chunk(s) of %u allocated",
-							name.c_str(), frameBytes, static_cast<uint32_t>( chunks.size() ), chunkSize );
-		}
-	}
-
 	frame = recording;
 	chunkIndex = INVALID_CHUNK;
 	pos = 0;
-	frameBytes = 0;
 	growthCapped = false;
 }
 
@@ -178,7 +165,6 @@ void* Tr2NoesisDynamicRing::Map( uint32_t bytes, Tr2RenderContextAL& context, Tr
 	mapped = true;
 	drawPos = pos;
 	pos += bytes;
-	frameBytes += bytes;
 	return static_cast<uint8_t*>( data ) + drawPos;
 }
 

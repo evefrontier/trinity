@@ -67,10 +67,6 @@ public:
 	// One log per frame that hits the cap.
 	bool growthCapped = false;
 	std::string name;
-	// Bytes handed out this frame, and the largest already reported, so the log fires
-	// only when a frame is heavier than every frame before it.
-	uint32_t frameBytes = 0;
-	uint32_t reportedPeak = 0;
 	// Returned by CurrentChunk when there is no current chunk, so a device that failed
 	// to create GPU memory binds an invalid buffer rather than reading off the end.
 	Tr2BufferAL fallback;

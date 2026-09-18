@@ -599,10 +599,6 @@ Tr2NoesisRenderTarget* Tr2NoesisGpuDevice::CreateRenderTarget( const char* label
 	}
 
 	Tr2NoesisTexture* color = new Tr2NoesisTexture( colorAL, width, height, 1, true );
-	if( Tr2Noesis::IsLogVerbose() )
-	{
-		CCP_NOESIS_LOG( "RenderTarget '%s' %u x %u", SafeLabel( label, "" ), width, height );
-	}
 	return new Tr2NoesisRenderTarget( color, stencilAL, width, height );
 }
 
@@ -676,10 +672,6 @@ Tr2NoesisTexture* Tr2NoesisGpuDevice::CreateTexture( const char* label, uint32_t
 	char textureName[128];
 	textureAL.SetName( FormatDebugName( textureName, label, "Texture" ) );
 
-	if( Tr2Noesis::IsLogVerbose() )
-	{
-		CCP_NOESIS_LOG( "Texture '%s' %u x %u x %u", SafeLabel( label, "" ), width, height, numLevels );
-	}
 	return new Tr2NoesisTexture( textureAL, width, height, numLevels, format == NXT_TEXTURE_FORMAT_RGBA8 );
 }
 
@@ -758,11 +750,6 @@ void* Tr2NoesisGpuDevice::CreatePixelShader( const char* label, uint8_t shader, 
 	custom.program.SetName( name );
 
 	m_customShaders.push_back( std::move( custom ) );
-	if( Tr2Noesis::IsLogVerbose() )
-	{
-		CCP_NOESIS_LOG( "Custom pixel shader '%s' shader=%u flags=0x%x handle=%zu",
-						name, shader, flags, m_customShaders.size() );
-	}
 	return reinterpret_cast<void*>( m_customShaders.size() );
 }
 
@@ -878,9 +865,6 @@ void Tr2NoesisGpuDevice::EndOnscreenRender()
 	}
 
 	m_context->PopGpuMarker();
-
-	// Last Noesis call of the frame, so this is where a frame's worth of batches is complete.
-	ReportFrameBatches();
 }
 
 void Tr2NoesisGpuDevice::SetRenderTarget( Tr2NoesisRenderTarget* surface )
@@ -971,7 +955,6 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 		return;
 	}
 
-	m_stats.CountBatch( shader );
 
 	ResolvedProgram resolved;
 	if( !ResolveProgram( batch, resolved ) )
@@ -1008,12 +991,6 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 		return;
 	}
 
-	if( m_stats.WantsBatchDetail() && Tr2Noesis::IsLogVerbose() )
-	{
-		CCP_NOESIS_LOG( "Batch '%s' state=0x%02x stencilRef=%u vertices=%u indices=%u vertexOffset=%u startIndex=%u",
-						m_shaderInfo[shader].name, batch.render_state, batch.stencil_ref,
-						batch.num_vertices, batch.num_indices, batch.vertex_offset, startIndex );
-	}
 }
 
 bool Tr2NoesisGpuDevice::ResolveProgram( const nxt_batch& batch, ResolvedProgram& out )
@@ -1065,10 +1042,11 @@ bool Tr2NoesisGpuDevice::ResolveProgram( const nxt_batch& batch, ResolvedProgram
 
 void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 {
-	if( !m_stats.NoteUnwired( shader ) )
+	if( shader >= m_unwiredReported.size() || m_unwiredReported[shader] )
 	{
 		return;
 	}
+	m_unwiredReported[shader] = true;
 
 	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
 	// that an unwired shader is still being asked for.
@@ -1076,16 +1054,6 @@ void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 					   "permutations need CreatePixelShader plus SetPixelShader on the effect.",
 					   m_shaderInfo[shader].name, shader );
 	CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation was never compiled" );
-}
-
-void Tr2NoesisGpuDevice::ReportFrameBatches()
-{
-	uint32_t total = 0;
-	const std::string histogram = m_stats.EndFrame( Tr2Noesis::IsLogVerbose(), total );
-	if( !histogram.empty() )
-	{
-		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, histogram.c_str() );
-	}
 }
 
 void Tr2NoesisGpuDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nxt_uniform_data& uniforms,
@@ -1363,13 +1331,7 @@ bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
 
 	m_programs.resize( m_pixelShaders.size() );
 	m_vertexLayouts.resize( formatCount );
-	std::vector<const char*> names;
-	names.reserve( m_shaderInfo.size() );
-	for( const ShaderInfo& info : m_shaderInfo )
-	{
-		names.push_back( info.name );
-	}
-	m_stats.Reset( names );
+	m_unwiredReported.assign( m_pixelShaders.size(), false );
 
 	CCP_NOESIS_LOGNOTICE( "Noesis shaders: %u vertex, %u pixel, %u vertex formats",
 						  static_cast<uint32_t>( m_vertexShaders.size() ),

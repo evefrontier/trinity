@@ -4,7 +4,6 @@
 #ifndef Tr2NoesisGpuDevice_H
 #define Tr2NoesisGpuDevice_H
 
-#include "Noesis/Tr2NoesisBatchStats.h"
 #include "Noesis/Tr2NoesisDynamicRing.h"
 
 #include <nxt.h>
@@ -179,7 +178,6 @@ private:
 	void BindUniforms( const nxt_batch& batch, uint32_t flags );
 	void BindResources( const nxt_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId );
 	void ReportUnwiredShader( uint8_t shader );
-	void ReportFrameBatches();
 	bool EnsureOnscreenStencil( uint32_t width, uint32_t height );
 
 	Tr2PrimaryRenderContextAL* m_primary;
@@ -252,8 +250,9 @@ private:
 	// combinations a UI actually uses, which stops growing shortly after steady state.
 	std::unordered_map<uint64_t, ResourceSetEntry> m_resourceSets;
 
-	// What was drawn and what could not be, reported from EndOnscreenRender.
-	Tr2NoesisBatchStats m_stats;
+	// One error per unwired shader rather than one per batch. Sized from the shader count,
+	// so how many permutations the library has is not something this has an opinion about.
+	std::vector<bool> m_unwiredReported;
 
 	Tr2NoesisDynamicRing m_vertices;
 	Tr2NoesisDynamicRing m_indices;

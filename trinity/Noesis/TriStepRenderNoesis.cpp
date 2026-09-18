@@ -105,14 +105,13 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// because the onscreen pass samples what it produced.
 	m_view->update_render_tree( m_view->header.self, frame );
 
-	// Bracketed unconditionally. RenderOffscreen's return value says whether it drew anything,
-	// but the target has to be saved before the call either way, so it is only good for logging.
+	// Bracketed unconditionally: the target has to be saved before the call either way, and
+	// RenderOffscreen's return value says only whether it drew anything.
 	renderContext.m_esm.PushViewport();
 	renderContext.m_esm.PushRenderTarget();
 	const bool pushedDepthStencil = renderContext.m_esm.PushDepthStencilBuffer();
 
-	const bool renderedOffscreen =
-		m_view->render_offscreen( m_view->header.self, frame ) != NXT_FALSE;
+	m_view->render_offscreen( m_view->header.self, frame );
 
 	if( pushedDepthStencil )
 	{
@@ -166,11 +165,6 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// longer describes the device, so hand back something neutral.
 	renderContext.SetStreamSource( 0, Tr2BufferAL(), 0, 0 );
 	renderContext.SetShaderProgram( Tr2ShaderProgramAL() );
-
-	if( renderedOffscreen && Tr2Noesis::IsLogVerbose() )
-	{
-		CCP_NOESIS_LOG( "Rendered an offscreen phase; render targets and depth-stencil were restored" );
-	}
 
 	return RS_OK;
 }
