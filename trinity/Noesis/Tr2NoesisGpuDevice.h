@@ -4,6 +4,7 @@
 #ifndef Tr2NoesisGpuDevice_H
 #define Tr2NoesisGpuDevice_H
 
+#include "Noesis/Tr2NoesisBatchStats.h"
 #include "Noesis/Tr2NoesisDynamicRing.h"
 
 #include <nxt.h>
@@ -251,14 +252,8 @@ private:
 	// combinations a UI actually uses, which stops growing shortly after steady state.
 	std::unordered_map<uint64_t, ResourceSetEntry> m_resourceSets;
 
-	// Per-frame batch histogram, reported from EndOnscreenRender when it changes.
-	std::vector<uint32_t> m_batchCounts;
-	std::vector<uint32_t> m_reportedCounts;
-	// One assert per unwired shader; the histogram carries the recurrence. Sized from the
-	// shader count rather than packed into a word, so how many permutations the library
-	// has is not something this has an opinion about.
-	std::vector<bool> m_unwiredReported;
-	bool m_logBatchDetail;
+	// What was drawn and what could not be, reported from EndOnscreenRender.
+	Tr2NoesisBatchStats m_stats;
 
 	Tr2NoesisDynamicRing m_vertices;
 	Tr2NoesisDynamicRing m_indices;

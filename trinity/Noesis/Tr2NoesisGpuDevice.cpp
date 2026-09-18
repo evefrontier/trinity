@@ -482,8 +482,7 @@ Tr2NoesisGpuDevice::Tr2NoesisGpuDevice( Tr2PrimaryRenderContextAL& primaryContex
 	m_context( &primaryContext ),
 	m_valid( true ),
 	m_pushedOnscreenStencil( false ),
-	m_hasHostScissor( false ),
-	m_logBatchDetail( true )
+	m_hasHostScissor( false )
 {
 	if( !ReadShaderSource( shaders ) )
 	{
@@ -972,7 +971,7 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 		return;
 	}
 
-	++m_batchCounts[shader];
+	m_stats.CountBatch( shader );
 
 	ResolvedProgram resolved;
 	if( !ResolveProgram( batch, resolved ) )
@@ -1009,7 +1008,7 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 		return;
 	}
 
-	if( m_logBatchDetail && Tr2Noesis::IsLogVerbose() )
+	if( m_stats.WantsBatchDetail() && Tr2Noesis::IsLogVerbose() )
 	{
 		CCP_NOESIS_LOG( "Batch '%s' state=0x%02x stencilRef=%u vertices=%u indices=%u vertexOffset=%u startIndex=%u",
 						m_shaderInfo[shader].name, batch.render_state, batch.stencil_ref,
@@ -1066,11 +1065,10 @@ bool Tr2NoesisGpuDevice::ResolveProgram( const nxt_batch& batch, ResolvedProgram
 
 void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 {
-	if( shader >= m_unwiredReported.size() || m_unwiredReported[shader] )
+	if( !m_stats.NoteUnwired( shader ) )
 	{
 		return;
 	}
-	m_unwiredReported[shader] = true;
 
 	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
 	// that an unwired shader is still being asked for.
@@ -1082,36 +1080,12 @@ void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 
 void Tr2NoesisGpuDevice::ReportFrameBatches()
 {
-	if( Tr2Noesis::IsLogVerbose() && m_batchCounts != m_reportedCounts )
+	uint32_t total = 0;
+	const std::string histogram = m_stats.EndFrame( Tr2Noesis::IsLogVerbose(), total );
+	if( !histogram.empty() )
 	{
-		uint32_t total = 0;
-		for( uint32_t shader = 0; shader < m_pixelShaders.size(); ++shader )
-		{
-			total += m_batchCounts[shader];
-		}
-
-		std::string histogram;
-		for( uint32_t shader = 0; shader < m_pixelShaders.size(); ++shader )
-		{
-			if( m_batchCounts[shader] == 0 )
-			{
-				continue;
-			}
-			if( !histogram.empty() )
-			{
-				histogram += ", ";
-			}
-			histogram += m_shaderInfo[shader].name;
-			histogram += "=";
-			histogram += std::to_string( m_batchCounts[shader] );
-		}
-
-		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, total == 0 ? "none" : histogram.c_str() );
-		m_reportedCounts = m_batchCounts;
+		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, histogram.c_str() );
 	}
-
-	std::fill( m_batchCounts.begin(), m_batchCounts.end(), 0u );
-	m_logBatchDetail = false;
 }
 
 void Tr2NoesisGpuDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nxt_uniform_data& uniforms,
@@ -1389,9 +1363,13 @@ bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
 
 	m_programs.resize( m_pixelShaders.size() );
 	m_vertexLayouts.resize( formatCount );
-	m_batchCounts.assign( m_pixelShaders.size(), 0 );
-	m_reportedCounts.assign( m_pixelShaders.size(), 0 );
-	m_unwiredReported.assign( m_pixelShaders.size(), false );
+	std::vector<const char*> names;
+	names.reserve( m_shaderInfo.size() );
+	for( const ShaderInfo& info : m_shaderInfo )
+	{
+		names.push_back( info.name );
+	}
+	m_stats.Reset( names );
 
 	CCP_NOESIS_LOGNOTICE( "Noesis shaders: %u vertex, %u pixel, %u vertex formats",
 						  static_cast<uint32_t>( m_vertexShaders.size() ),

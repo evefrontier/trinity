@@ -1847,6 +1847,8 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisRenderDevice.h
     Noesis/Tr2NoesisLog.h
     Noesis/Tr2NoesisNxtInterface.h
+    Noesis/Tr2NoesisBatchStats.cpp
+    Noesis/Tr2NoesisBatchStats.h
     Noesis/Tr2NoesisDynamicRing.cpp
     Noesis/Tr2NoesisDynamicRing.h
     Noesis/Tr2NoesisGpuDevice.cpp
