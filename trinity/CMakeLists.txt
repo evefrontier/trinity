@@ -1848,8 +1848,6 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisLog.h
     Noesis/Tr2NoesisNxtInterface.h
     Noesis/Tr2NoesisBatchStats.cpp
-    Noesis/Tr2NoesisError.cpp
-    Noesis/Tr2NoesisError.h
     Noesis/Tr2NoesisBatchStats.h
     Noesis/Tr2NoesisDynamicRing.cpp
     Noesis/Tr2NoesisDynamicRing.h

@@ -574,8 +574,8 @@ const Be::ClassInfo* Tr2NoesisRenderDevice::ExposeToBlue()
 			"first frame, because building it needs a live render context and there is\n"
 			"none while Python is still starting up. None clears it.\n"
 			"\n"
-			"Raises TypeError if the object is not a shader source, and\n"
-			"NoesisAbiMismatchError if it speaks an nxt ABI this Trinity cannot.\n"
+			"Raises TypeError if the object is not a shader source, and ValueError if it\n"
+			"speaks an nxt ABI this Trinity cannot.\n"
 			":param shaderSource: a noesis.ShaderSource, or None\n"
 			":rtype: None" )
 

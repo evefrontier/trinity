@@ -18,8 +18,8 @@ const Be::ClassInfo* Tr2Sprite2dNoesis::ExposeToBlue()
 			Tr2NoesisPySetView<Tr2Sprite2dNoesis>,
 			"The view to render. None clears it and the sprite draws nothing.\n"
 			"\n"
-			"Raises TypeError if the object is not a view, and NoesisAbiMismatchError\n"
-			"if it speaks an nxt ABI this Trinity cannot.\n"
+			"Raises TypeError if the object is not a view, and ValueError if it speaks\n"
+			"an nxt ABI this Trinity cannot.\n"
 			":param view: a noesis.View, or None\n"
 			":rtype: None" )
 
