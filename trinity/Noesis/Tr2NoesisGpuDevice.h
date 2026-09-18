@@ -21,20 +21,8 @@
 //
 //   No NoesisGUI types appear here. The library owns the SDK; this side is reached only
 //   through the nxt.h vtables, and the handles it hands out are pointers to the two
-//   structs below. Releasing a handle destroys the wrapper, which for a wrapped host
+//   classes below. Releasing a handle destroys the wrapper, which for a wrapped host
 //   texture leaves the underlying AL resource alone -- see release_texture in nxt.h.
-//
-//   DrawBatch draws every compiled permutation. Custom_Effect and BrushShader
-//   permutations come from CreatePixelShader; the batch carries that handle in
-//   pixelShader, and they live until the device does -- release_pixel_shader has
-//   nothing per-handle to free. WrapTexture lets a host Tr2TextureAL be sampled as a
-//   Noesis texture.
-//   BeginTile sets the AL scissor to the tile (Y-flipped from Noesis's lower-left origin).
-//   EndTile is a no-op: the next SetRenderTarget resets scissor to the full target.
-//   BeginOnscreenRender binds a depth-stencil (D24S8 on D3D, D32S8 on Metal; stencil
-//   for ClipToBounds, depth for Transform3D) and scissors to the current viewport
-//   intersected with an optional host clip (CarbonUI clipChildren); EndOnscreenRender
-//   restores both.
 // --------------------------------------------------------------------------------------
 
 class Tr2NoesisTexture
@@ -236,8 +224,8 @@ private:
 		uint8_t vertexFormat = 0;
 	};
 	std::vector<CustomProgram> m_customShaders;
-	// Indexed by nxt_sampler_state. Six meaningful bits (wrapMode:3, minmagFilter:1,
-	// mipFilter:2) address 64 slots; unused:2 must stay zero or the index is out of range.
+	// Indexed by the six meaningful bits of nxt_sampler_state (wrapMode:3, minmagFilter:1,
+	// mipFilter:2), which address 64 slots. Index through SAMPLER_INDEX_MASK.
 	Tr2SamplerStateAL m_samplers[64];
 
 	// Rewritten per batch. The AL uploads into a per-frame ring at SetConstants time and
@@ -250,8 +238,8 @@ private:
 	// combinations a UI actually uses, which stops growing shortly after steady state.
 	std::unordered_map<uint64_t, ResourceSetEntry> m_resourceSets;
 
-	// One error per unwired shader rather than one per batch. Sized from the shader count,
-	// so how many permutations the library has is not something this has an opinion about.
+	// One error per unwired shader rather than one per batch. Sized from the shader count
+	// the library reported, so there is no ceiling on how many permutations it may have.
 	std::vector<bool> m_unwiredReported;
 
 	Tr2NoesisDynamicRing m_vertices;

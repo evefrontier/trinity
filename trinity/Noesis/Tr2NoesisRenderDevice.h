@@ -24,9 +24,8 @@ struct Tr2ScissorRect;
 //
 //   Both vtables live on this one object, but only the device one crosses as a Blue
 //   object. The frame vtable is handed to a view render call as a plain pointer and is
-//   only valid for that call: the step binds a render context around it, and every frame
-//   entry point refuses to run without one. That is what stops the library reaching a
-//   stale deferred context if the host ever drives the sequence out of order.
+//   valid only for that call, because the context it records into belongs to the frame
+//   the step is in the middle of.
 //
 //   The scissor stays on this side. The step knows the parent clip rect and
 //   begin_onscreen_render is a host call, so routing the clip through the ABI would end
@@ -44,9 +43,9 @@ public:
 	// Takes the library's shader source and retains it. Null clears. Cheap and
 	// thread-agnostic: it only validates and retains, so Python can call it at startup.
 	//
-	// No status to return: the Python binding has already refused anything that is not a
-	// usable shader source, and the check kept here is for a direct C++ caller, which
-	// declines and logs rather than installing one this build cannot call.
+	// No status to return: the Python binding refuses anything that is not a usable shader
+	// source before it gets here. The check below is for a direct C++ caller, and declines
+	// and logs rather than installing a source this build cannot call.
 	void SetShaderSource( const nxt_shader_source* shaderSource );
 
 	// Builds the device on first call and returns whether it is usable.

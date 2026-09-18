@@ -46,16 +46,15 @@ public:
 	void SetOverrideViewport( int x, int y, int width, int height );
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
-	// Back to following the viewport the job bound, and to no extra clip. A step that has
-	// been a sprite's and is then reused as an overlay would otherwise keep drawing into
-	// the rect it was given once.
+	// Back to following the viewport the job bound, and to no extra clip. Without this a
+	// step that has served a sprite keeps drawing into that sprite's rect if it is later
+	// reused as an overlay.
 	void ClearOverrides();
 
 private:
-	// Noesis touches render state directly rather than through an effect, so the whole
-	// sequence runs inside the state manager's managed bracket. Scoped for the same reason
-	// ScopedFrame is: Execute has several exits and a hand-written close is one edit away
-	// from being missed.
+	// The state manager's managed bracket, held for the whole sequence. Scoped for the same
+	// reason ScopedFrame is: Execute has several exits, and one that skipped the close
+	// would leave the state manager believing a managed pass was still open.
 	class ScopedManagedRendering
 	{
 	public:
@@ -70,17 +69,16 @@ private:
 	};
 
 	// Retained, so it outlives whatever capsule delivered it. Released when replaced or
-	// when the step goes. There is no second field to fall out of step with it.
+	// when the step goes.
 	const nxt_view* m_view;
 
 	// Typed, so Blue rejects anything that is not a host at the point of assignment. An
 	// IRootPtr here would take any object and resolve to nothing on the first frame that
 	// needed it, which shows up as an empty rectangle and no error.
 	Tr2NoesisRenderDevicePtr m_renderDevice;
-	// Two rectangles, each with whether it is set. Ten loose scalars said the same thing
-	// and left every use to remember which four belonged together. They are separate types
-	// because they are measured differently: a viewport is an origin and a size, a scissor
-	// is four edges.
+
+	// Separate types because they are measured differently: a viewport is an origin and a
+	// size, a scissor is four edges.
 	struct ViewportOverride
 	{
 		bool set = false;

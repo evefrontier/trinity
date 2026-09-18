@@ -4,10 +4,8 @@
 #ifndef Tr2NoesisLog_H
 #define Tr2NoesisLog_H
 
-// The Noesis channel carries what went wrong and the handful of one-off facts worth
-// knowing at startup. There is no info-level macro on purpose: per-frame tracing is what
-// a debugger and a GPU capture are for, and the machinery to gate it cost more than the
-// output was worth.
+// Errors, warnings, and the few facts worth knowing at startup. There is no info level:
+// per-frame tracing belongs in a debugger or a GPU capture, not in the log.
 namespace CCP
 {
 inline CcpLogChannel_t& GetNoesisChannel()

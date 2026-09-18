@@ -97,8 +97,8 @@ bool ToVertexDataType( nxt_vertex_attr_type type, Tr2VertexDefinition::DataType&
 	return false;
 }
 
-// The bit layout is nxt.h's guarantee, and the library asserts its own agreement with
-// the SDK at its end. Here it is enough that a byte addresses 64 slots.
+// The bit layout is nxt.h's guarantee, and the library checks its own agreement with the
+// SDK at its end. All this side needs is that the value is one byte.
 static_assert( sizeof( nxt_sampler_state ) == 1, "nxt_sampler_state is a packed byte" );
 
 // Only the six bits nxt.h defines. The top two are documented as unused, but this value
@@ -112,10 +112,9 @@ const uint64_t CUSTOM_PROGRAM_ID_TAG = 0x80000000ull;
 
 // The five pixel texture slots, in register order.
 //
-// nxt_batch names each texture and its sampler as its own field, and three separate things
-// here have to walk the same five: the signature a shader declares, the signature a batch
-// supplies, and the binding itself. One table, so a sixth slot is one row rather than
-// three edits in three functions.
+// nxt_batch names each texture and its sampler as its own field, and three things here
+// walk the same five: the signature a shader declares, the signature a batch supplies, and
+// the binding itself. A sixth slot is one row in this table.
 struct TextureSlot
 {
 	uint32_t flag;
@@ -1048,8 +1047,7 @@ void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 	}
 	m_unwiredReported[shader] = true;
 
-	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
-	// that an unwired shader is still being asked for.
+	// Once per shader: this fires from DrawBatch, and an error at batch rate is unreadable.
 	CCP_NOESIS_LOGERR( "DrawBatch: shader '%s' (%u) has no program. Custom_Effect and BrushShader "
 					   "permutations need CreatePixelShader plus SetPixelShader on the effect.",
 					   m_shaderInfo[shader].name, shader );

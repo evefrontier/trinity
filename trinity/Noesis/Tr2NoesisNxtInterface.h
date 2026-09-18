@@ -25,10 +25,6 @@
 //
 // `expectedSize` is the sizeof of the interface being asked for, so a sender whose vtable
 // stops short of what this Trinity calls is refused rather than called into.
-//
-// The extraction and the version check are nxt_python.h's, shared with frontier-noesis so
-// the two sides cannot drift on a convention they both have to implement. What is left
-// here is the Trinity-side choice of what an ABI mismatch reads like in Python.
 inline bool Tr2NoesisTakeNxtInterface( PyObject* object, const char* capsuleName,
 									   size_t expectedSize, void*& out )
 {
@@ -49,9 +45,8 @@ inline bool Tr2NoesisTakeNxtInterface( PyObject* object, const char* capsuleName
 	}
 }
 
-// The set_view binding, which Tr2Sprite2dNoesis and TriStepRenderNoesis both expose and
-// implement identically. Templated on the Blue class rather than copied into each, so the
-// capsule name and the interface size are stated once.
+// The set_view binding, shared by Tr2Sprite2dNoesis and TriStepRenderNoesis. Templated on
+// the Blue class so the capsule name and the interface size are stated once.
 template<typename T>
 PyObject* Tr2NoesisPySetView( PyObject* self, PyObject* args )
 {

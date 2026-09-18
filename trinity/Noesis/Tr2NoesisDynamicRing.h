@@ -13,25 +13,21 @@
 // Description:
 //   A bump allocator over a list of fixed-size GPU buffer chunks, recycled by fence.
 //
-//   Nothing here is Noesis-shaped beyond the name: it exists because the SDK maps and
-//   draws many times per frame while its own per-Map limit caps only a single Map. Kept
-//   apart from the device so the device is about drawing and this is about memory.
+//   Noesis maps and draws many times per frame -- once per geometry flush, again per
+//   render target in the offscreen phase, and once more for every view sharing the device
+//   -- while DYNAMIC_VB_SIZE and DYNAMIC_IB_SIZE cap only a single Map. Chunks are
+//   appended on demand and recycled once the GPU has finished the frame that last wrote
+//   them, so the per-frame budget settles at the high-water mark of the heaviest frame
+//   rather than at the per-Map limit.
+//
+//   Recycling is fence-based rather than frame % depth. The chunks are mapped
+//   NON_SYNCRONIZED_WRITE -- NO_OVERWRITE on DX11, a persistently mapped upload resource
+//   on DX12 and Metal -- so nothing renames the buffer, and writing over bytes an
+//   in-flight draw still references corrupts it.
 // --------------------------------------------------------------------------------------
 class Tr2NoesisDynamicRing
 {
 public:
-	// A bump allocator over a list of fixed-size chunks. Noesis maps and draws many
-	// times per frame -- once per geometry flush, again per render target in the
-	// offscreen phase, and once more for every view sharing this device -- while
-	// DYNAMIC_VB_SIZE / DYNAMIC_IB_SIZE only cap a single Map. Chunks are appended on
-	// demand and recycled once the GPU has finished the frame that last wrote them, so
-	// the per-frame budget settles at the high-water mark of the heaviest frame instead
-	// of being capped by the per-Map limit.
-	//
-	// Recycling is fence-based rather than frame % depth: the chunks are mapped
-	// NON_SYNCRONIZED_WRITE, which is NO_OVERWRITE on DX11 and a persistently mapped
-	// upload resource on DX12 and Metal, so nothing renames the buffer and writing over
-	// bytes an in-flight draw still references corrupts it.
 	struct Chunk
 	{
 		Tr2BufferAL buffer;
@@ -51,7 +47,7 @@ public:
 	// Bump offset within that chunk.
 	uint32_t pos = 0;
 	// Byte offset of the current Map within its chunk. DrawBatch uses it as the
-	// SetStreamSource offset, and as the index base (drawPos / 2 + startIndex).
+	// SetStreamSource offset, and divided by stride as the index base.
 	uint32_t drawPos = 0;
 	// Recording frame the allocator is filling. Compared as a full frame number, not an
 	// index: a UI that skips frames in a multiple of the in-flight depth would otherwise

@@ -5,10 +5,6 @@
 
 #include "Noesis/Tr2NoesisLog.h"
 
-// --------------------------------------------------------------------------------------
-// DynamicRing
-// --------------------------------------------------------------------------------------
-
 bool Tr2NoesisDynamicRing::Create( uint32_t bufferStride, uint32_t bytesPerChunk, Tr2GpuUsage::Type usage, const char* ringName, Tr2PrimaryRenderContextAL& primary )
 {
 	CCP_ASSERT_M( bufferStride != 0 && ( bytesPerChunk % bufferStride ) == 0, "Noesis ring chunk size must be a whole number of strides" );

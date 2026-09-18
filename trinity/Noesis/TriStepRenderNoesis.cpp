@@ -57,23 +57,21 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	// Binds this frame's context for the duration of the call. Scoped because the exits
-	// below are easy to add to, and one that skipped the close would leave the device
-	// recording into a context this step had finished with.
+	// Binds this frame's context for the duration of the call. An exit that left it bound
+	// would have the device recording into a context this step had finished with.
 	//
-	// Declared before the managed bracket so it is destroyed after it, which is the order
-	// the hand-written teardown had: the state manager stops trusting its cache, then the
-	// device drops the context. BeginFrame itself only stores that pointer, so opening it
-	// first changes nothing.
+	// Opened before the managed bracket so it closes after it: the state manager stops
+	// trusting its cache, then the device drops the context. BeginFrame only stores that
+	// pointer, so the order it opens in does not matter.
 	Tr2NoesisRenderDevice::ScopedFrame scopedFrame( *host, renderContext );
 
-	// Noesis touches render state directly rather than through an effect, so everything below
-	// runs inside the managed bracket: it resets the state manager's shadow copy on entry and
-	// tells it not to trust its cache afterwards. CULLMODE_NONE matches what Noesis expects,
+	// Noesis sets render state directly rather than through an effect, so everything below
+	// runs inside the managed bracket: it resets the state manager's shadow copy on entry
+	// and tells it not to trust its cache afterwards. CULLMODE_NONE is what Noesis expects,
 	// though ApplyRenderState sets it per batch as well.
 	//
-	// Bringing up the renderer creates GPU resources, so it belongs inside the bracket
-	// rather than at load time.
+	// Bringing up the renderer creates GPU resources, which is why that happens here and
+	// not at load time.
 	ScopedManagedRendering scopedManaged( renderContext, Tr2RenderContextEnum::CULLMODE_NONE );
 
 	if( !m_view->ensure_renderer( m_view->header.self, frame ) )
@@ -105,8 +103,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// because the onscreen pass samples what it produced.
 	m_view->update_render_tree( m_view->header.self, frame );
 
-	// Bracketed unconditionally: the target has to be saved before the call either way, and
-	// RenderOffscreen's return value says only whether it drew anything.
+	// Bracketed unconditionally: the target has to be saved before the call either way.
 	renderContext.m_esm.PushViewport();
 	renderContext.m_esm.PushRenderTarget();
 	const bool pushedDepthStencil = renderContext.m_esm.PushDepthStencilBuffer();

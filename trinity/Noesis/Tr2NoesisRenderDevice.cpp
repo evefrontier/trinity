@@ -20,10 +20,11 @@ Tr2NoesisRenderDevice& Self( void* self )
 	return *static_cast<Tr2NoesisRenderDevice*>( self );
 }
 
-// Null between Python wiring the host and the first Execute building the device. The
-// library holds the device-half vtable across that window and is entitled to call into
-// it: these entry points carry no frame, so there is no RequireFrame to close it from
-// that side. Device-half thunks must therefore decline rather than dereference. A failed
+// Null between Python wiring the host and the first Execute building the device.
+//
+// The library holds the device-half vtable across that window and may call into it: these
+// entry points carry no frame, so nothing brackets them and nothing on the library's side
+// can tell that the device is not up yet. They decline instead of dereferencing. A failed
 // resource creation is something the SDK handles; a null dereference is not.
 Tr2NoesisGpuDevice* Device( void* self )
 {
@@ -244,9 +245,9 @@ nxt_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width
 // frame vtable if EnsureDevice() said no. So unlike the device half above, a frame entry
 // point cannot be reached without a device, and these dereference rather than decline.
 //
-// That invariant lives in the step rather than here, so it is asserted at the boundary
-// rather than assumed silently: the device half's null return is a contract with the
-// library, this is a contract with our own step.
+// That invariant lives in the step, so it is asserted here rather than assumed: the
+// device half's null return is a contract with the library, this one is with our own
+// render step.
 Tr2NoesisGpuDevice& FrameDevice( void* self )
 {
 	Tr2NoesisGpuDevice* device = Self( self ).GetDevice();
