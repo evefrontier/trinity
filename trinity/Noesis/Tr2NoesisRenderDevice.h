@@ -41,10 +41,13 @@ public:
 	Tr2NoesisRenderDevice( IRoot* lockobj = NULL );
 	~Tr2NoesisRenderDevice();
 
-	// Takes the library's shader source from an NXT_CAPSULE_SHADER_SOURCE capsule, and
-	// retains it. Cheap and thread-agnostic: it only validates and retains, so Python can
-	// call it at startup. Null clears.
-	bool SetShaderSource( const nxt_shader_source* shaderSource );
+	// Takes the library's shader source and retains it. Null clears. Cheap and
+	// thread-agnostic: it only validates and retains, so Python can call it at startup.
+	//
+	// No status to return: the Python binding has already refused anything that is not a
+	// usable shader source, and the check kept here is for a direct C++ caller, which
+	// declines and logs rather than installing one this build cannot call.
+	void SetShaderSource( const nxt_shader_source* shaderSource );
 
 	// Builds the device on first call and returns whether it is usable.
 	//

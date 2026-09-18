@@ -4,6 +4,8 @@
 #ifndef Tr2NoesisNxtInterface_H
 #define Tr2NoesisNxtInterface_H
 
+#include "Noesis/Tr2NoesisError.h"
+
 #include "nxt_python.h"
 
 // --------------------------------------------------------------------------------------
@@ -39,8 +41,8 @@ inline bool Tr2NoesisTakeNxtInterface( PyObject* object, const char* capsuleName
 		return false;
 
 	case NXT_TAKE_ABI:
-		PyErr_Format( PyExc_ValueError, "the %s speaks an nxt ABI this Trinity cannot",
-					  capsuleName );
+		PyErr_Format( BLUE_GET_EXCEPTION( NoesisAbiMismatchError ),
+					  "the %s speaks an nxt ABI this Trinity cannot", capsuleName );
 		out = nullptr;
 		return false;
 

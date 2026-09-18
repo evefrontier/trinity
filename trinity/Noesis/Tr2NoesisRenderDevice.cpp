@@ -375,7 +375,7 @@ void Tr2NoesisRenderDevice::FillVtables()
 	m_frameApi.draw_batch = HostDrawBatch;
 }
 
-bool Tr2NoesisRenderDevice::SetShaderSource( const nxt_shader_source* shaderSource )
+void Tr2NoesisRenderDevice::SetShaderSource( const nxt_shader_source* shaderSource )
 {
 	if( shaderSource != nullptr && NXT_INTERFACE_USABLE( shaderSource ) == NXT_FALSE )
 	{
@@ -386,7 +386,7 @@ bool Tr2NoesisRenderDevice::SetShaderSource( const nxt_shader_source* shaderSour
 						   shaderSource->header.struct_size,
 						   static_cast<uint32_t>( NXT_ABI_VERSION_MAJOR ),
 						   static_cast<uint32_t>( sizeof( nxt_shader_source ) ) );
-		return false;
+		return;
 	}
 
 	// Retain before releasing, so setting the same source twice is not a free-then-use.
@@ -403,7 +403,6 @@ bool Tr2NoesisRenderDevice::SetShaderSource( const nxt_shader_source* shaderSour
 	// A new source means a new device; the old one was built from the old blobs.
 	m_device.reset();
 	m_deviceAttempted = false;
-	return m_shaderSource != nullptr;
 }
 
 bool Tr2NoesisRenderDevice::EnsureDevice()
@@ -555,9 +554,9 @@ static PyObject* PySetShaderSource( PyObject* self, PyObject* args )
 		return nullptr;
 	}
 
-	Tr2NoesisRenderDevice* device = BluePythonCast<Tr2NoesisRenderDevice*>( self );
-	return PyBool_FromLong(
-		device->SetShaderSource( static_cast<const nxt_shader_source*>( pointer ) ) ? 1 : 0 );
+	BluePythonCast<Tr2NoesisRenderDevice*>( self )->SetShaderSource(
+		static_cast<const nxt_shader_source*>( pointer ) );
+	Py_RETURN_NONE;
 }
 
 const Be::ClassInfo* Tr2NoesisRenderDevice::ExposeToBlue()
@@ -573,9 +572,12 @@ const Be::ClassInfo* Tr2NoesisRenderDevice::ExposeToBlue()
 			PySetShaderSource,
 			"Takes the Noesis library's shader source. The device itself is built on the\n"
 			"first frame, because building it needs a live render context and there is\n"
-			"none while Python is still starting up.\n"
+			"none while Python is still starting up. None clears it.\n"
+			"\n"
+			"Raises TypeError if the object is not a shader source, and\n"
+			"NoesisAbiMismatchError if it speaks an nxt ABI this Trinity cannot.\n"
 			":param shaderSource: a noesis.ShaderSource, or None\n"
-			":rtype: bool" )
+			":rtype: None" )
 
 		MAP_METHOD(
 			"_nxt_interface",
