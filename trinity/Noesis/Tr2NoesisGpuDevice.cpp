@@ -21,18 +21,6 @@ const uint32_t NOESIS_DYNAMIC_IB_SIZE = 128 * 1024;
 namespace
 {
 
-// Same bit layout as Noesis's D3D12RenderDevice root-signature flags.
-const uint32_t VS_CB0 = 1 << 0;
-const uint32_t VS_CB1 = 1 << 1;
-const uint32_t PS_CB0 = 1 << 2;
-const uint32_t PS_CB1 = 1 << 3;
-const uint32_t PS_T0 = 1 << 4;
-const uint32_t PS_T1 = 1 << 5;
-const uint32_t PS_T2 = 1 << 6;
-const uint32_t PS_T3 = 1 << 7;
-const uint32_t PS_T4 = 1 << 8;
-
-
 // Maps one attribute the library described onto the AL's vertex vocabulary. Semantic and
 // index cross the ABI exactly as the bytecode was compiled with them, so the fxc semantic
 // renames are the library's business and nothing here has to restate them.
@@ -118,35 +106,35 @@ const nxt_sampler_state SAMPLER_INDEX_MASK = 0x3f;
 
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 {
-	if( flags & PS_CB0 )
+	if( flags & NXT_SHADER_USES_PS_CB0 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
 	}
-	if( flags & PS_CB1 )
+	if( flags & NXT_SHADER_USES_PS_CB1 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
 	}
-	if( flags & PS_T0 )
+	if( flags & NXT_SHADER_USES_PS_T0 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 0 );
 		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 0 );
 	}
-	if( flags & PS_T1 )
+	if( flags & NXT_SHADER_USES_PS_T1 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 1 );
 		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 1 );
 	}
-	if( flags & PS_T2 )
+	if( flags & NXT_SHADER_USES_PS_T2 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 2 );
 		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 2 );
 	}
-	if( flags & PS_T3 )
+	if( flags & NXT_SHADER_USES_PS_T3 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 3 );
 		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 3 );
 	}
-	if( flags & PS_T4 )
+	if( flags & NXT_SHADER_USES_PS_T4 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 4 );
 		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 4 );
@@ -158,39 +146,39 @@ uint32_t GetBatchSignature( const nxt_batch& batch )
 	uint32_t signature = 0;
 	if( batch.pattern )
 	{
-		signature |= PS_T0;
+		signature |= NXT_SHADER_USES_PS_T0;
 	}
 	if( batch.ramps )
 	{
-		signature |= PS_T1;
+		signature |= NXT_SHADER_USES_PS_T1;
 	}
 	if( batch.image )
 	{
-		signature |= PS_T2;
+		signature |= NXT_SHADER_USES_PS_T2;
 	}
 	if( batch.glyphs )
 	{
-		signature |= PS_T3;
+		signature |= NXT_SHADER_USES_PS_T3;
 	}
 	if( batch.shadow )
 	{
-		signature |= PS_T4;
+		signature |= NXT_SHADER_USES_PS_T4;
 	}
 	if( batch.vertex_uniforms[0].values )
 	{
-		signature |= VS_CB0;
+		signature |= NXT_SHADER_USES_VS_CB0;
 	}
 	if( batch.vertex_uniforms[1].values )
 	{
-		signature |= VS_CB1;
+		signature |= NXT_SHADER_USES_VS_CB1;
 	}
 	if( batch.pixel_uniforms[0].values )
 	{
-		signature |= PS_CB0;
+		signature |= NXT_SHADER_USES_PS_CB0;
 	}
 	if( batch.pixel_uniforms[1].values )
 	{
-		signature |= PS_CB1;
+		signature |= NXT_SHADER_USES_PS_CB1;
 	}
 	return signature;
 }
@@ -920,9 +908,9 @@ void* Tr2NoesisGpuDevice::CreatePixelShader( const char* label, uint8_t shader, 
 		return nullptr;
 	}
 
-	// ShaderCompiler blobs start with the same root-signature flags the stock
-	// permutations use (VS_CB0 / PS_T2 / ...), then the backend bytecode
-	// (DXBC on D3D, AIR/metallib on Metal). Skip the same 4 bytes on every AL.
+	// ShaderCompiler blobs start with the same root-signature flags the stock permutations
+	// carry in nxt_shader_blob::resource_flags, then the backend bytecode (DXBC on D3D,
+	// AIR/metallib on Metal). Skip the same 4 bytes on every AL.
 	uint32_t flags = 0;
 	memcpy( &flags, hlsl, sizeof( flags ) );
 	const uint8_t* dxbc = static_cast<const uint8_t*>( hlsl ) + sizeof( flags );
@@ -1384,19 +1372,19 @@ void Tr2NoesisGpuDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nxt_uni
 
 void Tr2NoesisGpuDevice::BindUniforms( const nxt_batch& batch, uint32_t flags )
 {
-	if( flags & VS_CB0 )
+	if( flags & NXT_SHADER_USES_VS_CB0 )
 	{
 		BindUniform( m_vertexUniforms[0], batch.vertex_uniforms[0], VERTEX_SHADER, 0, "Noesis_VertexUniforms0" );
 	}
-	if( flags & VS_CB1 )
+	if( flags & NXT_SHADER_USES_VS_CB1 )
 	{
 		BindUniform( m_vertexUniforms[1], batch.vertex_uniforms[1], VERTEX_SHADER, 1, "Noesis_VertexUniforms1" );
 	}
-	if( flags & PS_CB0 )
+	if( flags & NXT_SHADER_USES_PS_CB0 )
 	{
 		BindUniform( m_pixelUniforms[0], batch.pixel_uniforms[0], PIXEL_SHADER, 0, "Noesis_PixelUniforms0" );
 	}
-	if( flags & PS_CB1 )
+	if( flags & NXT_SHADER_USES_PS_CB1 )
 	{
 		BindUniform( m_pixelUniforms[1], batch.pixel_uniforms[1], PIXEL_SHADER, 1, "Noesis_PixelUniforms1" );
 	}
@@ -1404,7 +1392,7 @@ void Tr2NoesisGpuDevice::BindUniforms( const nxt_batch& batch, uint32_t flags )
 
 void Tr2NoesisGpuDevice::BindResources( const nxt_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId )
 {
-	if( ( flags & ( PS_T0 | PS_T1 | PS_T2 | PS_T3 | PS_T4 ) ) == 0 )
+	if( ( flags & ( NXT_SHADER_USES_PS_T0 | NXT_SHADER_USES_PS_T1 | NXT_SHADER_USES_PS_T2 | NXT_SHADER_USES_PS_T3 | NXT_SHADER_USES_PS_T4 ) ) == 0 )
 	{
 		// Solid fills bind nothing, so they never pay for a resource set.
 		return;
@@ -1417,11 +1405,11 @@ void Tr2NoesisGpuDevice::BindResources( const nxt_batch& batch, uint32_t flags, 
 		nxt_texture texture;
 		nxt_sampler_state sampler = 0;
 	} bindings[] = {
-		{ PS_T0, 0, batch.pattern, batch.pattern_sampler },
-		{ PS_T1, 1, batch.ramps, batch.ramps_sampler },
-		{ PS_T2, 2, batch.image, batch.image_sampler },
-		{ PS_T3, 3, batch.glyphs, batch.glyphs_sampler },
-		{ PS_T4, 4, batch.shadow, batch.shadow_sampler },
+		{ NXT_SHADER_USES_PS_T0, 0, batch.pattern, batch.pattern_sampler },
+		{ NXT_SHADER_USES_PS_T1, 1, batch.ramps, batch.ramps_sampler },
+		{ NXT_SHADER_USES_PS_T2, 2, batch.image, batch.image_sampler },
+		{ NXT_SHADER_USES_PS_T3, 3, batch.glyphs, batch.glyphs_sampler },
+		{ NXT_SHADER_USES_PS_T4, 4, batch.shadow, batch.shadow_sampler },
 	};
 
 	Tr2ResourceSetDescriptionAL description( program );
