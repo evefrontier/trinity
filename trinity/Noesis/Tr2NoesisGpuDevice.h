@@ -302,8 +302,10 @@ private:
 	// Per-frame batch histogram, reported from EndOnscreenRender when it changes.
 	std::vector<uint32_t> m_batchCounts;
 	std::vector<uint32_t> m_reportedCounts;
-	// One assert per unwired shader; the histogram carries the recurrence.
-	uint64_t m_unwiredReported;
+	// One assert per unwired shader; the histogram carries the recurrence. Sized from the
+	// shader count rather than packed into a word, so how many permutations the library
+	// has is not something this has an opinion about.
+	std::vector<bool> m_unwiredReported;
 	bool m_logBatchDetail;
 
 	DynamicRing m_vertices;

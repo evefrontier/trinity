@@ -695,7 +695,6 @@ Tr2NoesisGpuDevice::Tr2NoesisGpuDevice( Tr2PrimaryRenderContextAL& primaryContex
 	m_valid( true ),
 	m_pushedOnscreenStencil( false ),
 	m_hasHostScissor( false ),
-	m_unwiredReported( 0 ),
 	m_logBatchDetail( true )
 {
 	if( !ReadShaderSource( shaders ) )
@@ -1272,15 +1271,11 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 
 void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 {
-	CCP_ASSERT_M( m_pixelShaders.size() <= 64,
-				  "the unwired-shader latch is a uint64_t bitset" );
-
-	const uint64_t bit = 1ull << shader;
-	if( ( m_unwiredReported & bit ) != 0 )
+	if( shader >= m_unwiredReported.size() || m_unwiredReported[shader] )
 	{
 		return;
 	}
-	m_unwiredReported |= bit;
+	m_unwiredReported[shader] = true;
 
 	// Once per shader: a batch-rate assert is unusable. The per-frame histogram is what shows
 	// that an unwired shader is still being asked for.
@@ -1616,6 +1611,7 @@ bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
 	m_vertexLayouts.resize( formatCount );
 	m_batchCounts.assign( m_pixelShaders.size(), 0 );
 	m_reportedCounts.assign( m_pixelShaders.size(), 0 );
+	m_unwiredReported.assign( m_pixelShaders.size(), false );
 
 	CCP_NOESIS_LOGNOTICE( "Noesis shaders: %u vertex, %u pixel, %u vertex formats",
 						  static_cast<uint32_t>( m_vertexShaders.size() ),
