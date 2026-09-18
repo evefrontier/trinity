@@ -231,7 +231,9 @@ private:
 
 	Tr2PrimaryRenderContextAL* m_primary;
 	Tr2RenderContextAL* m_context;
-	nxt_device_caps m_caps;
+	// Zeroed rather than left to the constructor: it returns early when the shader source
+	// cannot be read, and GetCaps is reachable on a device that exists but is not valid.
+	nxt_device_caps m_caps = {};
 	bool m_valid;
 	// Onscreen ClipToBounds is stencil; Transform3D is a reverse-Z depth test
 	// with writes off. The sprite/UI path has no S8 plane (null DS, or the 3D
