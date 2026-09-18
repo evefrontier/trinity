@@ -8,6 +8,7 @@
 
 
 #include <cmath>
+#include <string>
 #include <utility>
 
 using namespace Tr2RenderContextEnum;
@@ -1289,25 +1290,23 @@ void Tr2NoesisGpuDevice::ReportFrameBatches()
 			total += m_batchCounts[shader];
 		}
 
-		// Counted separately above so that a truncated histogram still reports the real total.
-		char histogram[512] = {};
-		uint32_t offset = 0;
+		std::string histogram;
 		for( uint32_t shader = 0; shader < m_pixelShaders.size(); ++shader )
 		{
 			if( m_batchCounts[shader] == 0 )
 			{
 				continue;
 			}
-			const int written = _snprintf_s( histogram + offset, sizeof( histogram ) - offset, _TRUNCATE,
-											 "%s%s=%u", offset == 0 ? "" : ", ", m_shaderInfo[shader].name, m_batchCounts[shader] );
-			if( written < 0 )
+			if( !histogram.empty() )
 			{
-				break;
+				histogram += ", ";
 			}
-			offset += static_cast<uint32_t>( written );
+			histogram += m_shaderInfo[shader].name;
+			histogram += "=";
+			histogram += std::to_string( m_batchCounts[shader] );
 		}
 
-		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, total == 0 ? "none" : histogram );
+		CCP_NOESIS_LOG( "Batches this frame: %u (%s)", total, total == 0 ? "none" : histogram.c_str() );
 		m_reportedCounts = m_batchCounts;
 	}
 
