@@ -1850,6 +1850,8 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisDynamicRing.cpp
     Noesis/Tr2NoesisDynamicRing.h
     Noesis/Tr2NoesisGpuDevice.cpp
+    Noesis/Tr2NoesisRenderState.cpp
+    Noesis/Tr2NoesisRenderState.h
     Noesis/Tr2NoesisGpuDevice.h
     Noesis/Tr2Sprite2dNoesis.cpp
     Noesis/Tr2Sprite2dNoesis.h
