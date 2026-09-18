@@ -46,6 +46,11 @@ public:
 	void SetOverrideViewport( int x, int y, int width, int height );
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
+	// Back to following the viewport the job bound, and to no extra clip. A step that has
+	// been a sprite's and is then reused as an overlay would otherwise keep drawing into
+	// the rect it was given once.
+	void ClearOverrides();
+
 private:
 	// Noesis touches render state directly rather than through an effect, so the whole
 	// sequence runs inside the state manager's managed bracket. Scoped for the same reason
@@ -72,16 +77,30 @@ private:
 	// IRootPtr here would take any object and resolve to nothing on the first frame that
 	// needed it, which shows up as an empty rectangle and no error.
 	Tr2NoesisRenderDevicePtr m_renderDevice;
-	bool m_hasOverrideViewport;
-	int m_overrideX;
-	int m_overrideY;
-	int m_overrideWidth;
-	int m_overrideHeight;
-	bool m_hasOverrideClip;
-	int m_overrideClipLeft;
-	int m_overrideClipTop;
-	int m_overrideClipRight;
-	int m_overrideClipBottom;
+	// Two rectangles, each with whether it is set. Ten loose scalars said the same thing
+	// and left every use to remember which four belonged together. They are separate types
+	// because they are measured differently: a viewport is an origin and a size, a scissor
+	// is four edges.
+	struct ViewportOverride
+	{
+		bool set = false;
+		int x = 0;
+		int y = 0;
+		int width = 0;
+		int height = 0;
+	};
+
+	struct ClipOverride
+	{
+		bool set = false;
+		int left = 0;
+		int top = 0;
+		int right = 0;
+		int bottom = 0;
+	};
+
+	ViewportOverride m_viewport;
+	ClipOverride m_clip;
 };
 
 TYPEDEF_BLUECLASS( TriStepRenderNoesis );

@@ -11,17 +11,7 @@
 
 TriStepRenderNoesis::TriStepRenderNoesis( IRoot* lockobj ) :
 	TriRenderStep( lockobj ),
-	m_hasOverrideViewport( false ),
-	m_overrideX( 0 ),
-	m_overrideY( 0 ),
-	m_overrideWidth( 0 ),
-	m_overrideHeight( 0 ),
-	m_view( nullptr ),
-	m_hasOverrideClip( false ),
-	m_overrideClipLeft( 0 ),
-	m_overrideClipTop( 0 ),
-	m_overrideClipRight( 0 ),
-	m_overrideClipBottom( 0 )
+	m_view( nullptr )
 {
 }
 
@@ -93,9 +83,9 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 	// Size follows the viewport: the overlay path uses whatever the job already bound,
 	// and Tr2Sprite2dNoesis overrides it to the sprite rect before RunJob.
-	if( m_hasOverrideViewport )
+	if( m_viewport.set )
 	{
-		renderContext.m_esm.SetViewport( m_overrideWidth, m_overrideHeight, m_overrideX, m_overrideY, 0.0f, 1.0f );
+		renderContext.m_esm.SetViewport( m_viewport.width, m_viewport.height, m_viewport.x, m_viewport.y, 0.0f, 1.0f );
 	}
 
 	const TriViewport& vp = renderContext.m_esm.GetViewport();
@@ -134,9 +124,9 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// PopRenderTarget rebinds the colour target through the AL, which resets the device
 	// viewport to the full target. PopViewport restores the esm copy; apply the override
 	// again so onscreen Noesis draws into the sprite rect rather than the whole target.
-	if( m_hasOverrideViewport )
+	if( m_viewport.set )
 	{
-		renderContext.m_esm.SetViewport( m_overrideWidth, m_overrideHeight, m_overrideX, m_overrideY, 0.0f, 1.0f );
+		renderContext.m_esm.SetViewport( m_viewport.width, m_viewport.height, m_viewport.x, m_viewport.y, 0.0f, 1.0f );
 	}
 
 	// SetupViewport clips a rect that extends past the render target. 3D recovers with
@@ -152,13 +142,13 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 	// Only meaningful alongside the override viewport: the overlay path draws into the
 	// rect the job bound and has no parent sprite to clip against.
-	if( m_hasOverrideViewport && m_hasOverrideClip )
+	if( m_viewport.set && m_clip.set )
 	{
 		Tr2ScissorRect clip;
-		clip.m_left = m_overrideClipLeft;
-		clip.m_top = m_overrideClipTop;
-		clip.m_right = m_overrideClipRight;
-		clip.m_bottom = m_overrideClipBottom;
+		clip.m_left = m_clip.left;
+		clip.m_top = m_clip.top;
+		clip.m_right = m_clip.right;
+		clip.m_bottom = m_clip.bottom;
 		// Host-side state: begin_onscreen_render applies it when the library calls in, so
 		// the clip never crosses the ABI.
 		host->SetHostScissor( clip );
@@ -211,18 +201,16 @@ void TriStepRenderNoesis::SetRenderDevice( Tr2NoesisRenderDevice* host )
 
 void TriStepRenderNoesis::SetOverrideViewport( int x, int y, int width, int height )
 {
-	m_hasOverrideViewport = true;
-	m_overrideX = x;
-	m_overrideY = y;
-	m_overrideWidth = width;
-	m_overrideHeight = height;
+	m_viewport = { true, x, y, width, height };
 }
 
 void TriStepRenderNoesis::SetOverrideClip( int left, int top, int right, int bottom )
 {
-	m_hasOverrideClip = true;
-	m_overrideClipLeft = left;
-	m_overrideClipTop = top;
-	m_overrideClipRight = right;
-	m_overrideClipBottom = bottom;
+	m_clip = { true, left, top, right, bottom };
+}
+
+void TriStepRenderNoesis::ClearOverrides()
+{
+	m_viewport = ViewportOverride();
+	m_clip = ClipOverride();
 }
