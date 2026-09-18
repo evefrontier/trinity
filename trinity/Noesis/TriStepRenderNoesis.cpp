@@ -30,6 +30,18 @@ TriStepRenderNoesis::~TriStepRenderNoesis()
 	SetView( nullptr );
 }
 
+TriStepRenderNoesis::ScopedManagedRendering::ScopedManagedRendering(
+	Tr2RenderContext& renderContext, Tr2RenderContextEnum::CullMode cullMode ) :
+	m_renderContext( renderContext )
+{
+	m_renderContext.m_esm.BeginManagedRendering( cullMode );
+}
+
+TriStepRenderNoesis::ScopedManagedRendering::~ScopedManagedRendering()
+{
+	m_renderContext.m_esm.EndManagedRendering();
+}
+
 TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTime*/, Tr2RenderContext& renderContext )
 {
 	CCP_STATS_ZONE( __FUNCTION__ );
@@ -55,23 +67,27 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	// Noesis touches render state directly rather than through an effect, so everything below
-	// runs inside the managed bracket: it resets the state manager's shadow copy on entry and
-	// tells it not to trust its cache afterwards. CULLMODE_NONE matches what Noesis expects,
-	// though ApplyRenderState sets it per batch as well.
-	renderContext.m_esm.BeginManagedRendering( Tr2RenderContextEnum::CULLMODE_NONE );
-
 	// Binds this frame's context for the duration of the call. Scoped because the exits
 	// below are easy to add to, and one that skipped the close would leave the device
 	// recording into a context this step had finished with.
 	//
+	// Declared before the managed bracket so it is destroyed after it, which is the order
+	// the hand-written teardown had: the state manager stops trusting its cache, then the
+	// device drops the context. BeginFrame itself only stores that pointer, so opening it
+	// first changes nothing.
+	Tr2NoesisRenderDevice::ScopedFrame scopedFrame( *host, renderContext );
+
+	// Noesis touches render state directly rather than through an effect, so everything below
+	// runs inside the managed bracket: it resets the state manager's shadow copy on entry and
+	// tells it not to trust its cache afterwards. CULLMODE_NONE matches what Noesis expects,
+	// though ApplyRenderState sets it per batch as well.
+	//
 	// Bringing up the renderer creates GPU resources, so it belongs inside the bracket
 	// rather than at load time.
-	Tr2NoesisRenderDevice::ScopedFrame scopedFrame( *host, renderContext );
+	ScopedManagedRendering scopedManaged( renderContext, Tr2RenderContextEnum::CULLMODE_NONE );
 
 	if( !m_view->ensure_renderer( m_view->header.self, frame ) )
 	{
-		renderContext.m_esm.EndManagedRendering();
 		return RS_OK;
 	}
 
@@ -85,7 +101,6 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	const TriViewport& vp = renderContext.m_esm.GetViewport();
 	if( vp.width <= 0 || vp.height <= 0 )
 	{
-		renderContext.m_esm.EndManagedRendering();
 		return RS_OK;
 	}
 
@@ -161,8 +176,6 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	// longer describes the device, so hand back something neutral.
 	renderContext.SetStreamSource( 0, Tr2BufferAL(), 0, 0 );
 	renderContext.SetShaderProgram( Tr2ShaderProgramAL() );
-
-	renderContext.m_esm.EndManagedRendering();
 
 	if( renderedOffscreen && Tr2Noesis::IsLogVerbose() )
 	{

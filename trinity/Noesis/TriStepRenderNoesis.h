@@ -47,6 +47,23 @@ public:
 	void SetOverrideClip( int left, int top, int right, int bottom );
 
 private:
+	// Noesis touches render state directly rather than through an effect, so the whole
+	// sequence runs inside the state manager's managed bracket. Scoped for the same reason
+	// ScopedFrame is: Execute has several exits and a hand-written close is one edit away
+	// from being missed.
+	class ScopedManagedRendering
+	{
+	public:
+		ScopedManagedRendering( Tr2RenderContext& renderContext, Tr2RenderContextEnum::CullMode cullMode );
+		~ScopedManagedRendering();
+
+		ScopedManagedRendering( const ScopedManagedRendering& ) = delete;
+		ScopedManagedRendering& operator=( const ScopedManagedRendering& ) = delete;
+
+	private:
+		Tr2RenderContext& m_renderContext;
+	};
+
 	// Retained, so it outlives whatever capsule delivered it. Released when replaced or
 	// when the step goes. There is no second field to fall out of step with it.
 	const nxt_view* m_view;
