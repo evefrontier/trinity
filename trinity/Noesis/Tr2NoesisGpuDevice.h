@@ -214,6 +214,23 @@ private:
 		Tr2ResourceSetAL set;
 	};
 
+	// The program a batch draws with, and everything that comes with it. Stock and custom
+	// permutations differ only in where these four come from, so resolving them first keeps
+	// that difference out of DrawBatch's body.
+	struct ResolvedProgram
+	{
+		Tr2ShaderProgramAL* program = nullptr;
+		uint32_t flags = 0;
+		uint8_t vertexFormat = 0;
+		// Key space for the resource-set cache. Custom programs are tagged so their ids
+		// cannot collide with a stock shader id.
+		uint64_t programId = 0;
+	};
+
+	// False when the batch names a program this device cannot draw; it has already been
+	// reported, and the batch is skipped.
+	bool ResolveProgram( const nxt_batch& batch, ResolvedProgram& out );
+
 	bool ReadShaderSource( const nxt_shader_source& shaders );
 	void CreateShaders();
 	void CreateVertexLayouts();

@@ -104,6 +104,10 @@ static_assert( sizeof( nxt_sampler_state ) == 1, "nxt_sampler_state is a packed 
 // rather than trusted -- an assert would compile out in the builds that ship.
 const nxt_sampler_state SAMPLER_INDEX_MASK = 0x3f;
 
+// Stock programs are keyed by shader id, custom ones by their index into m_customShaders.
+// The tag keeps the two apart in the resource-set cache's key space.
+const uint64_t CUSTOM_PROGRAM_ID_TAG = 0x80000000ull;
+
 // The five pixel texture slots, in register order.
 //
 // nxt_batch names each texture and its sampler as its own field, and three separate things
@@ -1169,50 +1173,10 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 
 	++m_batchCounts[shader];
 
-	Tr2ShaderProgramAL* program = nullptr;
-	uint32_t flags = 0;
-	uint8_t format = 0;
-	uint64_t programId = shader;
-
-	if( batch.pixel_shader != nullptr )
+	ResolvedProgram resolved;
+	if( !ResolveProgram( batch, resolved ) )
 	{
-		const uintptr_t index = reinterpret_cast<uintptr_t>( batch.pixel_shader );
-		if( index == 0 || index > m_customShaders.size() )
-		{
-			CCP_ASSERT_M( false, "Noesis DrawBatch: custom pixel shader handle is invalid" );
-			return;
-		}
-
-		CustomProgram& custom = m_customShaders[index - 1];
-		if( !custom.program.IsValid() )
-		{
-			ReportUnwiredShader( shader );
-			return;
-		}
-
-		// Same skip D3D12RenderDevice uses: the custom permutation declared registers
-		// this batch did not bind.
-		if( ( custom.flags & GetBatchSignature( batch ) ) != custom.flags )
-		{
-			return;
-		}
-
-		program = &custom.program;
-		flags = custom.flags;
-		format = custom.vertexFormat;
-		programId = 0x80000000ull | ( index - 1 );
-	}
-	else
-	{
-		flags = m_shaderInfo[shader].resourceFlags;
-		if( flags == 0 || !m_programs[shader].IsValid() )
-		{
-			ReportUnwiredShader( shader );
-			return;
-		}
-
-		program = &m_programs[shader];
-		format = m_shaderInfo[shader].vertexFormat;
+		return;
 	}
 
 	// The library filters the render-state combinations it sends, so anything asserted
@@ -1220,18 +1184,18 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 
 	ApplyRenderState( batch );
 
-	m_context->SetShaderProgram( *program );
-	m_context->SetVertexLayout( m_vertexLayouts[format] );
+	m_context->SetShaderProgram( *resolved.program );
+	m_context->SetVertexLayout( m_vertexLayouts[resolved.vertexFormat] );
 	m_context->SetTopology( TOP_TRIANGLES );
 
 	// vertexOffset is a byte offset from the current Map, matching the SDK's own D3D12 device.
 	// Indices are bound at the chunk base and addressed through startIndex instead.
 	m_context->SetStreamSource( 0, m_vertices.CurrentChunk(),
-								m_vertices.drawPos + batch.vertex_offset, m_vertexStrides[format] );
+								m_vertices.drawPos + batch.vertex_offset, m_vertexStrides[resolved.vertexFormat] );
 	m_context->SetIndices( m_indices.CurrentChunk(), 2 );
 
-	BindUniforms( batch, flags );
-	BindResources( batch, flags, *program, programId );
+	BindUniforms( batch, resolved.flags );
+	BindResources( batch, resolved.flags, *resolved.program, resolved.programId );
 
 	CCP_ASSERT_M( ( batch.num_indices % 3 ) == 0, "Noesis batch index count is not a whole number of triangles" );
 
@@ -1250,6 +1214,53 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 						m_shaderInfo[shader].name, batch.render_state, batch.stencil_ref,
 						batch.num_vertices, batch.num_indices, batch.vertex_offset, startIndex );
 	}
+}
+
+bool Tr2NoesisGpuDevice::ResolveProgram( const nxt_batch& batch, ResolvedProgram& out )
+{
+	const uint8_t shader = batch.shader;
+
+	if( batch.pixel_shader == nullptr )
+	{
+		out.flags = m_shaderInfo[shader].resourceFlags;
+		if( out.flags == 0 || !m_programs[shader].IsValid() )
+		{
+			ReportUnwiredShader( shader );
+			return false;
+		}
+
+		out.program = &m_programs[shader];
+		out.vertexFormat = m_shaderInfo[shader].vertexFormat;
+		out.programId = shader;
+		return true;
+	}
+
+	const uintptr_t index = reinterpret_cast<uintptr_t>( batch.pixel_shader );
+	if( index == 0 || index > m_customShaders.size() )
+	{
+		CCP_ASSERT_M( false, "Noesis DrawBatch: custom pixel shader handle is invalid" );
+		return false;
+	}
+
+	CustomProgram& custom = m_customShaders[index - 1];
+	if( !custom.program.IsValid() )
+	{
+		ReportUnwiredShader( shader );
+		return false;
+	}
+
+	// Same skip D3D12RenderDevice uses: the custom permutation declared registers this
+	// batch did not bind.
+	if( ( custom.flags & GetBatchSignature( batch ) ) != custom.flags )
+	{
+		return false;
+	}
+
+	out.program = &custom.program;
+	out.flags = custom.flags;
+	out.vertexFormat = custom.vertexFormat;
+	out.programId = CUSTOM_PROGRAM_ID_TAG | ( index - 1 );
+	return true;
 }
 
 void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
