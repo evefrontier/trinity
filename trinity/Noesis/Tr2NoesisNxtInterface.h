@@ -49,4 +49,26 @@ inline bool Tr2NoesisTakeNxtInterface( PyObject* object, const char* capsuleName
 	}
 }
 
+// The set_view binding, which Tr2Sprite2dNoesis and TriStepRenderNoesis both expose and
+// implement identically. Templated on the Blue class rather than copied into each, so the
+// capsule name and the interface size are stated once.
+template<typename T>
+PyObject* Tr2NoesisPySetView( PyObject* self, PyObject* args )
+{
+	PyObject* view = nullptr;
+	if( !PyArg_ParseTuple( args, "O", &view ) )
+	{
+		return nullptr;
+	}
+
+	void* pointer = nullptr;
+	if( !Tr2NoesisTakeNxtInterface( view, NXT_CAPSULE_VIEW, sizeof( nxt_view ), pointer ) )
+	{
+		return nullptr;
+	}
+
+	BluePythonCast<T*>( self )->SetView( static_cast<const nxt_view*>( pointer ) );
+	Py_RETURN_NONE;
+}
+
 #endif
