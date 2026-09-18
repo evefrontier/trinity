@@ -104,6 +104,28 @@ static_assert( sizeof( nxt_sampler_state ) == 1, "nxt_sampler_state is a packed 
 // rather than trusted -- an assert would compile out in the builds that ship.
 const nxt_sampler_state SAMPLER_INDEX_MASK = 0x3f;
 
+// The five pixel texture slots, in register order.
+//
+// nxt_batch names each texture and its sampler as its own field, and three separate things
+// here have to walk the same five: the signature a shader declares, the signature a batch
+// supplies, and the binding itself. One table, so a sixth slot is one row rather than
+// three edits in three functions.
+struct TextureSlot
+{
+	uint32_t flag;
+	uint32_t registerIndex;
+	nxt_texture nxt_batch::*texture;
+	nxt_sampler_state nxt_batch::*sampler;
+};
+
+const TextureSlot TEXTURE_SLOTS[] = {
+	{ NXT_SHADER_USES_PS_T0, 0, &nxt_batch::pattern, &nxt_batch::pattern_sampler },
+	{ NXT_SHADER_USES_PS_T1, 1, &nxt_batch::ramps, &nxt_batch::ramps_sampler },
+	{ NXT_SHADER_USES_PS_T2, 2, &nxt_batch::image, &nxt_batch::image_sampler },
+	{ NXT_SHADER_USES_PS_T3, 3, &nxt_batch::glyphs, &nxt_batch::glyphs_sampler },
+	{ NXT_SHADER_USES_PS_T4, 4, &nxt_batch::shadow, &nxt_batch::shadow_sampler },
+};
+
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 {
 	if( flags & NXT_SHADER_USES_PS_CB0 )
@@ -114,56 +136,29 @@ void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 	{
 		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
 	}
-	if( flags & NXT_SHADER_USES_PS_T0 )
+
+	for( const TextureSlot& slot : TEXTURE_SLOTS )
 	{
-		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 0 );
-		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 0 );
-	}
-	if( flags & NXT_SHADER_USES_PS_T1 )
-	{
-		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 1 );
-		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 1 );
-	}
-	if( flags & NXT_SHADER_USES_PS_T2 )
-	{
-		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 2 );
-		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 2 );
-	}
-	if( flags & NXT_SHADER_USES_PS_T3 )
-	{
-		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 3 );
-		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 3 );
-	}
-	if( flags & NXT_SHADER_USES_PS_T4 )
-	{
-		signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, 4 );
-		signature.Add( Tr2ShaderRegisterAL::SAMPLER, 4 );
+		if( flags & slot.flag )
+		{
+			signature.Add( Tr2ShaderRegisterAL::SRV_TEXTURE2D, slot.registerIndex );
+			signature.Add( Tr2ShaderRegisterAL::SAMPLER, slot.registerIndex );
+		}
 	}
 }
 
 uint32_t GetBatchSignature( const nxt_batch& batch )
 {
 	uint32_t signature = 0;
-	if( batch.pattern )
+
+	for( const TextureSlot& slot : TEXTURE_SLOTS )
 	{
-		signature |= NXT_SHADER_USES_PS_T0;
+		if( batch.*slot.texture != nullptr )
+		{
+			signature |= slot.flag;
+		}
 	}
-	if( batch.ramps )
-	{
-		signature |= NXT_SHADER_USES_PS_T1;
-	}
-	if( batch.image )
-	{
-		signature |= NXT_SHADER_USES_PS_T2;
-	}
-	if( batch.glyphs )
-	{
-		signature |= NXT_SHADER_USES_PS_T3;
-	}
-	if( batch.shadow )
-	{
-		signature |= NXT_SHADER_USES_PS_T4;
-	}
+
 	if( batch.vertex_uniforms[0].values )
 	{
 		signature |= NXT_SHADER_USES_VS_CB0;
@@ -1398,46 +1393,33 @@ void Tr2NoesisGpuDevice::BindResources( const nxt_batch& batch, uint32_t flags, 
 		return;
 	}
 
-	const struct
-	{
-		uint32_t flag;
-		uint32_t registerIndex;
-		nxt_texture texture;
-		nxt_sampler_state sampler = 0;
-	} bindings[] = {
-		{ NXT_SHADER_USES_PS_T0, 0, batch.pattern, batch.pattern_sampler },
-		{ NXT_SHADER_USES_PS_T1, 1, batch.ramps, batch.ramps_sampler },
-		{ NXT_SHADER_USES_PS_T2, 2, batch.image, batch.image_sampler },
-		{ NXT_SHADER_USES_PS_T3, 3, batch.glyphs, batch.glyphs_sampler },
-		{ NXT_SHADER_USES_PS_T4, 4, batch.shadow, batch.shadow_sampler },
-	};
-
 	Tr2ResourceSetDescriptionAL description( program );
-	for( const auto& binding : bindings )
+	for( const TextureSlot& slot : TEXTURE_SLOTS )
 	{
-		if( ( flags & binding.flag ) == 0 )
+		if( ( flags & slot.flag ) == 0 )
 		{
 			continue;
 		}
-		if( binding.texture == nullptr )
+		if( batch.*slot.texture == nullptr )
 		{
 			CCP_ASSERT_M( false, "Noesis batch omitted a texture that its shader declares" );
 			continue;
 		}
 
-		Tr2NoesisTexture* texture = reinterpret_cast<Tr2NoesisTexture*>( binding.texture );
+		Tr2NoesisTexture* texture = reinterpret_cast<Tr2NoesisTexture*>( batch.*slot.texture );
 		// linearRendering is false, so textures are sampled raw rather than sRGB-converted.
 		// A rejection means the register is absent from the program's map, which would mean
 		// the resource flags and the signature we built from them disagree.
-		const bool srvSet = description.SetSrv( PIXEL_SHADER, binding.registerIndex, texture->GetAL() );
+		const bool srvSet = description.SetSrv( PIXEL_SHADER, slot.registerIndex, texture->GetAL() );
 		CCP_ASSERT_M( srvSet, "Noesis shader program has no SRV at the register the resource flags claim" );
 
 		// Masked, not asserted: see SAMPLER_INDEX_MASK.
-		CCP_ASSERT_M( ( binding.sampler & ~SAMPLER_INDEX_MASK ) == 0,
+		const nxt_sampler_state raw = batch.*slot.sampler;
+		CCP_ASSERT_M( ( raw & ~SAMPLER_INDEX_MASK ) == 0,
 					  "Noesis sampler state used a bit nxt.h reserves" );
-		const nxt_sampler_state sampler = binding.sampler & SAMPLER_INDEX_MASK;
-		const bool samplerSet = description.SetSampler( PIXEL_SHADER, binding.registerIndex, m_samplers[sampler] );
-		CCP_ASSERT_M( samplerSet, "Noesis shader program has no sampler at the register PROGRAM_FLAGS claims" );
+		const bool samplerSet = description.SetSampler( PIXEL_SHADER, slot.registerIndex,
+														m_samplers[raw & SAMPLER_INDEX_MASK] );
+		CCP_ASSERT_M( samplerSet, "Noesis shader program has no sampler at the register the resource flags claim" );
 	}
 
 	const uint64_t key = ( programId << 32 ) | description.ComputeHash();
