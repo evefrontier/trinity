@@ -1,8 +1,8 @@
 // Copyright © 2026 CCP ehf.
 
 #pragma once
-#ifndef Tr2Sprite2dNoesis_h
-#define Tr2Sprite2dNoesis_h
+#ifndef Tr2Sprite2dNoesis_H
+#define Tr2Sprite2dNoesis_H
 
 #include "Sprite2d/Tr2SpriteObject.h"
 #include "Noesis/Tr2NoesisRenderDevice.h"

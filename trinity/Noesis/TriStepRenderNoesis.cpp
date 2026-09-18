@@ -61,7 +61,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	const nxt_frame_context* frame = host->GetNsiFrameHost();
+	const nxt_frame_context* frame = host->GetFrameContext();
 	if( frame == nullptr )
 	{
 		return RS_OK;

@@ -1,8 +1,8 @@
 // Copyright © 2026 CCP ehf.
 
 #pragma once
-#ifndef Tr2NoesisHost_H
-#define Tr2NoesisHost_H
+#ifndef Tr2NoesisRenderDevice_H
+#define Tr2NoesisRenderDevice_H
 
 #include <nxt.h>
 
@@ -64,7 +64,7 @@ public:
 
 	// Trinity-internal. The frame vtable, valid only between BeginFrame and EndFrame.
 	// Not exposed through Blue: it never crosses as an object.
-	const nxt_frame_context* GetNsiFrameHost();
+	const nxt_frame_context* GetFrameContext();
 
 	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame: an exit
 	// that skips EndFrame leaves the device holding a context the step has finished with.

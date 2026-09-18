@@ -1,8 +1,8 @@
 // Copyright © 2026 CCP ehf.
 
 #pragma once
-#ifndef Tr2NoesisRenderDevice_H
-#define Tr2NoesisRenderDevice_H
+#ifndef Tr2NoesisGpuDevice_H
+#define Tr2NoesisGpuDevice_H
 
 #include <nxt.h>
 

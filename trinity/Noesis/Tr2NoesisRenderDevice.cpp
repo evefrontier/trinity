@@ -455,7 +455,7 @@ const nxt_render_device* Tr2NoesisRenderDevice::GetNxtRenderDevice()
 	return m_shaderSource != nullptr ? &m_renderDeviceApi : nullptr;
 }
 
-const nxt_frame_context* Tr2NoesisRenderDevice::GetNsiFrameHost()
+const nxt_frame_context* Tr2NoesisRenderDevice::GetFrameContext()
 {
 	return IsReady() ? &m_frameApi : nullptr;
 }
