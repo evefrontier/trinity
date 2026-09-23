@@ -185,7 +185,7 @@
       "description": "Host side of the Noesis integration",
       "dependencies": [
         {
-          "name": "nxt",
+          "name": "pynoesis-render",
           "version>=": "1.0"
         }
       ]

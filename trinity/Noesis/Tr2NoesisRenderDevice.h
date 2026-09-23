@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisRenderDevice_H
 #define Tr2NoesisRenderDevice_H
 
-#include <nxt.h>
+#include <pynr.h>
 
 #include <memory>
 
@@ -15,7 +15,7 @@ struct Tr2ScissorRect;
 
 // --------------------------------------------------------------------------------------
 // Description:
-//   Trinity's side of the nxt.h boundary: the render device over TrinityAL, wrapped in
+//   Trinity's side of the pynr.h boundary: the render device over TrinityAL, wrapped in
 //   the two vtables the Noesis library calls through.
 //
 //   Python creates one of these and hands it to the library, which is the only way the
@@ -46,7 +46,7 @@ public:
 	// No status to return: the Python binding refuses anything that is not a usable shader
 	// source before it gets here. The check below is for a direct C++ caller, and declines
 	// and logs rather than installing a source this build cannot call.
-	void SetShaderSource( const nxt_shader_source* shaderSource );
+	void SetShaderSource( const pynr_shader_source* shaderSource );
 
 	// Builds the device on first call and returns whether it is usable.
 	//
@@ -61,12 +61,12 @@ public:
 
 	bool IsReady() const;
 
-	// The interface the library is handed, inside NXT_CAPSULE_RENDER_DEVICE.
-	const nxt_render_device* GetNxtRenderDevice();
+	// The interface the library is handed, inside PYNR_CAPSULE_RENDER_DEVICE.
+	const pynr_render_device* GetPynrRenderDevice();
 
 	// Trinity-internal. The frame vtable, valid only between BeginFrame and EndFrame.
 	// Not exposed through Blue: it never crosses as an object.
-	const nxt_frame_context* GetFrameContext();
+	const pynr_frame_context* GetFrameContext();
 
 	// Binds the frame's deferred context, and drops it again. Prefer ScopedFrame: an exit
 	// that skips EndFrame leaves the device holding a context the step has finished with.
@@ -112,10 +112,10 @@ private:
 	std::unique_ptr<Tr2NoesisGpuDevice> m_device;
 	// Retained, so it outlives whatever Python capsule delivered it. Released when it is
 	// replaced or the host goes.
-	const nxt_shader_source* m_shaderSource;
+	const pynr_shader_source* m_shaderSource;
 	bool m_deviceAttempted;
-	nxt_render_device m_renderDeviceApi;
-	nxt_frame_context m_frameApi;
+	pynr_render_device m_renderDeviceApi;
+	pynr_frame_context m_frameApi;
 };
 
 TYPEDEF_BLUECLASS( Tr2NoesisRenderDevice );

@@ -49,9 +49,9 @@ else()
 endif()
 
 #[[
-    The Noesis integration lives in frontier-noesis. Trinity builds only the host side of
-    the nxt.h boundary, which needs the ABI header and nothing else -- no SDK, no shader
-    permutations, no licence. See trinity/Noesis and overlay-ports/nxt.
+    The Noesis integration lives in pynoesis. Trinity builds only the host side of
+    the pynr.h boundary, which needs the ABI header and nothing else -- no SDK, no shader
+    permutations, no licence. See trinity/Noesis and overlay-ports/pynoesis-render.
 ]]
 option(WITH_NOESIS "Build the host side of the Noesis integration" OFF)
 

@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 
 #include "Noesis/TriStepRenderNoesis.h"
-#include "Noesis/Tr2NoesisNxtInterface.h"
+#include "Noesis/Tr2NoesisPynrInterface.h"
 
 BLUE_DEFINE( TriStepRenderNoesis );
 
@@ -19,7 +19,7 @@ const Be::ClassInfo* TriStepRenderNoesis::ExposeToBlue()
 			"The view to render. None clears it and the step draws nothing.\n"
 			"\n"
 			"Raises TypeError if the object is not a view, and ValueError if it speaks\n"
-			"an nxt ABI this Trinity cannot.\n"
+			"a pynr ABI this Trinity cannot.\n"
 			":param view: a noesis.View, or None\n"
 			":rtype: None" )
 

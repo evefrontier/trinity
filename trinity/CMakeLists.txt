@@ -1837,8 +1837,8 @@ if(WITH_GRANNY)
 endif()
 
 #[[
-    Noesis lives in frontier-noesis now. Trinity keeps only the host side: the render
-    device behind the nxt.h vtables, and the two Blue adapters that drive a view from a
+    Noesis lives in pynoesis now. Trinity keeps only the host side: the render
+    device behind the pynr.h vtables, and the two Blue adapters that drive a view from a
     render job or a sprite tree. The SDK, the shader permutations and everything
     Python-facing moved out, so nothing here includes or links NoesisGUI.
 ]]
@@ -1846,7 +1846,7 @@ set(NOESIS_RELATED_SOURCES
     Noesis/Tr2NoesisRenderDevice.cpp
     Noesis/Tr2NoesisRenderDevice.h
     Noesis/Tr2NoesisLog.h
-    Noesis/Tr2NoesisNxtInterface.h
+    Noesis/Tr2NoesisPynrInterface.h
     Noesis/Tr2NoesisDynamicRing.cpp
     Noesis/Tr2NoesisDynamicRing.h
     Noesis/Tr2NoesisGpuDevice.cpp
@@ -1865,12 +1865,12 @@ if(WITH_NOESIS)
     list(APPEND _SOURCES ${NOESIS_RELATED_SOURCES})
 
     #[[
-        The ABI header both repositories build against, as the nxt vcpkg port. Neither
+        The ABI header both repositories build against, as the pynoesis-render vcpkg port. Neither
         repository depends on the other -- only on the contract. The port is an overlay in
-        overlay-ports/nxt until it is published to a registry. The major version is the
+        overlay-ports/pynoesis-render until it is published to a registry. The major version is the
         ABI major, so this refuses a header this Trinity cannot speak.
     ]]
-    find_package(nxt 1 CONFIG REQUIRED)
+    find_package(pynoesis-render 1 CONFIG REQUIRED)
 endif()
 
 
@@ -1939,13 +1939,13 @@ function(set_shared_trinity_properties target)
 
     if(WITH_NOESIS)
         #[[
-            Only the ABI header. Trinity does not link frontier-noesis and does not link
+            Only the ABI header. Trinity does not link pynoesis and does not link
             the NoesisGUI SDK: every call between the two goes through a vtable carried
             by a Blue object that Python hands over, so there is nothing to link against
             and nothing to find at load time.
         ]]
         target_compile_definitions(${target} PRIVATE WITH_NOESIS)
-        target_link_libraries(${target} PRIVATE nxt::nxt)
+        target_link_libraries(${target} PRIVATE pynoesis-render::pynoesis-render)
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)

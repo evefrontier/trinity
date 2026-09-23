@@ -32,7 +32,7 @@ public:
 	Tr2Sprite2dNoesis( IRoot* lockobj = NULL );
 
 	// The view interface, retained. None clears it.
-	void SetView( const nxt_view* view );
+	void SetView( const pynr_view* view );
 	~Tr2Sprite2dNoesis();
 
 	//////////////////////////////////////////////////////////////////////////
@@ -47,7 +47,7 @@ private:
 
 	// Both are pushed to the step every gather, because the step is created lazily and
 	// Python has already set these by the time it exists.
-	const nxt_view* m_view;
+	const pynr_view* m_view;
 
 	// Typed, so Blue rejects anything that is not a host at the point of assignment.
 	Tr2NoesisRenderDevicePtr m_renderDevice;

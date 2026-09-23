@@ -51,7 +51,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 		return RS_OK;
 	}
 
-	const nxt_frame_context* frame = host->GetFrameContext();
+	const pynr_frame_context* frame = host->GetFrameContext();
 	if( frame == nullptr )
 	{
 		return RS_OK;
@@ -152,7 +152,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 
 	// flipY is false because clipSpaceYInverted is false; clear is false because the job has
 	// already put something in the target and Noesis composites over it.
-	m_view->render( m_view->header.self, frame, NXT_FALSE, NXT_FALSE );
+	m_view->render( m_view->header.self, frame, PYNR_FALSE, PYNR_FALSE );
 
 	host->ClearHostScissor();
 
@@ -166,7 +166,7 @@ TriStepResult TriStepRenderNoesis::Execute( Be::Time realTime, Be::Time /*simTim
 	return RS_OK;
 }
 
-void TriStepRenderNoesis::SetView( const nxt_view* view )
+void TriStepRenderNoesis::SetView( const pynr_view* view )
 {
 	if( view == m_view )
 	{

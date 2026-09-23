@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 
 #include "Noesis/Tr2NoesisRenderDevice.h"
-#include "Noesis/Tr2NoesisNxtInterface.h"
+#include "Noesis/Tr2NoesisPynrInterface.h"
 
 #include "Noesis/Tr2NoesisLog.h"
 #include "Noesis/Tr2NoesisGpuDevice.h"
@@ -69,12 +69,12 @@ bool NativeTexture( void* native, TriTextureResPtr& out )
 	return out != nullptr;
 }
 
-Tr2NoesisTexture* AsTexture( nxt_texture texture )
+Tr2NoesisTexture* AsTexture( pynr_texture texture )
 {
 	return reinterpret_cast<Tr2NoesisTexture*>( texture );
 }
 
-Tr2NoesisRenderTarget* AsTarget( nxt_render_target surface )
+Tr2NoesisRenderTarget* AsTarget( pynr_render_target surface )
 {
 	return reinterpret_cast<Tr2NoesisRenderTarget*>( surface );
 }
@@ -83,77 +83,77 @@ Tr2NoesisRenderTarget* AsTarget( nxt_render_target surface )
 // Device half
 // --------------------------------------------------------------------------------------
 
-void HostGetCaps( void* self, nxt_device_caps* out )
+void HostGetCaps( void* self, pynr_device_caps* out )
 {
 	Tr2NoesisGpuDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		// Zeroed, not left undefined: the library reads these to choose how it renders,
 		// and false is the conservative answer to each.
-		*out = nxt_device_caps();
+		*out = pynr_device_caps();
 		return;
 	}
 	device->GetCaps( *out );
 }
 
-nxt_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
-										  uint32_t height, uint32_t sampleCount,
-										  nxt_bool needsStencil )
+pynr_render_target HostCreateRenderTarget( void* self, const char* label, uint32_t width,
+										   uint32_t height, uint32_t sampleCount,
+										   pynr_bool needsStencil )
 {
 	Tr2NoesisGpuDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nxt_render_target>( device->CreateRenderTarget(
-		label, width, height, sampleCount, needsStencil != NXT_FALSE ) );
+	return reinterpret_cast<pynr_render_target>( device->CreateRenderTarget(
+		label, width, height, sampleCount, needsStencil != PYNR_FALSE ) );
 }
 
-nxt_render_target HostCloneRenderTarget( void* self, const char* label, nxt_render_target surface )
+pynr_render_target HostCloneRenderTarget( void* self, const char* label, pynr_render_target surface )
 {
 	Tr2NoesisGpuDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nxt_render_target>(
+	return reinterpret_cast<pynr_render_target>(
 		device->CloneRenderTarget( label, AsTarget( surface ) ) );
 }
 
-void HostReleaseRenderTarget( void* /*self*/, nxt_render_target surface )
+void HostReleaseRenderTarget( void* /*self*/, pynr_render_target surface )
 {
 	// Destroys the wrapper. The AL resources it holds go with it, which is what the
 	// library means by releasing a handle it created.
 	delete AsTarget( surface );
 }
 
-nxt_texture HostGetRenderTargetTexture( void* /*self*/, nxt_render_target surface )
+pynr_texture HostGetRenderTargetTexture( void* /*self*/, pynr_render_target surface )
 {
 	Tr2NoesisRenderTarget* target = AsTarget( surface );
-	return target != nullptr ? reinterpret_cast<nxt_texture>( target->GetColor() ) : nullptr;
+	return target != nullptr ? reinterpret_cast<pynr_texture>( target->GetColor() ) : nullptr;
 }
 
-nxt_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
-							   uint32_t numLevels, nxt_texture_format format, const void** data )
+pynr_texture HostCreateTexture( void* self, const char* label, uint32_t width, uint32_t height,
+							    uint32_t numLevels, pynr_texture_format format, const void** data )
 {
 	Tr2NoesisGpuDevice* device = Device( self );
 	if( device == nullptr )
 	{
 		return nullptr;
 	}
-	return reinterpret_cast<nxt_texture>(
+	return reinterpret_cast<pynr_texture>(
 		device->CreateTexture( label, width, height, numLevels, format, data ) );
 }
 
-void HostReleaseTexture( void* /*self*/, nxt_texture texture )
+void HostReleaseTexture( void* /*self*/, pynr_texture texture )
 {
 	// For a wrapped host texture this drops only the wrapper: the Tr2TextureAL inside is
 	// a shared handle, so the resource it refers to is untouched. See release_texture.
 	delete AsTexture( texture );
 }
 
-void HostGetTextureInfo( void* /*self*/, nxt_texture texture, uint32_t* width, uint32_t* height,
-						 uint32_t* levels, nxt_bool* hasAlpha )
+void HostGetTextureInfo( void* /*self*/, pynr_texture texture, uint32_t* width, uint32_t* height,
+						 uint32_t* levels, pynr_bool* hasAlpha )
 {
 	Tr2NoesisTexture* t = AsTexture( texture );
 	if( t == nullptr )
@@ -161,18 +161,18 @@ void HostGetTextureInfo( void* /*self*/, nxt_texture texture, uint32_t* width, u
 		*width = 0;
 		*height = 0;
 		*levels = 0;
-		*hasAlpha = NXT_FALSE;
+		*hasAlpha = PYNR_FALSE;
 		return;
 	}
 
 	*width = t->GetWidth();
 	*height = t->GetHeight();
 	*levels = t->GetLevels();
-	*hasAlpha = t->HasAlpha() ? NXT_TRUE : NXT_FALSE;
+	*hasAlpha = t->HasAlpha() ? PYNR_TRUE : PYNR_FALSE;
 }
 
-nxt_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
-										const void* blob, uint32_t size )
+pynr_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t shader,
+										 const void* blob, uint32_t size )
 {
 	Tr2NoesisGpuDevice* device = Device( self );
 	if( device == nullptr )
@@ -182,13 +182,13 @@ nxt_pixel_shader HostCreatePixelShader( void* self, const char* label, uint8_t s
 	return device->CreatePixelShader( label, shader, blob, size );
 }
 
-void HostReleasePixelShader( void* /*self*/, nxt_pixel_shader /*shader*/ )
+void HostReleasePixelShader( void* /*self*/, pynr_pixel_shader /*shader*/ )
 {
 	// Handles are 1-based indices into a vector on the device, so there is nothing to
 	// free per handle. They live until the device does.
 }
 
-nxt_texture HostWrapNativeTexture( void* self, void* native, nxt_bool hasAlpha )
+pynr_texture HostWrapNativeTexture( void* self, void* native, pynr_bool hasAlpha )
 {
 	TriTextureResPtr resource;
 	if( !NativeTexture( native, resource ) )
@@ -208,11 +208,11 @@ nxt_texture HostWrapNativeTexture( void* self, void* native, nxt_bool hasAlpha )
 		return nullptr;
 	}
 
-	return reinterpret_cast<nxt_texture>(
-		device->WrapTexture( *texture, hasAlpha != NXT_FALSE ) );
+	return reinterpret_cast<pynr_texture>(
+		device->WrapTexture( *texture, hasAlpha != PYNR_FALSE ) );
 }
 
-nxt_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
+pynr_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width, uint32_t* height )
 {
 	*width = 0;
 	*height = 0;
@@ -222,18 +222,18 @@ nxt_bool HostGetNativeTextureSize( void* /*self*/, void* native, uint32_t* width
 	{
 		// The one place the host can tell the caller it passed the wrong kind of object,
 		// because only this side knows what the handle was supposed to be.
-		return NXT_FALSE;
+		return PYNR_FALSE;
 	}
 
 	Tr2TextureAL* texture = resource->GetTexture();
 	if( texture == nullptr || !texture->IsValid() )
 	{
-		return NXT_FALSE;
+		return PYNR_FALSE;
 	}
 
 	*width = texture->GetWidth();
 	*height = texture->GetHeight();
-	return NXT_TRUE;
+	return PYNR_TRUE;
 }
 
 // --------------------------------------------------------------------------------------
@@ -257,7 +257,7 @@ Tr2NoesisGpuDevice& FrameDevice( void* self )
 	return *device;
 }
 
-void HostUpdateTexture( void* self, nxt_texture texture, uint32_t level, uint32_t x, uint32_t y,
+void HostUpdateTexture( void* self, pynr_texture texture, uint32_t level, uint32_t x, uint32_t y,
 						uint32_t width, uint32_t height, const void* data )
 {
 	FrameDevice( self ).UpdateTexture( AsTexture( texture ), level, x, y, width, height, data );
@@ -268,22 +268,22 @@ void HostEndOffscreen( void* self ) { FrameDevice( self ).EndOffscreenRender(); 
 void HostBeginOnscreen( void* self ) { FrameDevice( self ).BeginOnscreenRender(); }
 void HostEndOnscreen( void* self ) { FrameDevice( self ).EndOnscreenRender(); }
 
-void HostSetRenderTarget( void* self, nxt_render_target surface )
+void HostSetRenderTarget( void* self, pynr_render_target surface )
 {
 	FrameDevice( self ).SetRenderTarget( AsTarget( surface ) );
 }
 
-void HostBeginTile( void* self, nxt_render_target surface, const nxt_tile* tile )
+void HostBeginTile( void* self, pynr_render_target surface, const pynr_tile* tile )
 {
 	FrameDevice( self ).BeginTile( AsTarget( surface ), *tile );
 }
 
-void HostEndTile( void* self, nxt_render_target surface )
+void HostEndTile( void* self, pynr_render_target surface )
 {
 	FrameDevice( self ).EndTile( AsTarget( surface ) );
 }
 
-void HostResolveRenderTarget( void* self, nxt_render_target surface, const nxt_tile* tiles,
+void HostResolveRenderTarget( void* self, pynr_render_target surface, const pynr_tile* tiles,
 							  uint32_t numTiles )
 {
 	FrameDevice( self ).ResolveRenderTarget( AsTarget( surface ), tiles, numTiles );
@@ -294,12 +294,12 @@ void HostUnmapVertices( void* self ) { FrameDevice( self ).UnmapVertices(); }
 void* HostMapIndices( void* self, uint32_t bytes ) { return FrameDevice( self ).MapIndices( bytes ); }
 void HostUnmapIndices( void* self ) { FrameDevice( self ).UnmapIndices(); }
 
-void HostDrawBatch( void* self, const nxt_batch* batch )
+void HostDrawBatch( void* self, const pynr_batch* batch )
 {
 	FrameDevice( self ).DrawBatch( *batch );
 }
 
-// nxt retain/release. Blue's refcount is Lock/Unlock, so these are that and nothing
+// pynr retain/release. Blue's refcount is Lock/Unlock, so these are that and nothing
 // more: the library holding this device host holds a Blue reference on it, and there is
 // no second lifetime to keep in step.
 void HostRetain( void* self )
@@ -312,12 +312,12 @@ void HostRelease( void* self )
 	Self( self ).Unlock();
 }
 
-// `owned` false leaves retain and release null, which nxt.h defines as borrowed: valid
+// `owned` false leaves retain and release null, which pynr.h defines as borrowed: valid
 // for the call it was passed to and never to be stored. That is the frame host.
-void FillHeader( nxt_interface_header& header, void* self, uint32_t size, bool owned )
+void FillHeader( pynr_interface_header& header, void* self, uint32_t size, bool owned )
 {
-	header.abi_version_major = NXT_ABI_VERSION_MAJOR;
-	header.abi_version_minor = NXT_ABI_VERSION_MINOR;
+	header.abi_version_major = PYNR_ABI_VERSION_MAJOR;
+	header.abi_version_minor = PYNR_ABI_VERSION_MINOR;
 	header.struct_size = size;
 	header.self = self;
 	header.retain = owned ? HostRetain : nullptr;
@@ -345,7 +345,7 @@ Tr2NoesisRenderDevice::~Tr2NoesisRenderDevice()
 
 void Tr2NoesisRenderDevice::FillVtables()
 {
-	FillHeader( m_renderDeviceApi.header, this, sizeof( nxt_render_device ), true );
+	FillHeader( m_renderDeviceApi.header, this, sizeof( pynr_render_device ), true );
 	m_renderDeviceApi.get_caps = HostGetCaps;
 	m_renderDeviceApi.create_render_target = HostCreateRenderTarget;
 	m_renderDeviceApi.clone_render_target = HostCloneRenderTarget;
@@ -359,7 +359,7 @@ void Tr2NoesisRenderDevice::FillVtables()
 	m_renderDeviceApi.wrap_native_texture = HostWrapNativeTexture;
 	m_renderDeviceApi.get_native_texture_size = HostGetNativeTextureSize;
 
-	FillHeader( m_frameApi.header, this, sizeof( nxt_frame_context ), false );
+	FillHeader( m_frameApi.header, this, sizeof( pynr_frame_context ), false );
 	m_frameApi.update_texture = HostUpdateTexture;
 	m_frameApi.begin_offscreen_render = HostBeginOffscreen;
 	m_frameApi.end_offscreen_render = HostEndOffscreen;
@@ -376,17 +376,17 @@ void Tr2NoesisRenderDevice::FillVtables()
 	m_frameApi.draw_batch = HostDrawBatch;
 }
 
-void Tr2NoesisRenderDevice::SetShaderSource( const nxt_shader_source* shaderSource )
+void Tr2NoesisRenderDevice::SetShaderSource( const pynr_shader_source* shaderSource )
 {
-	if( shaderSource != nullptr && NXT_INTERFACE_USABLE( shaderSource ) == NXT_FALSE )
+	if( shaderSource != nullptr && PYNR_INTERFACE_USABLE( shaderSource ) == PYNR_FALSE )
 	{
-		CCP_NOESIS_LOGERR( "The shader source speaks an nxt ABI this Trinity cannot: it "
+		CCP_NOESIS_LOGERR( "The shader source speaks a pynr ABI this Trinity cannot: it "
 						   "reports major %u with %u bytes of vtable, and this Trinity needs "
 						   "major %u with at least %u",
 						   shaderSource->header.abi_version_major,
 						   shaderSource->header.struct_size,
-						   static_cast<uint32_t>( NXT_ABI_VERSION_MAJOR ),
-						   static_cast<uint32_t>( sizeof( nxt_shader_source ) ) );
+						   static_cast<uint32_t>( PYNR_ABI_VERSION_MAJOR ),
+						   static_cast<uint32_t>( sizeof( pynr_shader_source ) ) );
 		return;
 	}
 
@@ -447,7 +447,7 @@ bool Tr2NoesisRenderDevice::IsReady() const
 	return m_device != nullptr && m_device->IsValid();
 }
 
-const nxt_render_device* Tr2NoesisRenderDevice::GetNxtRenderDevice()
+const pynr_render_device* Tr2NoesisRenderDevice::GetPynrRenderDevice()
 {
 	// Valid as soon as a shader source is set, not once the device is built: the library
 	// wires this at startup and the device cannot exist until the first frame. Calls that
@@ -455,7 +455,7 @@ const nxt_render_device* Tr2NoesisRenderDevice::GetNxtRenderDevice()
 	return m_shaderSource != nullptr ? &m_renderDeviceApi : nullptr;
 }
 
-const nxt_frame_context* Tr2NoesisRenderDevice::GetFrameContext()
+const pynr_frame_context* Tr2NoesisRenderDevice::GetFrameContext()
 {
 	return IsReady() ? &m_frameApi : nullptr;
 }
@@ -502,23 +502,23 @@ Tr2NoesisGpuDevice* Tr2NoesisRenderDevice::GetDevice() const
 // then, released by its destructor.
 static void RenderDeviceCapsuleDestructor( PyObject* capsule )
 {
-	void* pointer = PyCapsule_GetPointer( capsule, NXT_CAPSULE_RENDER_DEVICE );
+	void* pointer = PyCapsule_GetPointer( capsule, PYNR_CAPSULE_RENDER_DEVICE );
 	if( pointer == nullptr )
 	{
 		PyErr_Clear();
 		return;
 	}
-	const nxt_render_device* api = static_cast<const nxt_render_device*>( pointer );
+	const pynr_render_device* api = static_cast<const pynr_render_device*>( pointer );
 	if( api->header.release != nullptr )
 	{
 		api->header.release( api->header.self );
 	}
 }
 
-static PyObject* PyGetNxtInterface( PyObject* self, PyObject* /*args*/ )
+static PyObject* PyGetPynrInterface( PyObject* self, PyObject* /*args*/ )
 {
 	Tr2NoesisRenderDevice* host = BluePythonCast<Tr2NoesisRenderDevice*>( self );
-	const nxt_render_device* api = host->GetNxtRenderDevice();
+	const pynr_render_device* api = host->GetPynrRenderDevice();
 	if( api == nullptr )
 	{
 		// No shader source yet, so there is nothing usable to hand over.
@@ -530,8 +530,8 @@ static PyObject* PyGetNxtInterface( PyObject* self, PyObject* /*args*/ )
 		api->header.retain( api->header.self );
 	}
 
-	PyObject* capsule = PyCapsule_New( const_cast<nxt_render_device*>( api ),
-									   NXT_CAPSULE_RENDER_DEVICE,
+	PyObject* capsule = PyCapsule_New( const_cast<pynr_render_device*>( api ),
+									   PYNR_CAPSULE_RENDER_DEVICE,
 									   RenderDeviceCapsuleDestructor );
 	if( capsule == nullptr && api->header.release != nullptr )
 	{
@@ -549,14 +549,14 @@ static PyObject* PySetShaderSource( PyObject* self, PyObject* args )
 	}
 
 	void* pointer = nullptr;
-	if( !Tr2NoesisTakeNxtInterface( source, NXT_CAPSULE_SHADER_SOURCE,
-								   sizeof( nxt_shader_source ), pointer ) )
+	if( !Tr2NoesisTakePynrInterface( source, PYNR_CAPSULE_SHADER_SOURCE,
+								    sizeof( pynr_shader_source ), pointer ) )
 	{
 		return nullptr;
 	}
 
 	BluePythonCast<Tr2NoesisRenderDevice*>( self )->SetShaderSource(
-		static_cast<const nxt_shader_source*>( pointer ) );
+		static_cast<const pynr_shader_source*>( pointer ) );
 	Py_RETURN_NONE;
 }
 
@@ -576,14 +576,14 @@ const Be::ClassInfo* Tr2NoesisRenderDevice::ExposeToBlue()
 			"none while Python is still starting up. None clears it.\n"
 			"\n"
 			"Raises TypeError if the object is not a shader source, and ValueError if it\n"
-			"speaks an nxt ABI this Trinity cannot.\n"
+			"speaks a pynr ABI this Trinity cannot.\n"
 			":param shaderSource: a noesis.ShaderSource, or None\n"
 			":rtype: None" )
 
 		MAP_METHOD(
-			"_nxt_interface",
-			PyGetNxtInterface,
-			"The nxt_render_device interface, in an " NXT_CAPSULE_RENDER_DEVICE " capsule.\n"
+			"_pynr_interface",
+			PyGetPynrInterface,
+			"The pynr_render_device interface, in a " PYNR_CAPSULE_RENDER_DEVICE " capsule.\n"
 			"\n"
 			"Plumbing rather than API: noesis.set_render_device takes this object and calls\n"
 			"this itself. None until a shader source has been set.\n"

@@ -1,6 +1,0 @@
-nxt is header-only and provides a CMake target:
-
-    find_package(nxt 1 CONFIG REQUIRED)
-    target_link_libraries(main PRIVATE nxt::nxt)
-
-nxt_python.h expects Python.h to be included before it.

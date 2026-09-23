@@ -26,7 +26,7 @@ namespace
 // Maps one attribute the library described onto the AL's vertex vocabulary. Semantic and
 // index cross the ABI exactly as the bytecode was compiled with them, so the fxc semantic
 // renames are the library's business and nothing here has to restate them.
-bool ToVertexUsage( const nxt_vertex_attribute& attr, Tr2VertexDefinition::UsageCode& usage )
+bool ToVertexUsage( const pynr_vertex_attribute& attr, Tr2VertexDefinition::UsageCode& usage )
 {
 	if( attr.semantic == nullptr )
 	{
@@ -50,46 +50,46 @@ bool ToVertexUsage( const nxt_vertex_attribute& attr, Tr2VertexDefinition::Usage
 	return false;
 }
 
-uint32_t VertexAttrSize( nxt_vertex_attr_type type )
+uint32_t VertexAttrSize( pynr_vertex_attr_type type )
 {
 	switch( type )
 	{
-	case NXT_VERTEX_ATTR_FLOAT:
+	case PYNR_VERTEX_ATTR_FLOAT:
 		return 4;
-	case NXT_VERTEX_ATTR_FLOAT2:
+	case PYNR_VERTEX_ATTR_FLOAT2:
 		return 8;
-	case NXT_VERTEX_ATTR_FLOAT4:
+	case PYNR_VERTEX_ATTR_FLOAT4:
 		return 16;
-	case NXT_VERTEX_ATTR_UBYTE4_NORM:
+	case PYNR_VERTEX_ATTR_UBYTE4_NORM:
 		return 4;
-	case NXT_VERTEX_ATTR_USHORT4_NORM:
+	case PYNR_VERTEX_ATTR_USHORT4_NORM:
 		return 8;
 	}
 	return 0;
 }
 
-bool ToVertexDataType( nxt_vertex_attr_type type, Tr2VertexDefinition::DataType& dataType,
+bool ToVertexDataType( pynr_vertex_attr_type type, Tr2VertexDefinition::DataType& dataType,
 					   uint32_t& dimension )
 {
 	switch( type )
 	{
-	case NXT_VERTEX_ATTR_FLOAT:
+	case PYNR_VERTEX_ATTR_FLOAT:
 		dataType = Tr2VertexDefinition::FLOAT32_1;
 		dimension = 1;
 		return true;
-	case NXT_VERTEX_ATTR_FLOAT2:
+	case PYNR_VERTEX_ATTR_FLOAT2:
 		dataType = Tr2VertexDefinition::FLOAT32_2;
 		dimension = 2;
 		return true;
-	case NXT_VERTEX_ATTR_FLOAT4:
+	case PYNR_VERTEX_ATTR_FLOAT4:
 		dataType = Tr2VertexDefinition::FLOAT32_4;
 		dimension = 4;
 		return true;
-	case NXT_VERTEX_ATTR_UBYTE4_NORM:
+	case PYNR_VERTEX_ATTR_UBYTE4_NORM:
 		dataType = Tr2VertexDefinition::UBYTE_4_NORM;
 		dimension = 4;
 		return true;
-	case NXT_VERTEX_ATTR_USHORT4_NORM:
+	case PYNR_VERTEX_ATTR_USHORT4_NORM:
 		dataType = Tr2VertexDefinition::USHORT_4_NORM;
 		dimension = 4;
 		return true;
@@ -97,14 +97,14 @@ bool ToVertexDataType( nxt_vertex_attr_type type, Tr2VertexDefinition::DataType&
 	return false;
 }
 
-// The bit layout is nxt.h's guarantee, and the library checks its own agreement with the
+// The bit layout is pynr.h's guarantee, and the library checks its own agreement with the
 // SDK at its end. All this side needs is that the value is one byte.
-static_assert( sizeof( nxt_sampler_state ) == 1, "nxt_sampler_state is a packed byte" );
+static_assert( sizeof( pynr_sampler_state ) == 1, "pynr_sampler_state is a packed byte" );
 
-// Only the six bits nxt.h defines. The top two are documented as unused, but this value
+// Only the six bits pynr.h defines. The top two are documented as unused, but this value
 // arrives over the ABI and the table it indexes has exactly 64 entries, so it is masked
 // rather than trusted -- an assert would compile out in the builds that ship.
-const nxt_sampler_state SAMPLER_INDEX_MASK = 0x3f;
+const pynr_sampler_state SAMPLER_INDEX_MASK = 0x3f;
 
 // Stock programs are keyed by shader id, custom ones by their index into m_customShaders.
 // The tag keeps the two apart in the resource-set cache's key space.
@@ -112,32 +112,32 @@ const uint64_t CUSTOM_PROGRAM_ID_TAG = 0x80000000ull;
 
 // The five pixel texture slots, in register order.
 //
-// nxt_batch names each texture and its sampler as its own field, and three things here
+// pynr_batch names each texture and its sampler as its own field, and three things here
 // walk the same five: the signature a shader declares, the signature a batch supplies, and
 // the binding itself. A sixth slot is one row in this table.
 struct TextureSlot
 {
 	uint32_t flag;
 	uint32_t registerIndex;
-	nxt_texture nxt_batch::*texture;
-	nxt_sampler_state nxt_batch::*sampler;
+	pynr_texture pynr_batch::*texture;
+	pynr_sampler_state pynr_batch::*sampler;
 };
 
 const TextureSlot TEXTURE_SLOTS[] = {
-	{ NXT_SHADER_USES_PS_T0, 0, &nxt_batch::pattern, &nxt_batch::pattern_sampler },
-	{ NXT_SHADER_USES_PS_T1, 1, &nxt_batch::ramps, &nxt_batch::ramps_sampler },
-	{ NXT_SHADER_USES_PS_T2, 2, &nxt_batch::image, &nxt_batch::image_sampler },
-	{ NXT_SHADER_USES_PS_T3, 3, &nxt_batch::glyphs, &nxt_batch::glyphs_sampler },
-	{ NXT_SHADER_USES_PS_T4, 4, &nxt_batch::shadow, &nxt_batch::shadow_sampler },
+	{ PYNR_SHADER_USES_PS_T0, 0, &pynr_batch::pattern, &pynr_batch::pattern_sampler },
+	{ PYNR_SHADER_USES_PS_T1, 1, &pynr_batch::ramps, &pynr_batch::ramps_sampler },
+	{ PYNR_SHADER_USES_PS_T2, 2, &pynr_batch::image, &pynr_batch::image_sampler },
+	{ PYNR_SHADER_USES_PS_T3, 3, &pynr_batch::glyphs, &pynr_batch::glyphs_sampler },
+	{ PYNR_SHADER_USES_PS_T4, 4, &pynr_batch::shadow, &pynr_batch::shadow_sampler },
 };
 
 void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 {
-	if( flags & NXT_SHADER_USES_PS_CB0 )
+	if( flags & PYNR_SHADER_USES_PS_CB0 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
 	}
-	if( flags & NXT_SHADER_USES_PS_CB1 )
+	if( flags & PYNR_SHADER_USES_PS_CB1 )
 	{
 		signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
 	}
@@ -152,7 +152,7 @@ void FillPixelSignature( Tr2ShaderSignatureAL& signature, uint32_t flags )
 	}
 }
 
-uint32_t GetBatchSignature( const nxt_batch& batch )
+uint32_t GetBatchSignature( const pynr_batch& batch )
 {
 	uint32_t signature = 0;
 
@@ -166,19 +166,19 @@ uint32_t GetBatchSignature( const nxt_batch& batch )
 
 	if( batch.vertex_uniforms[0].values )
 	{
-		signature |= NXT_SHADER_USES_VS_CB0;
+		signature |= PYNR_SHADER_USES_VS_CB0;
 	}
 	if( batch.vertex_uniforms[1].values )
 	{
-		signature |= NXT_SHADER_USES_VS_CB1;
+		signature |= PYNR_SHADER_USES_VS_CB1;
 	}
 	if( batch.pixel_uniforms[0].values )
 	{
-		signature |= NXT_SHADER_USES_PS_CB0;
+		signature |= PYNR_SHADER_USES_PS_CB0;
 	}
 	if( batch.pixel_uniforms[1].values )
 	{
-		signature |= NXT_SHADER_USES_PS_CB1;
+		signature |= PYNR_SHADER_USES_PS_CB1;
 	}
 	return signature;
 }
@@ -193,14 +193,14 @@ PixelFormat NoesisStencilFormat()
 #endif
 }
 
-PixelFormat ToPixelFormat( nxt_texture_format format )
+PixelFormat ToPixelFormat( pynr_texture_format format )
 {
 	switch( format )
 	{
-	case NXT_TEXTURE_FORMAT_RGBA8:
-	case NXT_TEXTURE_FORMAT_RGBX8:
+	case PYNR_TEXTURE_FORMAT_RGBA8:
+	case PYNR_TEXTURE_FORMAT_RGBX8:
 		return PIXEL_FORMAT_R8G8B8A8_UNORM;
-	case NXT_TEXTURE_FORMAT_R8:
+	case PYNR_TEXTURE_FORMAT_R8:
 		return PIXEL_FORMAT_R8_UNORM;
 	default:
 		CCP_ASSERT_M( false, "Unsupported Noesis texture format" );
@@ -208,14 +208,14 @@ PixelFormat ToPixelFormat( nxt_texture_format format )
 	}
 }
 
-uint32_t BytesPerPixel( nxt_texture_format format )
+uint32_t BytesPerPixel( pynr_texture_format format )
 {
 	switch( format )
 	{
-	case NXT_TEXTURE_FORMAT_RGBA8:
-	case NXT_TEXTURE_FORMAT_RGBX8:
+	case PYNR_TEXTURE_FORMAT_RGBA8:
+	case PYNR_TEXTURE_FORMAT_RGBX8:
 		return 4;
-	case NXT_TEXTURE_FORMAT_R8:
+	case PYNR_TEXTURE_FORMAT_R8:
 		return 1;
 	default:
 		CCP_ASSERT_M( false, "Unsupported Noesis texture format" );
@@ -224,10 +224,10 @@ uint32_t BytesPerPixel( nxt_texture_format format )
 }
 
 bool AddVertexAttributes( Tr2VertexDefinition& definition, Tr2ShaderSignatureAL* vsSignature,
-						  const std::vector<nxt_vertex_attribute>& attributes )
+						  const std::vector<pynr_vertex_attribute>& attributes )
 {
 	uint32_t registerIndex = 0;
-	for( const nxt_vertex_attribute& attr : attributes )
+	for( const pynr_vertex_attribute& attr : attributes )
 	{
 		Tr2VertexDefinition::UsageCode usage = Tr2VertexDefinition::POSITION;
 		Tr2VertexDefinition::DataType dataType = Tr2VertexDefinition::FLOAT32_4;
@@ -253,31 +253,31 @@ bool AddVertexAttributes( Tr2VertexDefinition& definition, Tr2ShaderSignatureAL*
 	return true;
 }
 
-void ToAddressMode( nxt_wrap_mode wrap, Tr2SamplerDescription& desc )
+void ToAddressMode( pynr_wrap_mode wrap, Tr2SamplerDescription& desc )
 {
 	switch( wrap )
 	{
-	case NXT_WRAP_CLAMP_TO_EDGE:
+	case PYNR_WRAP_CLAMP_TO_EDGE:
 		desc.m_addressU = TA_CLAMP;
 		desc.m_addressV = TA_CLAMP;
 		break;
-	case NXT_WRAP_CLAMP_TO_ZERO:
+	case PYNR_WRAP_CLAMP_TO_ZERO:
 		desc.m_addressU = TA_BORDER;
 		desc.m_addressV = TA_BORDER;
 		break;
-	case NXT_WRAP_REPEAT:
+	case PYNR_WRAP_REPEAT:
 		desc.m_addressU = TA_WRAP;
 		desc.m_addressV = TA_WRAP;
 		break;
-	case NXT_WRAP_MIRROR_U:
+	case PYNR_WRAP_MIRROR_U:
 		desc.m_addressU = TA_MIRROR;
 		desc.m_addressV = TA_WRAP;
 		break;
-	case NXT_WRAP_MIRROR_V:
+	case PYNR_WRAP_MIRROR_V:
 		desc.m_addressU = TA_WRAP;
 		desc.m_addressV = TA_MIRROR;
 		break;
-	case NXT_WRAP_MIRROR:
+	case PYNR_WRAP_MIRROR:
 		desc.m_addressU = TA_MIRROR;
 		desc.m_addressV = TA_MIRROR;
 		break;
@@ -289,20 +289,20 @@ void ToAddressMode( nxt_wrap_mode wrap, Tr2SamplerDescription& desc )
 	}
 }
 
-Tr2RenderContextEnum::TextureFilter ToMinMagFilter( nxt_minmag_filter filter )
+Tr2RenderContextEnum::TextureFilter ToMinMagFilter( pynr_minmag_filter filter )
 {
-	return filter == NXT_MINMAG_LINEAR ? TF_LINEAR : TF_POINT;
+	return filter == PYNR_MINMAG_LINEAR ? TF_LINEAR : TF_POINT;
 }
 
-Tr2RenderContextEnum::TextureFilter ToMipFilter( nxt_mip_filter filter )
+Tr2RenderContextEnum::TextureFilter ToMipFilter( pynr_mip_filter filter )
 {
 	switch( filter )
 	{
-	case NXT_MIP_LINEAR:
+	case PYNR_MIP_LINEAR:
 		return TF_LINEAR;
-	case NXT_MIP_NEAREST:
+	case PYNR_MIP_NEAREST:
 		return TF_POINT;
-	case NXT_MIP_DISABLED:
+	case PYNR_MIP_DISABLED:
 		return TF_NONE;
 	default:
 		CCP_ASSERT_M( false, "Unknown Noesis mip filter" );
@@ -476,7 +476,7 @@ uint32_t Tr2NoesisRenderTarget::GetHeight() const
 // --------------------------------------------------------------------------------------
 
 Tr2NoesisGpuDevice::Tr2NoesisGpuDevice( Tr2PrimaryRenderContextAL& primaryContext,
-											  const nxt_shader_source& shaders ) :
+											  const pynr_shader_source& shaders ) :
 	m_primary( &primaryContext ),
 	m_context( &primaryContext ),
 	m_valid( true ),
@@ -489,10 +489,10 @@ Tr2NoesisGpuDevice::Tr2NoesisGpuDevice( Tr2PrimaryRenderContextAL& primaryContex
 		return;
 	}
 
-	m_caps.linear_rendering = NXT_FALSE;
-	m_caps.subpixel_rendering = NXT_TRUE;
-	m_caps.depth_range_zero_to_one = NXT_TRUE;
-	m_caps.clip_space_y_inverted = NXT_FALSE;
+	m_caps.linear_rendering = PYNR_FALSE;
+	m_caps.subpixel_rendering = PYNR_TRUE;
+	m_caps.depth_range_zero_to_one = PYNR_TRUE;
+	m_caps.clip_space_y_inverted = PYNR_FALSE;
 
 	CreateVertexLayouts();
 	CreateShaders();
@@ -553,7 +553,7 @@ void Tr2NoesisGpuDevice::ClearHostScissor()
 	m_hasHostScissor = false;
 }
 
-void Tr2NoesisGpuDevice::GetCaps( nxt_device_caps& out ) const
+void Tr2NoesisGpuDevice::GetCaps( pynr_device_caps& out ) const
 {
 	out = m_caps;
 }
@@ -625,7 +625,7 @@ Tr2NoesisRenderTarget* Tr2NoesisGpuDevice::CloneRenderTarget( const char* label,
 }
 
 Tr2NoesisTexture* Tr2NoesisGpuDevice::CreateTexture( const char* label, uint32_t width, uint32_t height,
-												   uint32_t numLevels, nxt_texture_format format, const void** data )
+												   uint32_t numLevels, pynr_texture_format format, const void** data )
 {
 	CCP_ASSERT_M( m_primary != nullptr, "Noesis render device has no primary context" );
 	CCP_ASSERT_M( numLevels > 0, "CreateTexture with zero mip levels" );
@@ -671,7 +671,7 @@ Tr2NoesisTexture* Tr2NoesisGpuDevice::CreateTexture( const char* label, uint32_t
 	char textureName[128];
 	textureAL.SetName( FormatDebugName( textureName, label, "Texture" ) );
 
-	return new Tr2NoesisTexture( textureAL, width, height, numLevels, format == NXT_TEXTURE_FORMAT_RGBA8 );
+	return new Tr2NoesisTexture( textureAL, width, height, numLevels, format == PYNR_TEXTURE_FORMAT_RGBA8 );
 }
 
 Tr2NoesisTexture* Tr2NoesisGpuDevice::WrapTexture( const Tr2TextureAL& texture, bool hasAlpha )
@@ -699,7 +699,7 @@ void* Tr2NoesisGpuDevice::CreatePixelShader( const char* label, uint8_t shader, 
 	}
 
 	// ShaderCompiler blobs start with the same root-signature flags the stock permutations
-	// carry in nxt_shader_blob::resource_flags, then the backend bytecode (DXBC on D3D,
+	// carry in pynr_shader_blob::resource_flags, then the backend bytecode (DXBC on D3D,
 	// AIR/metallib on Metal). Skip the same 4 bytes on every AL.
 	uint32_t flags = 0;
 	memcpy( &flags, hlsl, sizeof( flags ) );
@@ -883,7 +883,7 @@ void Tr2NoesisGpuDevice::SetRenderTarget( Tr2NoesisRenderTarget* surface )
 	m_context->SetViewport( Tr2Viewport( surface->GetWidth(), surface->GetHeight() ) );
 }
 
-void Tr2NoesisGpuDevice::BeginTile( Tr2NoesisRenderTarget* surface, const nxt_tile& tile )
+void Tr2NoesisGpuDevice::BeginTile( Tr2NoesisRenderTarget* surface, const pynr_tile& tile )
 {
 	CCP_ASSERT_M( m_context != nullptr, "BeginTile without a render context" );
 	CCP_ASSERT_M( surface != nullptr, "BeginTile with null surface" );
@@ -903,7 +903,7 @@ void Tr2NoesisGpuDevice::EndTile( Tr2NoesisRenderTarget* /*surface*/ )
 	// the full target.
 }
 
-void Tr2NoesisGpuDevice::ResolveRenderTarget( Tr2NoesisRenderTarget* /*surface*/, const nxt_tile* /*tiles*/, uint32_t /*numTiles*/ )
+void Tr2NoesisGpuDevice::ResolveRenderTarget( Tr2NoesisRenderTarget* /*surface*/, const pynr_tile* /*tiles*/, uint32_t /*numTiles*/ )
 {
 	// Sample count is 1, so there is no MSAA resolve. Color targets are created
 	// RENDER_TARGET | SHADER_RESOURCE, so defaultState is PIXEL_SHADER_RESOURCE |
@@ -942,7 +942,7 @@ void Tr2NoesisGpuDevice::UnmapIndices()
 	m_indices.Unmap( *m_context );
 }
 
-void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
+void Tr2NoesisGpuDevice::DrawBatch( const pynr_batch& batch )
 {
 	CCP_ASSERT_M( m_context != nullptr, "DrawBatch without a render context" );
 	CCP_ASSERT_M( !batch.single_pass_stereo, "Noesis sent a stereo batch; the stereo permutations are not compiled" );
@@ -992,7 +992,7 @@ void Tr2NoesisGpuDevice::DrawBatch( const nxt_batch& batch )
 
 }
 
-bool Tr2NoesisGpuDevice::ResolveProgram( const nxt_batch& batch, ResolvedProgram& out )
+bool Tr2NoesisGpuDevice::ResolveProgram( const pynr_batch& batch, ResolvedProgram& out )
 {
 	const uint8_t shader = batch.shader;
 
@@ -1054,7 +1054,7 @@ void Tr2NoesisGpuDevice::ReportUnwiredShader( uint8_t shader )
 	CCP_ASSERT_M( false, "Noesis DrawBatch: shader permutation was never compiled" );
 }
 
-void Tr2NoesisGpuDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nxt_uniform_data& uniforms,
+void Tr2NoesisGpuDevice::BindUniform( Tr2ConstantBufferAL& buffer, const pynr_uniform_data& uniforms,
 										 Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name )
 {
 	if( uniforms.values == nullptr || uniforms.num_dwords == 0 )
@@ -1115,29 +1115,29 @@ void Tr2NoesisGpuDevice::BindUniform( Tr2ConstantBufferAL& buffer, const nxt_uni
 	}
 }
 
-void Tr2NoesisGpuDevice::BindUniforms( const nxt_batch& batch, uint32_t flags )
+void Tr2NoesisGpuDevice::BindUniforms( const pynr_batch& batch, uint32_t flags )
 {
-	if( flags & NXT_SHADER_USES_VS_CB0 )
+	if( flags & PYNR_SHADER_USES_VS_CB0 )
 	{
 		BindUniform( m_vertexUniforms[0], batch.vertex_uniforms[0], VERTEX_SHADER, 0, "Noesis_VertexUniforms0" );
 	}
-	if( flags & NXT_SHADER_USES_VS_CB1 )
+	if( flags & PYNR_SHADER_USES_VS_CB1 )
 	{
 		BindUniform( m_vertexUniforms[1], batch.vertex_uniforms[1], VERTEX_SHADER, 1, "Noesis_VertexUniforms1" );
 	}
-	if( flags & NXT_SHADER_USES_PS_CB0 )
+	if( flags & PYNR_SHADER_USES_PS_CB0 )
 	{
 		BindUniform( m_pixelUniforms[0], batch.pixel_uniforms[0], PIXEL_SHADER, 0, "Noesis_PixelUniforms0" );
 	}
-	if( flags & NXT_SHADER_USES_PS_CB1 )
+	if( flags & PYNR_SHADER_USES_PS_CB1 )
 	{
 		BindUniform( m_pixelUniforms[1], batch.pixel_uniforms[1], PIXEL_SHADER, 1, "Noesis_PixelUniforms1" );
 	}
 }
 
-void Tr2NoesisGpuDevice::BindResources( const nxt_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId )
+void Tr2NoesisGpuDevice::BindResources( const pynr_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId )
 {
-	if( ( flags & ( NXT_SHADER_USES_PS_T0 | NXT_SHADER_USES_PS_T1 | NXT_SHADER_USES_PS_T2 | NXT_SHADER_USES_PS_T3 | NXT_SHADER_USES_PS_T4 ) ) == 0 )
+	if( ( flags & ( PYNR_SHADER_USES_PS_T0 | PYNR_SHADER_USES_PS_T1 | PYNR_SHADER_USES_PS_T2 | PYNR_SHADER_USES_PS_T3 | PYNR_SHADER_USES_PS_T4 ) ) == 0 )
 	{
 		// Solid fills bind nothing, so they never pay for a resource set.
 		return;
@@ -1164,9 +1164,9 @@ void Tr2NoesisGpuDevice::BindResources( const nxt_batch& batch, uint32_t flags, 
 		CCP_ASSERT_M( srvSet, "Noesis shader program has no SRV at the register the resource flags claim" );
 
 		// Masked, not asserted: see SAMPLER_INDEX_MASK.
-		const nxt_sampler_state raw = batch.*slot.sampler;
+		const pynr_sampler_state raw = batch.*slot.sampler;
 		CCP_ASSERT_M( ( raw & ~SAMPLER_INDEX_MASK ) == 0,
-					  "Noesis sampler state used a bit nxt.h reserves" );
+					  "Noesis sampler state used a bit pynr.h reserves" );
 		const bool samplerSet = description.SetSampler( PIXEL_SHADER, slot.registerIndex,
 														m_samplers[raw & SAMPLER_INDEX_MASK] );
 		CCP_ASSERT_M( samplerSet, "Noesis shader program has no sampler at the register the resource flags claim" );
@@ -1216,7 +1216,7 @@ void Tr2NoesisGpuDevice::CreateVertexLayouts()
 	}
 }
 
-bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
+bool Tr2NoesisGpuDevice::ReadShaderSource( const pynr_shader_source& shaders )
 {
 	// Everything the host needs to build pipelines comes from here. Read once and cached,
 	// because a blob is stable for the life of the process and asking per batch would put
@@ -1250,8 +1250,8 @@ bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
 	const uint32_t blobCount = shaders.get_count( shaders.header.self );
 	for( uint32_t i = 0; i < blobCount; ++i )
 	{
-		nxt_shader_blob blob = {};
-		if( shaders.get_blob( shaders.header.self, i, &blob ) != NXT_OK )
+		pynr_shader_blob blob = {};
+		if( shaders.get_blob( shaders.header.self, i, &blob ) != PYNR_OK )
 		{
 			CCP_NOESIS_LOGERR( "Shader blob %u could not be read", i );
 			return false;
@@ -1277,7 +1277,7 @@ bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
 		info.bytecodeSize = blob.size;
 		info.name = blob.name;
 
-		const bool isVertex = blob.stage == NXT_SHADER_STAGE_VERTEX;
+		const bool isVertex = blob.stage == PYNR_SHADER_STAGE_VERTEX;
 		std::vector<ShaderInfo>& table = isVertex ? m_vertexInfo : m_shaderInfo;
 		if( table.size() <= blob.id )
 		{
@@ -1320,7 +1320,7 @@ bool Tr2NoesisGpuDevice::ReadShaderSource( const nxt_shader_source& shaders )
 	for( uint32_t format = 0; format < formatCount; ++format )
 	{
 		uint32_t stride = 0;
-		for( const nxt_vertex_attribute& attr : m_vertexFormats[format] )
+		for( const pynr_vertex_attribute& attr : m_vertexFormats[format] )
 		{
 			stride += VertexAttrSize( attr.type );
 		}
@@ -1348,13 +1348,13 @@ void Tr2NoesisGpuDevice::CreateShaders()
 			m_valid = false;
 			continue;
 		}
-		if( ( m_vertexInfo[vs].resourceFlags & NXT_SHADER_USES_VS_CB0 ) != 0 )
+		if( ( m_vertexInfo[vs].resourceFlags & PYNR_SHADER_USES_VS_CB0 ) != 0 )
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 0 );
 		}
 		// Which constant buffers a vertex shader binds arrives on the blob, so which
 		// permutations are SDF is not a fact this side has to know.
-		if( ( m_vertexInfo[vs].resourceFlags & NXT_SHADER_USES_VS_CB1 ) != 0 )
+		if( ( m_vertexInfo[vs].resourceFlags & PYNR_SHADER_USES_VS_CB1 ) != 0 )
 		{
 			signature.Add( Tr2ShaderRegisterAL::CONSTANT_BUFFER, 1 );
 		}
@@ -1426,28 +1426,28 @@ void Tr2NoesisGpuDevice::CreateShaders()
 
 void Tr2NoesisGpuDevice::CreateSamplers()
 {
-	// nxt_sampler_state packs wrapMode:3, minmagFilter:1, mipFilter:2; unused:2 stays 0
+	// pynr_sampler_state packs wrapMode:3, minmagFilter:1, mipFilter:2; unused:2 stays 0
 	// or the index lands past the 64 slots those six bits address.
 	static_assert( sizeof( m_samplers ) / sizeof( m_samplers[0] ) == ( 1u << 6 ),
 				   "m_samplers must cover every 6-bit sampler value" );
 
-	for( uint8_t wrap = 0; wrap <= NXT_WRAP_MIRROR; ++wrap )
+	for( uint8_t wrap = 0; wrap <= PYNR_WRAP_MIRROR; ++wrap )
 	{
-		for( uint8_t minmag = 0; minmag <= NXT_MINMAG_LINEAR; ++minmag )
+		for( uint8_t minmag = 0; minmag <= PYNR_MINMAG_LINEAR; ++minmag )
 		{
-			for( uint8_t mip = 0; mip <= NXT_MIP_LINEAR; ++mip )
+			for( uint8_t mip = 0; mip <= PYNR_MIP_LINEAR; ++mip )
 			{
-				// Packed the way nxt.h documents, then unpacked with its own helpers, so
+				// Packed the way pynr.h documents, then unpacked with its own helpers, so
 				// the index a batch arrives with and the slot built here cannot disagree
 				// about where the bits are.
-				const nxt_sampler_state state = static_cast<nxt_sampler_state>(
+				const pynr_sampler_state state = static_cast<pynr_sampler_state>(
 					( wrap & 0x7 ) | ( ( minmag & 0x1 ) << 3 ) | ( ( mip & 0x3 ) << 4 ) );
 
 				Tr2SamplerDescription desc;
-				desc.m_minFilter = ToMinMagFilter( nxt_sampler_minmag_filter( state ) );
-				desc.m_magFilter = ToMinMagFilter( nxt_sampler_minmag_filter( state ) );
-				desc.m_mipFilter = ToMipFilter( nxt_sampler_mip_filter( state ) );
-				ToAddressMode( nxt_sampler_wrap_mode( state ), desc );
+				desc.m_minFilter = ToMinMagFilter( pynr_sampler_minmag_filter( state ) );
+				desc.m_magFilter = ToMinMagFilter( pynr_sampler_minmag_filter( state ) );
+				desc.m_mipFilter = ToMipFilter( pynr_sampler_mip_filter( state ) );
+				ToAddressMode( pynr_sampler_wrap_mode( state ), desc );
 				desc.m_addressW = TA_CLAMP;
 				desc.m_mipLODBias = -0.75f;
 				desc.m_maxAnisotropy = 1;
@@ -1518,7 +1518,7 @@ bool Tr2NoesisGpuDevice::EnsureOnscreenStencil( uint32_t width, uint32_t height 
 	return true;
 }
 
-void Tr2NoesisGpuDevice::ApplyRenderState( const nxt_batch& batch )
+void Tr2NoesisGpuDevice::ApplyRenderState( const pynr_batch& batch )
 {
 	CCP_ASSERT_M( m_context != nullptr, "ApplyRenderState without a render context" );
 

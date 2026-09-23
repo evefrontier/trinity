@@ -4,7 +4,7 @@
 #ifndef Tr2NoesisRenderState_H
 #define Tr2NoesisRenderState_H
 
-#include <nxt.h>
+#include <pynr.h>
 
 #include <stdint.h>
 
@@ -24,7 +24,7 @@ const uint32_t TR2_NOESIS_RENDER_STATE_ENTRIES = 2 * 32;
 
 // Fills `pairs` and returns the number of entries written. SetRenderStates counts pairs,
 // so it wants half that.
-uint32_t Tr2NoesisBuildRenderStates( const nxt_batch& batch,
+uint32_t Tr2NoesisBuildRenderStates( const pynr_batch& batch,
 									 uint32_t ( &pairs )[TR2_NOESIS_RENDER_STATE_ENTRIES] );
 
 #endif

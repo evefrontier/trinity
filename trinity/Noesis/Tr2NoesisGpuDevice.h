@@ -6,7 +6,7 @@
 
 #include "Noesis/Tr2NoesisDynamicRing.h"
 
-#include <nxt.h>
+#include <pynr.h>
 
 #include <../trinityal/include/TrinityAL.h>
 
@@ -20,9 +20,9 @@
 //   samplers and the dynamic vertex/index rings.
 //
 //   No NoesisGUI types appear here. The library owns the SDK; this side is reached only
-//   through the nxt.h vtables, and the handles it hands out are pointers to the two
+//   through the pynr.h vtables, and the handles it hands out are pointers to the two
 //   classes below. Releasing a handle destroys the wrapper, which for a wrapped host
-//   texture leaves the underlying AL resource alone -- see release_texture in nxt.h.
+//   texture leaves the underlying AL resource alone -- see release_texture in pynr.h.
 // --------------------------------------------------------------------------------------
 
 class Tr2NoesisTexture
@@ -74,7 +74,7 @@ public:
 	// Takes the shader permutations and vertex formats from the library; there is no SDK
 	// on this side to get them from.
 	Tr2NoesisGpuDevice( Tr2PrimaryRenderContextAL& primaryContext,
-						   const nxt_shader_source& shaders );
+						   const pynr_shader_source& shaders );
 	~Tr2NoesisGpuDevice();
 
 	// False if any shader, layout, sampler or ring failed during construction. The constructor
@@ -97,12 +97,12 @@ public:
 	void SetHostScissor( const Tr2ScissorRect& rect );
 	void ClearHostScissor();
 
-	void GetCaps( nxt_device_caps& out ) const;
+	void GetCaps( pynr_device_caps& out ) const;
 	Tr2NoesisRenderTarget* CreateRenderTarget( const char* label, uint32_t width, uint32_t height,
 											   uint32_t sampleCount, bool needsStencil );
 	Tr2NoesisRenderTarget* CloneRenderTarget( const char* label, Tr2NoesisRenderTarget* surface );
 	Tr2NoesisTexture* CreateTexture( const char* label, uint32_t width, uint32_t height,
-									 uint32_t numLevels, nxt_texture_format format, const void** data );
+									 uint32_t numLevels, pynr_texture_format format, const void** data );
 	// Wraps an existing Trinity texture so Noesis can sample it. The AL handle is copied
 	// (shared ownership of the GPU resource). hasAlpha is what Noesis reports to brushes.
 	Tr2NoesisTexture* WrapTexture( const Tr2TextureAL& texture, bool hasAlpha );
@@ -118,14 +118,14 @@ public:
 	void BeginOnscreenRender();
 	void EndOnscreenRender();
 	void SetRenderTarget( Tr2NoesisRenderTarget* surface );
-	void BeginTile( Tr2NoesisRenderTarget* surface, const nxt_tile& tile );
+	void BeginTile( Tr2NoesisRenderTarget* surface, const pynr_tile& tile );
 	void EndTile( Tr2NoesisRenderTarget* surface );
-	void ResolveRenderTarget( Tr2NoesisRenderTarget* surface, const nxt_tile* tiles, uint32_t numTiles );
+	void ResolveRenderTarget( Tr2NoesisRenderTarget* surface, const pynr_tile* tiles, uint32_t numTiles );
 	void* MapVertices( uint32_t bytes );
 	void UnmapVertices();
 	void* MapIndices( uint32_t bytes );
 	void UnmapIndices();
-	void DrawBatch( const nxt_batch& batch );
+	void DrawBatch( const pynr_batch& batch );
 
 private:
 	// A resource set is immutable once created, so they are cached per shader and per
@@ -152,19 +152,19 @@ private:
 
 	// False when the batch names a program this device cannot draw; it has already been
 	// reported, and the batch is skipped.
-	bool ResolveProgram( const nxt_batch& batch, ResolvedProgram& out );
+	bool ResolveProgram( const pynr_batch& batch, ResolvedProgram& out );
 
-	bool ReadShaderSource( const nxt_shader_source& shaders );
+	bool ReadShaderSource( const pynr_shader_source& shaders );
 	void CreateShaders();
 	void CreateVertexLayouts();
 	void CreateSamplers();
 	void CreateRings();
 	void SyncRingsToCurrentFrame();
-	void ApplyRenderState( const nxt_batch& batch );
-	void BindUniform( Tr2ConstantBufferAL& buffer, const nxt_uniform_data& uniforms,
+	void ApplyRenderState( const pynr_batch& batch );
+	void BindUniform( Tr2ConstantBufferAL& buffer, const pynr_uniform_data& uniforms,
 					  Tr2RenderContextEnum::ShaderType stage, uint32_t registerIndex, const char* name );
-	void BindUniforms( const nxt_batch& batch, uint32_t flags );
-	void BindResources( const nxt_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId );
+	void BindUniforms( const pynr_batch& batch, uint32_t flags );
+	void BindResources( const pynr_batch& batch, uint32_t flags, Tr2ShaderProgramAL& program, uint64_t programId );
 	void ReportUnwiredShader( uint8_t shader );
 	bool EnsureOnscreenStencil( uint32_t width, uint32_t height );
 
@@ -172,7 +172,7 @@ private:
 	Tr2RenderContextAL* m_context;
 	// Zeroed rather than left to the constructor: it returns early when the shader source
 	// cannot be read, and GetCaps is reachable on a device that exists but is not valid.
-	nxt_device_caps m_caps = {};
+	pynr_device_caps m_caps = {};
 	bool m_valid;
 	// Onscreen ClipToBounds is stencil; Transform3D is a reverse-Z depth test
 	// with writes off. The sprite/UI path has no S8 plane (null DS, or the 3D
@@ -201,7 +201,7 @@ private:
 
 	// The attributes of each vertex format, in declaration order, as the library
 	// described them.
-	std::vector<std::vector<nxt_vertex_attribute>> m_vertexFormats;
+	std::vector<std::vector<pynr_vertex_attribute>> m_vertexFormats;
 	// Byte stride of each format, summed from its attributes.
 	std::vector<uint32_t> m_vertexStrides;
 
@@ -215,7 +215,7 @@ private:
 	std::vector<Tr2VertexLayoutAL> m_vertexLayouts;
 
 	// Handles returned by CreatePixelShader are 1-based indices into this vector.
-	// ShaderEffect / BrushShader store them in nxt_batch::pixel_shader.
+	// ShaderEffect / BrushShader store them in pynr_batch::pixel_shader.
 	struct CustomProgram
 	{
 		Tr2ShaderAL pixelShader;
@@ -224,7 +224,7 @@ private:
 		uint8_t vertexFormat = 0;
 	};
 	std::vector<CustomProgram> m_customShaders;
-	// Indexed by the six meaningful bits of nxt_sampler_state (wrapMode:3, minmagFilter:1,
+	// Indexed by the six meaningful bits of pynr_sampler_state (wrapMode:3, minmagFilter:1,
 	// mipFilter:2), which address 64 slots. Index through SAMPLER_INDEX_MASK.
 	Tr2SamplerStateAL m_samplers[64];
 

@@ -25,7 +25,7 @@ Tr2Sprite2dNoesis::~Tr2Sprite2dNoesis()
 	SetView( nullptr );
 }
 
-void Tr2Sprite2dNoesis::SetView( const nxt_view* view )
+void Tr2Sprite2dNoesis::SetView( const pynr_view* view )
 {
 	if( view == m_view )
 	{

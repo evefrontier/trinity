@@ -7,15 +7,15 @@
 
 using namespace Tr2RenderContextEnum;
 
-uint32_t Tr2NoesisBuildRenderStates( const nxt_batch& batch,
+uint32_t Tr2NoesisBuildRenderStates( const pynr_batch& batch,
 									 uint32_t ( &pairs )[TR2_NOESIS_RENDER_STATE_ENTRIES] )
 {
-	// Unpacked with nxt.h's own helpers rather than by re-deriving the shifts from the
-	// comment on nxt_render_state.
-	const nxt_render_state state = batch.render_state;
-	const nxt_blend_mode blendMode = nxt_render_state_blend_mode( state );
-	const bool colorEnable = nxt_render_state_color_enable( state ) != NXT_FALSE;
-	const bool wireframe = nxt_render_state_wireframe( state ) != NXT_FALSE;
+	// Unpacked with pynr.h's own helpers rather than by re-deriving the shifts from the
+	// comment on pynr_render_state.
+	const pynr_render_state state = batch.render_state;
+	const pynr_blend_mode blendMode = pynr_render_state_blend_mode( state );
+	const bool colorEnable = pynr_render_state_color_enable( state ) != PYNR_FALSE;
+	const bool wireframe = pynr_render_state_wireframe( state ) != PYNR_FALSE;
 	uint32_t count = 0;
 
 	auto add = [&]( Tr2RenderContextEnum::RenderState rs, uint32_t value ) {
@@ -38,7 +38,7 @@ uint32_t Tr2NoesisBuildRenderStates( const nxt_batch& batch,
 	add( RS_SRGBWRITEENABLE, 0 );
 	add( RS_ALPHATESTENABLE, 0 );
 
-	if( colorEnable && blendMode != NXT_BLEND_SRC )
+	if( colorEnable && blendMode != PYNR_BLEND_SRC )
 	{
 		add( RS_ALPHABLENDENABLE, 1 );
 		add( RS_SEPARATEALPHABLENDENABLE, 1 );
@@ -49,23 +49,23 @@ uint32_t Tr2NoesisBuildRenderStates( const nxt_batch& batch,
 
 		switch( blendMode )
 		{
-		case NXT_BLEND_SRC_OVER:
+		case PYNR_BLEND_SRC_OVER:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRCALPHA );
 			break;
-		case NXT_BLEND_SRC_OVER_MULTIPLY:
+		case PYNR_BLEND_SRC_OVER_MULTIPLY:
 			add( RS_SRCBLEND, BM_DESTCOLOR );
 			add( RS_DESTBLEND, BM_INVSRCALPHA );
 			break;
-		case NXT_BLEND_SRC_OVER_SCREEN:
+		case PYNR_BLEND_SRC_OVER_SCREEN:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRCCOLOR );
 			break;
-		case NXT_BLEND_SRC_OVER_ADDITIVE:
+		case PYNR_BLEND_SRC_OVER_ADDITIVE:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_ONE );
 			break;
-		case NXT_BLEND_SRC_OVER_DUAL:
+		case PYNR_BLEND_SRC_OVER_DUAL:
 			add( RS_SRCBLEND, BM_ONE );
 			add( RS_DESTBLEND, BM_INVSRC1COLOR );
 			add( RS_DESTBLENDALPHA, BM_INVSRC1ALPHA );
@@ -83,9 +83,9 @@ uint32_t Tr2NoesisBuildRenderStates( const nxt_batch& batch,
 		add( RS_SEPARATEALPHABLENDENABLE, 0 );
 	}
 
-	const nxt_stencil_mode stencilMode = nxt_render_state_stencil_mode( state );
-	const bool zTest = stencilMode == NXT_STENCIL_DISABLED_ZTEST ||
-					   stencilMode == NXT_STENCIL_EQUAL_KEEP_ZTEST;
+	const pynr_stencil_mode stencilMode = pynr_render_state_stencil_mode( state );
+	const bool zTest = stencilMode == PYNR_STENCIL_DISABLED_ZTEST ||
+					   stencilMode == PYNR_STENCIL_EQUAL_KEEP_ZTEST;
 	add( RS_ZENABLE, zTest ? 1 : 0 );
 	add( RS_ZFUNC, CMP_GREATEREQUAL );
 
@@ -94,22 +94,22 @@ uint32_t Tr2NoesisBuildRenderStates( const nxt_batch& batch,
 	uint32_t stencilPass = STENCILOP_KEEP;
 	switch( stencilMode )
 	{
-	case NXT_STENCIL_DISABLED:
-	case NXT_STENCIL_DISABLED_ZTEST:
+	case PYNR_STENCIL_DISABLED:
+	case PYNR_STENCIL_DISABLED_ZTEST:
 		break;
-	case NXT_STENCIL_EQUAL_KEEP:
-	case NXT_STENCIL_EQUAL_KEEP_ZTEST:
+	case PYNR_STENCIL_EQUAL_KEEP:
+	case PYNR_STENCIL_EQUAL_KEEP_ZTEST:
 		stencilEnable = true;
 		break;
-	case NXT_STENCIL_EQUAL_INCR:
+	case PYNR_STENCIL_EQUAL_INCR:
 		stencilEnable = true;
 		stencilPass = STENCILOP_INCR;
 		break;
-	case NXT_STENCIL_EQUAL_DECR:
+	case PYNR_STENCIL_EQUAL_DECR:
 		stencilEnable = true;
 		stencilPass = STENCILOP_DECR;
 		break;
-	case NXT_STENCIL_CLEAR:
+	case PYNR_STENCIL_CLEAR:
 		stencilEnable = true;
 		stencilFunc = CMP_ALWAYS;
 		stencilPass = STENCILOP_ZERO;

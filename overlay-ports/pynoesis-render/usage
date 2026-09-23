@@ -1,0 +1,6 @@
+pynoesis-render (the pynr.h ABI) is header-only and provides a CMake target:
+
+    find_package(pynoesis-render 1 CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE pynoesis-render::pynoesis-render)
+
+pynr_python.h expects Python.h to be included before it.

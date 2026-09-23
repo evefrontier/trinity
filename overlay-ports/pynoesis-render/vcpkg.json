@@ -1,0 +1,5 @@
+{
+  "name": "pynoesis-render",
+  "version": "1.0",
+  "description": "pynr: the C ABI for rendering between pynoesis and the renderer that hosts it. Headers only."
+}

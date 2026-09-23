@@ -33,7 +33,7 @@ public:
 
 	// The view interface, retained. Null clears. Tr2Sprite2dNoesis pushes both of these
 	// into the step it owns; Python sets them on the sprite, not here.
-	void SetView( const nxt_view* view );
+	void SetView( const pynr_view* view );
 	void SetRenderDevice( Tr2NoesisRenderDevice* host );
 
 	// When set, Execute sizes the view to this rect and draws into it. Tr2Sprite2dNoesis
@@ -70,7 +70,7 @@ private:
 
 	// Retained, so it outlives whatever capsule delivered it. Released when replaced or
 	// when the step goes.
-	const nxt_view* m_view;
+	const pynr_view* m_view;
 
 	// Typed, so Blue rejects anything that is not a host at the point of assignment. An
 	// IRootPtr here would take any object and resolve to nothing on the first frame that
