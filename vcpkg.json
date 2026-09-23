@@ -180,6 +180,15 @@
           "version>=": "2.12.0.14"
         }
       ]
+    },
+    "noesis": {
+      "description": "Host side of the Noesis integration",
+      "dependencies": [
+        {
+          "name": "nxt",
+          "version>=": "1.0"
+        }
+      ]
     }
   },
   "overrides": [

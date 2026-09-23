@@ -50,10 +50,14 @@ endif()
 
 #[[
     The Noesis integration lives in frontier-noesis. Trinity builds only the host side of
-    the nsi.h boundary, which needs the ABI header and nothing else -- no SDK, no shader
-    permutations, no licence. See trinity/Noesis and FRONTIER_NOESIS_DIR.
+    the nxt.h boundary, which needs the ABI header and nothing else -- no SDK, no shader
+    permutations, no licence. See trinity/Noesis and overlay-ports/nxt.
 ]]
 option(WITH_NOESIS "Build the host side of the Noesis integration" OFF)
+
+if (WITH_NOESIS)
+    list(APPEND VCPKG_MANIFEST_FEATURES "noesis")
+endif()
 
 project(carbon-trinity VERSION 1.0.0)
 

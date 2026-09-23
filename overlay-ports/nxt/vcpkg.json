@@ -1,0 +1,5 @@
+{
+  "name": "nxt",
+  "version": "1.0",
+  "description": "Noesis Host Interface: the C ABI between frontier-noesis and its rendering host. Headers only."
+}

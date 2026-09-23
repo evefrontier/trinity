@@ -1865,23 +1865,12 @@ if(WITH_NOESIS)
     list(APPEND _SOURCES ${NOESIS_RELATED_SOURCES})
 
     #[[
-        The ABI header both repositories build against. Interim: this should become a
-        published package that frontier-noesis and carbon-trinity each depend on, rather
-        than a path into somebody's working tree. Neither repository depends on the other
-        -- only on the contract.
+        The ABI header both repositories build against, as the nxt vcpkg port. Neither
+        repository depends on the other -- only on the contract. The port is an overlay in
+        overlay-ports/nxt until it is published to a registry. The major version is the
+        ABI major, so this refuses a header this Trinity cannot speak.
     ]]
-    set(FRONTIER_NOESIS_DIR "" CACHE PATH "Path to a frontier-noesis checkout or install providing nxt.h")
-    if(NOT FRONTIER_NOESIS_DIR)
-        message(FATAL_ERROR "WITH_NOESIS requires FRONTIER_NOESIS_DIR pointing at a frontier-noesis checkout or install tree")
-    endif()
-
-    find_path(NXT_INCLUDE_DIR nxt.h
-        HINTS "${FRONTIER_NOESIS_DIR}/include" "${FRONTIER_NOESIS_DIR}"
-        NO_DEFAULT_PATH)
-    if(NOT NXT_INCLUDE_DIR)
-        message(FATAL_ERROR "nxt.h not found under ${FRONTIER_NOESIS_DIR}")
-    endif()
-    message(STATUS "Using the nxt ABI from ${NXT_INCLUDE_DIR}")
+    find_package(nxt 1 CONFIG REQUIRED)
 endif()
 
 
@@ -1956,7 +1945,7 @@ function(set_shared_trinity_properties target)
             and nothing to find at load time.
         ]]
         target_compile_definitions(${target} PRIVATE WITH_NOESIS)
-        target_include_directories(${target} PRIVATE ${NXT_INCLUDE_DIR})
+        target_link_libraries(${target} PRIVATE nxt::nxt)
     endif()
 
     target_precompile_headers(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/StdAfx.h)
