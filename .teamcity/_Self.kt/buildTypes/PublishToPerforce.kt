@@ -23,8 +23,8 @@ class Publish(perforce_publish_path: String) : BuildType({
         
         param("perforce_path_to_publish_into", perforce_publish_path)
         
-        param("env.P4PASSWD", "%platform_automation_pass%")
-        param("env.P4USER", "platform_automation")
+        param("env.P4PASSWD", "%frontier_automation_pass%")
+        param("env.P4USER", "frontier_automation")
         text("reverse.dep.*.env.GIT_TAG_HASH_OVERRIDE", "", label = "GTH override for component version in vendor", description = "GIT TAG HASH OVERRIDE, IF NEEDED FOR DEPENDENCIES", display = ParameterDisplay.PROMPT, allowEmpty = true)
         param("env.TC_BUILD_URL", "%teamcity.serverUrl%/viewLog.html?buildId=%teamcity.build.id%")
         text("eve_branch_shortname", "", label = "Branch Name", description = """The name of the branch, for example MAINLINE""", display = ParameterDisplay.PROMPT, allowEmpty = false)
