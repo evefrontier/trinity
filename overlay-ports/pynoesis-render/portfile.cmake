@@ -5,9 +5,9 @@
 # neither depends on the other.
 #
 # Overlay-first: the headers are carried in this port directory, copied from
-# pynoesis/include. When the port moves to evefrontier/vcpkg-registry, only the
-# SOURCE_PATH line changes -- to a vcpkg_from_git of wherever pynr.h is published, pinned
-# to a tag.
+# evefrontier/pynoesis by update.py, which records the commit in vcpkg.json. When the port
+# moves to evefrontier/vcpkg-registry, only the SOURCE_PATH line changes -- to a
+# vcpkg_from_git of pynoesis, pinned to that commit.
 
 set(SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}")
 

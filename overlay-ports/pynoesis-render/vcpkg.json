@@ -1,4 +1,5 @@
 {
+  "$pynoesis-commit": "9b4d5c8ed424d7534085a380c485e33b3b042e48",
   "name": "pynoesis-render",
   "version": "1.0",
   "description": "pynr: the C ABI for rendering between pynoesis and the renderer that hosts it. Headers only."
