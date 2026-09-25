@@ -249,10 +249,16 @@ class Publish(perforce_publish_path: String) : BuildType({
                 artifactRules = "artifact.zip!**=>%perforce_path_to_publish_into%/${Windows.TrinityDev.depParamRefs["env.GIT_TAG_HASH"]}"
             }
         }
-        artifacts(AbsoluteId("Infrastructure_MetaTeamCity_Tools_TeamcityChanges")) {
-            buildRule = lastSuccessful()
-            artifactRules = "binaries.zip!*=>"
-        }
+        /*
+            No teamcity-changes artifact on purpose. publish-to-perforce.py appends that tool's
+            stdout to the changelist description verbatim, while indenting every line it writes
+            itself. The tool always opens with an unindented "----------------", which p4 reads
+            as a field name, so "p4 submit -i" dies with a syntax error. Carbon gets away with it
+            only because its project has no TC_API_USER / TC_API_PASSWORD, so the tool fails, logs
+            nothing and writes an empty description block. This project inherits those credentials
+            from FRONTIER, the tool succeeds, and the submit breaks. Without the artifact the
+            script skips the block on its os.path.exists guard.
+        */
     }
 
     requirements {
