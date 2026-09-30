@@ -1870,7 +1870,7 @@ if(WITH_NOESIS)
         overlay-ports/pynoesis-render until it is published to a registry. The major version is the
         ABI major, so this refuses a header this Trinity cannot speak.
     ]]
-    find_package(pynoesis-render 1 CONFIG REQUIRED)
+    find_package(pynoesis-render 2 CONFIG REQUIRED)
 endif()
 
 

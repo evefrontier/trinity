@@ -258,9 +258,9 @@ Tr2NoesisGpuDevice& FrameDevice( void* self )
 }
 
 void HostUpdateTexture( void* self, pynr_texture texture, uint32_t level, uint32_t x, uint32_t y,
-						uint32_t width, uint32_t height, const void* data )
+						uint32_t width, uint32_t height, const void* data, uint32_t pitch )
 {
-	FrameDevice( self ).UpdateTexture( AsTexture( texture ), level, x, y, width, height, data );
+	FrameDevice( self ).UpdateTexture( AsTexture( texture ), level, x, y, width, height, data, pitch );
 }
 
 void HostBeginOffscreen( void* self ) { FrameDevice( self ).BeginOffscreenRender(); }
