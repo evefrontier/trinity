@@ -2,13 +2,17 @@
 # Copyright © 2026 CCP ehf.
 """Fill the pynoesis-render overlay port from a published pynoesis.
 
-    py overlay-ports/pynoesis-render/update.py
+    py overlay-ports/pynoesis-render/update.py v0.2.0
     py overlay-ports/pynoesis-render/update.py <branch, tag or full commit sha>
     py overlay-ports/pynoesis-render/update.py --repo ../pynoesis main
 
 Fetches one commit of evefrontier/pynoesis, copies include/pynr.h and include/pynr_python.h
 into include/ byte for byte, sets the port version to the ABI version those headers
 declare, and records the commit in vcpkg.json so a header diff says where it came from.
+
+Take a release tag. The commit is still what the port is pinned to, since a tag can be
+moved and a commit cannot, but the tag is recorded beside it: the port version is the
+ABI version, so without it nothing says which pynoesis release the headers belong to.
 
 The fetch is plain git, so it authenticates the way any clone of the repository does.
 --repo takes any git remote, including a local checkout, for trying out headers that are
@@ -55,6 +59,14 @@ def fetch_headers(repo_url: str, ref: str) -> tuple[str, dict[str, bytes]]:
     return commit, headers
 
 
+def tag_named(repo_url: str, ref: str) -> str | None:
+    """`ref` when the repository has a tag by that name, otherwise None."""
+    if Path(repo_url).is_dir():
+        repo_url = str(Path(repo_url).resolve())
+    listed = git(PORT_DIR, "ls-remote", "--tags", repo_url, f"refs/tags/{ref}")
+    return ref if listed.strip() else None
+
+
 def abi_version(header: bytes) -> str:
     """The ABI version pynr.h declares, read the same way portfile.cmake reads it."""
     parts = []
@@ -66,15 +78,19 @@ def abi_version(header: bytes) -> str:
     return ".".join(parts)
 
 
-def update_manifest(version: str, commit: str) -> str:
-    """Set the port version and source commit, and return the version it replaced."""
+def update_manifest(version: str, commit: str, tag: str | None) -> str:
+    """Set the port version and source, and return the version it replaced."""
     manifest_path = PORT_DIR / "vcpkg.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     previous = manifest["version"]
-    # vcpkg ignores fields that start with "$", and format-manifest sorts them first.
-    manifest = {"$pynoesis-commit": commit, **{k: v for k, v in manifest.items() if k != "$pynoesis-commit"}}
+    # vcpkg ignores fields that start with "$", and format-manifest sorts them first. A
+    # tag left over from an earlier update would name the wrong release, so it goes.
+    source = {"$pynoesis-commit": commit, **({"$pynoesis-tag": tag} if tag else {})}
+    manifest = {**source, **{k: v for k, v in manifest.items() if not k.startswith("$pynoesis-")}}
     manifest["version"] = version
-    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    # newline, or Windows writes CRLF into a file the repository keeps as LF.
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8",
+                             newline="\n")
     return previous
 
 
@@ -91,15 +107,16 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
 
     commit, headers = fetch_headers(args.repo, args.ref)
+    tag = tag_named(args.repo, args.ref)
     version = abi_version(headers["pynr.h"])
 
     include_dir = PORT_DIR / "include"
     include_dir.mkdir(exist_ok=True)
     for name, content in headers.items():
         (include_dir / name).write_bytes(content)
-    previous = update_manifest(version, commit)
+    previous = update_manifest(version, commit, tag)
 
-    print(f"pynoesis-render {version} from pynoesis {commit}")
+    print(f"pynoesis-render {version} from pynoesis {tag + ' ' if tag else ''}{commit}")
     if previous.split(".")[0] != version.split(".")[0]:
         # SameMajorVersion refuses the new port until the consumers ask for the new major.
         print(f"The ABI major changed from {previous}: bump find_package(pynoesis-render) in "

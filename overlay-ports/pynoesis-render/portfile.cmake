@@ -38,6 +38,7 @@ write_basic_package_version_file("${CURRENT_PACKAGES_DIR}/share/${PORT}/${PORT}C
 
 file(INSTALL
     "${CMAKE_CURRENT_LIST_DIR}/${PORT}Config.cmake"
-    "${CMAKE_CURRENT_LIST_DIR}/usage"
     DESTINATION "${CURRENT_PACKAGES_DIR}/share/${PORT}")
+# Generated, so the find_package line it prints names the major this port installs.
+configure_file("${CMAKE_CURRENT_LIST_DIR}/usage.in" "${CURRENT_PACKAGES_DIR}/share/${PORT}/usage" @ONLY)
 vcpkg_install_copyright(FILE_LIST "${CMAKE_CURRENT_LIST_DIR}/copyright")
