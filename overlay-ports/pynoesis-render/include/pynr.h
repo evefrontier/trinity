@@ -50,7 +50,7 @@ extern "C" {
 
 /* Bumped when an existing entry changes meaning, a struct changes layout, or a vtable
  * slot is removed or reordered. Both sides must agree on major. */
-#define PYNR_ABI_VERSION_MAJOR 1
+#define PYNR_ABI_VERSION_MAJOR 2
 
 /* Bumped when slots are appended to the end of a vtable. Informational: `struct_size` is
  * what compatibility is actually decided on, because it measures the same thing directly.
@@ -154,9 +154,9 @@ static PYNR_INLINE pynr_bool pynr_interface_usable( const pynr_interface_header*
  * enough to need it.
  *
  * Bump the vN suffix with PYNR_ABI_VERSION_MAJOR, and only then. */
-#define PYNR_CAPSULE_RENDER_DEVICE "pynr.render_device.v1"
-#define PYNR_CAPSULE_SHADER_SOURCE "pynr.shader_source.v1"
-#define PYNR_CAPSULE_VIEW          "pynr.view.v1"
+#define PYNR_CAPSULE_RENDER_DEVICE "pynr.render_device.v2"
+#define PYNR_CAPSULE_SHADER_SOURCE "pynr.shader_source.v2"
+#define PYNR_CAPSULE_VIEW          "pynr.view.v2"
 
 /* pynr_frame_context has no capsule: it is a parameter to the view render calls and never
  * crosses Python. */
@@ -597,9 +597,17 @@ typedef struct pynr_frame_context
 {
     pynr_interface_header header;
 
+    /* At most once per texture level per SDK update block, and never inside a render
+     * pass. The library merges the SDK's per-glyph writes into the one rect that bounds
+     * them, so a single call can cover up to the full level -- more than the SDK's own
+     * DYNAMIC_TEX_SIZE, which a host must not assume as a ceiling.
+     *
+     * `data` holds `height` rows of `width` texels each, and `pitch` is the distance in
+     * bytes from the start of one row to the start of the next. It is at least `width`
+     * times the texel size, and more when the rect is cut out of a wider image. */
     void (*update_texture)(void* self, pynr_texture texture, uint32_t level,
                            uint32_t x, uint32_t y, uint32_t width, uint32_t height,
-                           const void* data);
+                           const void* data, uint32_t pitch);
 
     void (*begin_offscreen_render)(void* self);
     void (*end_offscreen_render)(void* self);

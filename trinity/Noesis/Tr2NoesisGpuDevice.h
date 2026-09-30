@@ -112,7 +112,7 @@ public:
 	// store; DrawBatch looks it up from Batch::pixelShader. Null on failure.
 	void* CreatePixelShader( const char* label, uint8_t shader, const void* hlsl, uint32_t size );
 	void UpdateTexture( Tr2NoesisTexture* texture, uint32_t level, uint32_t x, uint32_t y,
-						uint32_t width, uint32_t height, const void* data );
+						uint32_t width, uint32_t height, const void* data, uint32_t pitch );
 	void BeginOffscreenRender();
 	void EndOffscreenRender();
 	void BeginOnscreenRender();

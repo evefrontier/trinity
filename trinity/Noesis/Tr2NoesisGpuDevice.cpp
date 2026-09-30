@@ -753,18 +753,15 @@ void* Tr2NoesisGpuDevice::CreatePixelShader( const char* label, uint8_t shader, 
 }
 
 void Tr2NoesisGpuDevice::UpdateTexture( Tr2NoesisTexture* texture, uint32_t level, uint32_t x, uint32_t y,
-										   uint32_t width, uint32_t height, const void* data )
+										   uint32_t width, uint32_t height, const void* data, uint32_t pitch )
 {
 	CCP_ASSERT_M( m_context != nullptr, "UpdateTexture without a render context" );
 	CCP_ASSERT_M( texture != nullptr, "UpdateTexture with null texture" );
 	CCP_ASSERT_M( data != nullptr, "UpdateTexture with null data" );
 
-	const uint32_t bpp = GetBytesPerPixel( texture->GetAL().GetFormat() );
-
 	Tr2TextureSubresource region( level );
 	region.SetRect( x, y, x + width, y + height );
 
-	const uint32_t pitch = width * bpp;
 	const ALResult result = texture->GetAL().UpdateSubresource( region, data, pitch, pitch * height, *m_context );
 	if( FAILED( result ) )
 	{
