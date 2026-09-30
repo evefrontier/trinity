@@ -57,7 +57,7 @@ extern "C" {
  * A receiver built against a lower minor than the sender is fine -- it reads the prefix it
  * knows, and struct_size proves the prefix is there. The reverse is what gets refused, and
  * struct_size catches it whether or not the sender remembered to bump this. */
-#define PYNR_ABI_VERSION_MINOR 0
+#define PYNR_ABI_VERSION_MINOR 1
 
 #if defined(__cplusplus)
 #define PYNR_INLINE inline
@@ -669,6 +669,20 @@ typedef struct pynr_view
     void (*update_render_tree)(void* self, const pynr_frame_context* frame);
     pynr_bool (*render_offscreen)(void* self, const pynr_frame_context* frame);
     void (*render)(void* self, const pynr_frame_context* frame, pynr_bool flip_y, pynr_bool clear);
+
+    /* Whether a hit-testable element sits under a view-local point, for a host whose own
+     * picker has to decide between this view and whatever lies beneath it. Not a frame
+     * call: it reads the layout the last update produced and touches no GPU state.
+     *
+     * The point is in the same physical pixels the mouse entries take, origin upper-left
+     * of the view; the library maps it through the view's scale. Visibility and
+     * IsHitTestVisible are honoured down the tree, and beyond that the answer is the
+     * element's own hit-test geometry: a Panel with no Background is transparent, one with
+     * Background="Transparent" is not, as in WPF. False for a view with no content.
+     *
+     * Appended in ABI 2.1. A host built against this header receiving an older sender
+     * has no slot here: check struct_size before calling. */
+    pynr_bool (*hit_test)(void* self, float x, float y);
 } pynr_view;
 
 #ifdef __cplusplus

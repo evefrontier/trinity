@@ -11,7 +11,9 @@
 // Description:
 //   A sprite-tree node that renders a Tr2NoesisView at this z-order, the same way
 //   Tr2Sprite2dRenderJob runs a nested job. Host Python puts it in a container's
-//   children list; display, layout and picking come from Tr2SpriteObjectBase.
+//   children list; display and layout come from Tr2SpriteObjectBase. Picking is the
+//   base's rectangle test followed by the view's own hit test, so a pick on a part of
+//   the view with no hit-testable element falls through to the sprites beneath.
 //
 //   Internally this owns a TriRenderJob whose only step is TriStepRenderNoesis, so
 //   GatherSprites can go through Tr2Sprite2dScene::RunJob (flush, leave sprite
@@ -44,6 +46,11 @@ public:
 private:
 	void EnsureJob();
 	bool SyncOverrideViewport( Tr2Sprite2dScene* renderer );
+
+	// Whether the view claims a point in the sprite's own pixels, origin at its top-left.
+	// True without a view, or with one too old to be asked, so the sprite then picks as
+	// an opaque rectangle the way every other sprite does.
+	bool ViewHasPoint( const Vector2& point ) const;
 
 	// Both are pushed to the step every gather, because the step is created lazily and
 	// Python has already set these by the time it exists.

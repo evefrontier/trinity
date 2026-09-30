@@ -5,6 +5,7 @@
 #include "Noesis/Tr2Sprite2dNoesis.h"
 
 #include "Noesis/Tr2NoesisLog.h"
+#include "Noesis/Tr2NoesisPynrInterface.h"
 #include "Noesis/Tr2NoesisRenderDevice.h"
 
 #include "Noesis/TriStepRenderNoesis.h"
@@ -178,14 +179,38 @@ ITr2SpriteObject* Tr2Sprite2dNoesis::PickPoint( float x, float y, Tr2Sprite2dSce
 	{
 		if( renderer->IsInside( Vector2( x, y ), m_translation, m_displayWidth, m_displayHeight, 0.0f ) )
 		{
-			if( !m_pickingMask || m_pickingMask->SampleMask( renderer->InverseTransformPoint( Vector2( x, y ) ), m_translation, m_displayWidth, m_displayHeight ) )
+			const Vector2 local = renderer->InverseTransformPoint( Vector2( x, y ) );
+			if( !m_pickingMask || m_pickingMask->SampleMask( local, m_translation, m_displayWidth, m_displayHeight ) )
 			{
+				// The rectangle is the view's, not its content's. A view over other sprites
+				// -- the HUD over the space scene -- must take only the picks that land on
+				// a hit-testable element, and let the rest fall through to what is beneath,
+				// so the view is asked before the sprite claims the point. The point goes
+				// across in the sprite's own pixels, origin at its top-left, which is the
+				// convention the view's mouse entries already take.
+				if( !ViewHasPoint( local - m_translation ) )
+				{
+					return NULL;
+				}
 				return this;
 			}
 		}
 	}
 
 	return NULL;
+}
+
+bool Tr2Sprite2dNoesis::ViewHasPoint( const Vector2& point ) const
+{
+	// No view is the plain sprite it always was: an opaque rectangle. A view from a
+	// pynoesis older than ABI 2.1 has no hit_test slot, and Tr2NoesisTakePynrInterface
+	// admits one on purpose so the two can move independently; it reads as opaque too.
+	if( m_view == nullptr || !Tr2NoesisViewHasHitTest( m_view ) )
+	{
+		return true;
+	}
+
+	return m_view->hit_test( m_view->header.self, point.x, point.y ) != PYNR_FALSE;
 }
 
 unsigned int Tr2Sprite2dNoesis::GetVertexCount()
