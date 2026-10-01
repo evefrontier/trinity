@@ -45,6 +45,24 @@ inline bool Tr2NoesisTakePynrInterface( PyObject* object, const char* capsuleNam
 	}
 }
 
+// How much of pynr_view a sender must carry to be driven at all: everything up to the
+// frame sequence, which is where Trinity's calls into a view stopped before ABI 2.1.
+//
+// hit_test was appended in 2.1, and the pick is the only caller: a view without it picks
+// as an opaque rectangle, which is what it did before the slot existed. So a pynoesis one
+// minor behind is admitted and asked, rather than refused at set_view, and the two
+// modules can move independently -- which is what appending a slot is for.
+const size_t TR2_NOESIS_PYNR_VIEW_REQUIRED_SIZE = offsetof( pynr_view, hit_test );
+
+// True when the sender's vtable carries hit_test. struct_size, not the minor: pynr.h says
+// the size is what compatibility is decided on, since it measures the slot directly.
+inline bool Tr2NoesisViewHasHitTest( const pynr_view* view )
+{
+	return view != nullptr
+		&& view->header.struct_size >= offsetof( pynr_view, hit_test ) + sizeof( view->hit_test )
+		&& view->hit_test != nullptr;
+}
+
 // The set_view binding, shared by Tr2Sprite2dNoesis and TriStepRenderNoesis. Templated on
 // the Blue class so the capsule name and the interface size are stated once.
 template<typename T>
@@ -57,7 +75,7 @@ PyObject* Tr2NoesisPySetView( PyObject* self, PyObject* args )
 	}
 
 	void* pointer = nullptr;
-	if( !Tr2NoesisTakePynrInterface( view, PYNR_CAPSULE_VIEW, sizeof( pynr_view ), pointer ) )
+	if( !Tr2NoesisTakePynrInterface( view, PYNR_CAPSULE_VIEW, TR2_NOESIS_PYNR_VIEW_REQUIRED_SIZE, pointer ) )
 	{
 		return nullptr;
 	}

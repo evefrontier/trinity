@@ -1,7 +1,7 @@
 {
-  "$pynoesis-commit": "ef5d08d69c82157210d6245a4626823e68014001",
-  "$pynoesis-tag": "v0.2.0",
+  "$pynoesis-commit": "33a6f6b6af37130cc82f4629038050f0d770be8a",
+  "$pynoesis-tag": "v0.2.1",
   "name": "pynoesis-render",
-  "version": "2.0",
+  "version": "2.1",
   "description": "pynr: the C ABI for rendering between pynoesis and the renderer that hosts it. Headers only."
 }
