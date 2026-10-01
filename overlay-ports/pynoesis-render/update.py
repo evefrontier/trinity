@@ -54,7 +54,7 @@ def fetch_headers(repo_url: str, ref: str) -> tuple[str, dict[str, bytes]]:
         scratch_repo = Path(scratch)
         git(scratch_repo, "init", "--quiet")
         git(scratch_repo, "fetch", "--quiet", "--depth", "1", "--no-tags", repo_url, ref)
-        commit = git(scratch_repo, "rev-parse", "FETCH_HEAD").decode().strip()
+        commit = git(scratch_repo, "rev-parse", "FETCH_HEAD^{commit}").decode().strip()
         headers = {name: git(scratch_repo, "show", f"FETCH_HEAD:include/{name}") for name in HEADERS}
     return commit, headers
 
